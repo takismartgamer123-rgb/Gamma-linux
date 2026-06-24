@@ -62,51 +62,68 @@ jobs:
           fi
           echo "✅ Found squashfs at: $SQUASH_PATH"
           sudo unsquashfs -f -d squashfs-root-32 -processors $(nproc) "$SQUASH_PATH"
-      - name: 📝 Create Warden Scripts
-        run: |
-          cat > warden-setup-64.sh << 'EOF'
-          #!/bin/bash
-          zenity --info --title="Warden OS Setup ♾️" --text="Salam! Welcome to Warden OS\n\nBuilt from Guelma, Algeria 🇩🇿\nBecause no PC deserves to die 🔥" --width=400
-          NET_CHOICE=$(zenity --list --title="Network Setup" --text="Choose how to continue:" --width=400 --height=250 --column="Option" --column="Description" "Connect" "Connect to WiFi/Ethernet first" "Offline" "Continue without internet - 100% offline mode" "Skip" "I will connect later, just setup the basics")
-          case $NET_CHOICE in "Connect") nm-connection-editor & zenity --info --text="Connect to your network then press OK to continue." ;; "Offline"|"Skip"|"") OFFLINE_MODE=1 ;; esac           RAM=$(free -m | awk '/^Mem:/{print $2}')
-          if [ $RAM -lt 2048 ]; then if zenity --question --title="Speed Boost" --text="Your PC has ${RAM}MB RAM\n\nEnable ZRAM + Hibernate?\nRecommended for old PCs." --width=400; then sudo apt-get install -y zram-config sudo systemctl enable zram-config SWAPSIZE=$(($RAM _ 2)); if [ ! -f /swapfile ]; then sudo fallocate -l ${SWAPSIZE}M /swapfile; sudo chmod 600 /swapfile; sudo mkswap /swapfile; echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab; sudo swapon /swapfile; fi; fi; fi
-          zenity --info --title="Setup Complete ♾️" --text="Warden OS Ready!\n\nRun 'warden-store' anytime for apps\nBuilt by Taki from Guelma 🇩🇿"
-          EOF
-      cat > warden-setup-64-lite.sh << 'EOF'
-      #!/bin/bash
-      set -e
-      echo "🧹 WARDEN LITE: Starting aggressive debloat..."
-      
-      # Remove bloatware packages
-      apt purge -y firefox* libreoffice* thunderbird* transmission* \
-          hexchat pidgin rhythmbox* totem* cheese simple-scan \
-          gnome-games aisleriot mahjongg gnome-sudoku \
-          snapd flatpak 2>/dev/null || true
-          
-      # Fix GPG keys + Safe apt - هذا هو المهم
-      apt-get install -y debian-archive-keyring ca-certificates || true
-      apt-get update --allow-insecure-repositories || true
-      apt-get update --allow-unauthenticated || true
-      apt autoremove --purge -y || true
-      apt clean || true
-      
-      # Lite optimizations
-      systemctl disable cups bluetooth avahi-daemon || true
-      
-      zenity --info --title="Warden OS Lite Setup" --text="Warden OS Lite Ready! Max RAM: 512MB"
-      EOF
-          cat > warden-setup-32.sh << 'EOF'
-          #!/bin/bash
-          zenity --info --title="Warden OS Setup ♾️ 32-bit" --text="Salam! Welcome to Warden OS 32-bit\n\nBuilt from Guelma, Algeria 🇩🇿\nFor PCs from 2004 🔥" --width=400
-          NET_CHOICE=$(zenity --list --title="Network Setup" --text="Choose how to continue:" --width=400 --height=250 --column="Option" --column="Description" "Connect" "Connect to WiFi/Ethernet first" "Offline" "Continue without internet - 100% offline mode" "Skip" "I will connect later, just setup the basics")
-          case $NET_CHOICE in "Connect") nm-connection-editor & zenity --info --text="Connect to your network then press OK to continue." ;; "Offline"|"Skip"|"") OFFLINE_MODE=1 ;; esac           RAM=$(free -m | awk '/^Mem:/{print $2}')
-          if [ $RAM -lt 1024 ]; then if zenity --question --title="Speed Boost" --text="Your PC has ${RAM}MB RAM\n\nEnable ZRAM + Hibernate?\nRecommended for old PCs." --width=400; then sudo apt-get install -y zram-config sudo systemctl enable zram-config SWAPSIZE=$(($RAM _ 2)); if [ ! -f /swapfile ]; then sudo fallocate -l ${SWAPSIZE}M /swapfile; sudo chmod 600 /swapfile; sudo mkswap /swapfile; echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab; sudo swapon /swapfile; fi; fi; fi
-          zenity --info --title="Setup Complete ♾️" --text="Warden OS 32-bit Ready!\n\nRun 'warden-store' anytime for apps\nBuilt by Taki from Guelma 🇩🇿"
-          EOF
-          cat > warden-store.sh << 'EOF'
-          #!/bin/bash
-          install_app() { PKG=$1; NAME=$2; ( echo "10"; sleep 1; echo "# Updating package list..."; sudo apt-get update -y > /dev/null 2>&1; echo "50"; sleep 1; echo "# Installing $NAME..."; sudo apt-get install -y --no-install-recommends $PKG > /dev/null 2>&1; echo "100"; sleep 1; echo "# Done!" ) | zenity --progress --title="Installing $NAME" --text="Please wait..." --percentage=0 --auto-close --width=400; if [ $? = 0 ]; then zenity --info --text="$NAME installed successfully! ✅\n\nCheck your app menu." --width=300; else zenity --error --text="Failed to install $NAME\n\nCheck your internet connection."; fi }           while true; do CHOICE=$(zenity --list --title="Warden Store v2.0 ♾️" --text="Welcome! Install apps without terminal\n\nChoose an option:" --width=550 --height=450 --column="Option" --column="Description" "🔍 Search" "Search any app from 60,000 packages" "⭐ Popular" "Curated list of best apps for old PCs" "📦 Installed" "View & remove your apps" "❌ Exit" "Close Warden Store"); case $CHOICE in "🔍 Search") SEARCH_TERM=$(zenity --entry --title="Search Apps" --text="Type app name or keyword:\nExample: photo, video, music, game" --width=400); if [ -n " $SEARCH_TERM" ]; then RESULTS=$(apt-cache search $SEARCH_TERM | grep -vE 'lib|dev|dbg|python-|ruby-|perl-' | head -20 | awk -F' - ' '{print "FALSE", $1, $2}'); if [ -z "$RESULTS" ]; then zenity --info --text="No results found for ' $SEARCH_TERM'\n\nTry different keyword."; else SELECTED=$(echo $RESULTS | xargs zenity --list --radiolist --title="Search Results" --text="Found these apps for '$SEARCH_TERM':" --width=700 --height=500 --column="Install" --column="Package" --column="Description"); if [ -n "$SELECTED" ]; then if zenity --question --text="Install $SELECTED?\n\nThis will download from Ubuntu repos."; then install_app "$SELECTED" " $SELECTED"; fi; fi; fi; fi ;; "⭐ Popular") APP=$(zenity --list --radiolist --title="Popular Apps" --text="Best apps tested on old PCs:" --width=700 --height=500 --column="Pick" --column="App" --column="Size" --column="Why it's good" FALSE "freetube" "∼80MB" "YouTube without ads. Privacy king." FALSE "vlc" "∼40MB" "Plays everything. Essential player." FALSE "libreoffice" "∼250MB" "Complete Office suite. For study/work." FALSE "gimp" "∼90MB" "Photoshop free. Edit photos like pro." FALSE "minetest" "∼40MB" "Minecraft offline. Kids love it." FALSE "telegram-desktop" "∼60MB" "Fast chat. Better than Discord." FALSE "code-oss" "∼80MB" "VSCode for coding. No Microsoft spy." FALSE "onlyoffice-desktopeditors" "∼300MB" "MS Office clone. Best compatibility." FALSE "midori" "∼20MB" "Light browser for 32-bit" FALSE "abiword" "∼10MB" "Word for 32-bit" FALSE "gnumeric" "∼15MB" "Excel for 32-bit"); if [ -n "$APP" ]; then if [ " $APP" = "freetube" ]; then FT_URL=$(wget -qO- https://api.github.com/repos/FreeTubeApp/FreeTube/releases/latest | grep browser_download_url | grep amd64.deb | cut -d'"' -f4); xterm -hold -e "wget $FT_URL -O /tmp/ft.deb && sudo apt install -y /tmp/ft.deb"; zenity --info --text="FreeTube installed! ✅"; elif [ "$APP" = "onlyoffice-desktopeditors" ]; then xterm -hold -e "wget https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb -O /tmp/oo.deb && sudo apt install -y /tmp/oo.deb"; zenity --info --text="OnlyOffice installed! ✅"; else install_app "$APP" " $APP"; fi; fi ;; "📦 Installed") INSTALLED=$(dpkg --get-selections | grep -v deinstall | awk '{print $1}' | grep -vE '^lib|^linux-|^gir1.2' | sort); REMOVE_APP=$(echo $INSTALLED | xargs zenity --list --title="Installed Apps" --text="Select app to remove:" --width=500 --height=600 --column="Package"); if [ -n "$REMOVE_APP" ]; then if zenity --question --text="Remove $REMOVE_APP?\n\nThis will free up space."; then xterm -hold -e "sudo apt purge -y $REMOVE_APP && sudo apt autoremove -y && echo 'Removed!'; bash"; fi; fi ;; "❌ Exit"|"") exit 0 ;; esac done
-          EOF
+    - name: Create Warden Scripts
+      run: |
+        cat > warden-setup-64.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        echo "WARDEN: Starting aggressive debloat..."
+        
+        apt purge -y firefox* libreoffice* thunderbird* transmission* \
+            hexchat pidgin rhythmbox* totem* cheese simple-scan \
+            gnome-games aisleriot mahjongg gnome-sudoku \
+            snapd flatpak 2>/dev/null || true
+            
+        apt-get install -y debian-archive-keyring ca-certificates || true
+        apt-get update --allow-insecure-repositories || true
+        apt-get update --allow-unauthenticated || true
+        apt autoremove --purge -y || true
+        apt clean || true
+        
+        zenity --info --title="Setup Complete" --text="Warden OS Ready"
+        EOF
+        
+        cat > warden-setup-64-lite.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        echo "WARDEN LITE: Starting aggressive debloat..."
+        
+        apt purge -y firefox* libreoffice* thunderbird* transmission* \
+            hexchat pidgin rhythmbox* totem* cheese simple-scan \
+            gnome-games aisleriot mahjongg gnome-sudoku \
+            snapd flatpak 2>/dev/null || true
+            
+        apt-get install -y debian-archive-keyring ca-certificates || true
+        apt-get update --allow-insecure-repositories || true
+        apt-get update --allow-unauthenticated || true
+        apt autoremove --purge -y || true
+        apt clean || true
+        
+        systemctl disable cups bluetooth avahi-daemon || true
+        
+        zenity --info --title="Setup Complete" --text="Warden OS Lite Ready"
+        EOF
+        
+        cat > warden-setup-32.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        echo "WARDEN 32: Starting aggressive debloat..."
+        
+        apt purge -y firefox* libreoffice* thunderbird* transmission* \
+            hexchat pidgin rhythmbox* totem* cheese simple-scan \
+            gnome-games aisleriot mahjongg gnome-sudoku \
+            snapd flatpak 2>/dev/null || true
+            
+        apt-get install -y debian-archive-keyring ca-certificates || true
+        apt-get update --allow-insecure-repositories || true
+        apt-get update --allow-unauthenticated || true
+        apt autoremove --purge -y || true
+        apt clean || true
+        
+        zenity --info --title="Setup Complete" --text="Warden OS 32-bit Ready"
+        EOF
+        
+        chmod +x warden-setup-*.sh
       - name: 🏗️ Build All Three Editions
         run: |
           sudo rsync -a bodhi64/ ext64/ --exclude=/casper/filesystem.squashfs
