@@ -76,28 +76,23 @@ jobs:
         sudo mount -t sysfs none chroot/sys
         sudo mount -t devpts none chroot/dev/pts
         
-        # Fix 1: resolv.conf symlink
         sudo rm -f chroot/etc/resolv.conf
         echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
         
-        # Fix 2: Kill apt locks + fix dpkg
         sudo chroot chroot bash -c "rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock_ || true"
         sudo chroot chroot dpkg --configure -a || true
         
-        # Fix 3: CRITICAL - Remove CD-ROM from sources for legacy
         sudo sed -i '/cdrom:/d' chroot/etc/apt/sources.list
         sudo sed -i '/file:\/run\/live/d' chroot/etc/apt/sources.list
         sudo rm -f chroot/etc/apt/sources.list.d/_ || true
         
-        # Fix 4: Add proper Bodhi/Debian repos
         sudo tee chroot/etc/apt/sources.list << 'EOF'
-        deb http://packages.bodhilinux.com/bodhi bookworm main
+        deb http://packages.bodhilinux.com/bodhi bookworm b7main
         deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
         deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
         deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
         EOF
         
-        # Fix 5: Update + install keyrings
         sudo chroot chroot apt-get update --allow-insecure-repositories || true
         sudo chroot chroot apt-get install -y --allow-unauthenticated debian-archive-keyring bodhi-keyring || true
         sudo chroot chroot apt-get update
@@ -118,7 +113,16 @@ jobs:
           FALSE "Full" "Install everything - For 4GB+ RAM" \
           --height=300 --width=500)
         
-        BROWSER= $(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" \           --column="Select" --column="Browser" \           TRUE "falkon" \           FALSE "epiphany-browser" \           FALSE "firefox-esr" \           FALSE "chromium" \           FALSE "none" \           --height=300)                  LANGS=$(zenity --list --checklist --title="Select Languages" --text="Choose languages to install:" \
+        BROWSER= $(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" \
+           --column="Select" --column="Browser" \
+           TRUE "falkon" \
+           FALSE "epiphany-browser" \
+           FALSE "firefox-esr" \
+           FALSE "chromium" \
+           FALSE "none" \
+           --height=300)
+         
+         LANGS=$(zenity --list --checklist --title="Select Languages" --text="Choose languages to install:" \
           --column="Select" --column="Language" \
           TRUE "Arabic" \
           TRUE "English" \
@@ -183,7 +187,6 @@ jobs:
         X-GNOME-Autostart-enabled=true
         EOF
         
-        # Install zenity safely
         sudo chroot chroot apt-get install -y zenity htop || true
         sudo chroot chroot apt-get purge -y 'midori_' 'netsurf_' 'epad_' 'leafpad_' 'snapd_' 'flatpak_' 2>/dev/null || true
         
@@ -210,9 +213,20 @@ jobs:
         sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/boot/grub/grub.cfg 2>/dev/null || true
         sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
         sudo sed -i 's/bodhi/warden/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
-        echo "menu title Warden OS ${{ matrix.name }} - Built from Guelma 🇩🇿 by Taki" | sudo tee -a ext/isolinux/isolinux.cfg                  cd ext         EFI_ARGS=""         if [ -f boot/grub/efi.img ]; then           EFI_ARGS="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"         fi         sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "WARDEN_${{ matrix.name }}" -eltorito-boot isolinux/isolinux.bin -eltorito-catalog isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin $EFI_ARGS -output "../warden-${{ matrix.name }}.iso" .
+        echo "menu title Warden OS ${{ matrix.name }} - Built from Guelma 🇩🇿 by Taki" | sudo tee -a ext/isolinux/isolinux.cfg
+         
+         cd ext
+         EFI_ARGS=""
+         if [ -f boot/grub/efi.img ]; then
+           EFI_ARGS="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"
+         fi
+         sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "WARDEN_${{ matrix.name }}" -eltorito-boot isolinux/isolinux.bin -eltorito-catalog isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin $EFI_ARGS -output "../warden-${{ matrix.name }}.iso" .
         cd ..
-        ls -lh warden- ${{ matrix.name }}.iso     - name: 🔐 Upload ISO       uses: actions/upload-artifact@v4       with:         name: warden-${{ matrix.name }}.iso
+        ls -lh warden- ${{ matrix.name }}.iso
+     - name: 🔐 Upload ISO
+       uses: actions/upload-artifact@v4
+       with:
+         name: warden-${{ matrix.name }}.iso
         path: warden-${{ matrix.name }}.iso
     - name: 🚀 Create Release
       if: github.event_name != 'workflow_dispatch'
