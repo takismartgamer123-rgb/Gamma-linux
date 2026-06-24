@@ -1,58 +1,19 @@
-name: Build & Release Warden OS v1.4 Zero-Bloat ♾️🇩🇿
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release Version مثل: v1.4'
-        required: true
-        default: 'v1.4'
-  push:
-    tags:
-      - 'v_'
-permissions:
-  contents: write
-jobs:
-  build-release:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 150
-    steps:
-      - name: ⚔️ Checkout Code
-        uses: actions/checkout@v4
-      - name: 💪 Free Disk Space
+       - name: 🔓 Extract Base System 64-bit
         run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
-          sudo apt-get clean
-          df -h
-      - name: 📦 Install Build Tools
+          sudo unsquashfs -f -d squashfs-root-64 -processors $(nproc) bodhi64/casper/filesystem.squashfs
+          
+       - name: 🔓 Extract Base System 32-bit
         run: |
-          sudo apt-get update
-          sudo apt-get install -y squashfs-tools xorriso wget curl genisoimage rsync zstd grub-efi-amd64-bin grub-pc-bin mtools
-      - name: ⬇️ Download Bodhi Base 64-bit
-        run: |
-          echo "Downloading 64-bit from Archive.org"
-          wget --tries=5 --timeout=30 -O bodhi64.iso "https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso"
-          file bodhi64.iso
-          SIZE=$(stat -c%s bodhi64.iso)
-          echo "Size: $SIZE bytes"
-          if [ $SIZE -lt 1000000000 ]; then echo "❌ Download failed! File too small"; exit 1; fi
-          mkdir -p bodhi64
-          sudo mount -o loop bodhi64.iso bodhi64
-      - name: ⬇️ Download Bodhi Base 32-bit Legacy
-        run: |
-          echo "Downloading 32-bit Legacy from SF using curl"
-          curl -L --retry 5 --retry-delay 3 -o bodhi32.iso "https://downloads.sourceforge.net/project/bodhilinux/7.0.0-beta/bodhi-7.0.0-legacy-beta.iso"
-          file bodhi32.iso
-          SIZE=$(stat -c%s bodhi32.iso)
-          echo "Size: $SIZE bytes"
-          if [ $SIZE -lt 800000000 ]; then echo "❌ Download failed! File too small"; exit 1; fi
-          mkdir -p bodhi32
-          sudo mount -o loop bodhi32.iso bodhi32
-      - name: 🔓 Extract Base System 64-bit
-        run: |
-          sudo unsquashfs -f -d squashfs-root-64 -processors $(nproc) bodhi64/casper/filesystem.squashfs       - name: 🔓 Extract Base System 32-bit         run: |           echo "=== Finding filesystem.squashfs inside Bodhi 32-bit ==="           SQUASH_PATH=$(find bodhi32/ -name "filesystem.squashfs" | head -1)
-          if [ -z "$SQUASH_PATH" ]; then echo "❌ filesystem.squashfs not found"; exit 1; fi
+          echo "=== Finding filesystem.squashfs inside Bodhi 32-bit ==="
+          SQUASH_PATH=$(find bodhi32/ -name "filesystem.squashfs" | head -1)
+          if [ -z "$SQUASH_PATH" ]; then 
+            echo "❌ filesystem.squashfs not found"
+            find bodhi32/ -type f
+            exit 1
+          fi
           echo "✅ Found squashfs at: $SQUASH_PATH"
           sudo unsquashfs -f -d squashfs-root-32 -processors $(nproc) "$SQUASH_PATH"
+          
       - name: 📝 Create Warden Scripts
         run: |
           cat > warden-setup-64.sh << 'EOF'
