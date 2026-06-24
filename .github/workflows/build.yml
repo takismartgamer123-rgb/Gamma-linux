@@ -80,16 +80,7 @@ jobs:
           FALSE "Full" "Install everything - For 4GB+ RAM" \
           --height=300 --width=500)
         
-        BROWSER=$(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" \
-          --column="Select" --column="Browser" \
-          TRUE "falkon" \
-          FALSE "epiphany-browser" \
-          FALSE "firefox-esr" \
-          FALSE "chromium" \
-          FALSE "none" \
-          --height=300)
-        
-        LANGS=$(zenity --list --checklist --title="Select Languages" --text="Choose languages to install:" \
+        BROWSER= $(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" \           --column="Select" --column="Browser" \           TRUE "falkon" \           FALSE "epiphany-browser" \           FALSE "firefox-esr" \           FALSE "chromium" \           FALSE "none" \           --height=300)                  LANGS=$(zenity --list --checklist --title="Select Languages" --text="Choose languages to install:" \
           --column="Select" --column="Language" \
           TRUE "Arabic" \
           TRUE "English" \
@@ -159,7 +150,9 @@ jobs:
         sudo chroot chroot apt-get update --allow-unauthenticated || true
         sudo chroot chroot apt-get install -y zenity htop
         
-        if [ " ${{ matrix.name }}" = "lite-ghost" ]; then           sudo chroot chroot apt-get purge -y 'firefox_' 'libreoffice_' 'thunderbird_' 'snapd_' 'flatpak_' 'midori_' 'netsurf_' 'epad_' 'leafpad_' 2>/dev/null || true         elif [ "${{ matrix.name }}" = "pro-maxmini" ]; then
+        if [ "${{ matrix.name }}" = "lite-ghost" ]; then
+          sudo chroot chroot apt-get purge -y 'firefox_' 'libreoffice_' 'thunderbird_' 'snapd_' 'flatpak_' 'midori_' 'netsurf_' 'epad_' 'leafpad_' 2>/dev/null || true
+        elif [ "${{ matrix.name }}" = "pro-maxmini" ]; then
           sudo chroot chroot apt-get purge -y 'snapd_' 'flatpak_' 'thunderbird_' 'transmission_' 'hexchat_' 'pidgin_' 'rhythmbox_' 'totem_' 'cheese_' 2>/dev/null || true
         else
           sudo chroot chroot apt-get purge -y 'midori_' 'netsurf_' 'epad_' 'leafpad_' 2>/dev/null || true
@@ -183,26 +176,10 @@ jobs:
         sudo sed -i 's/Linux Mint/Warden OS - Guelma 🇩🇿/g' ext/boot/grub/grub.cfg 2>/dev/null || true
         sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
         sudo sed -i 's/Linux Mint/Warden OS - Guelma 🇩🇿/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
-        echo "menu title Warden OS ${{ matrix.name }} - Built from Guelma 🇩🇿 by Taki" | sudo tee -a ext/isolinux/isolinux.cfg
-        
-        cd ext
-        EFI_ARGS=""
-        if [ -f boot/grub/efi.img ]; then
-          EFI_ARGS="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"
-        fi
-        sudo xorriso -as mkisofs \
-          -iso-level 3 -full-iso9660-filenames \
-          -volid "WARDEN_${{ matrix.name }}" \
-          -eltorito-boot isolinux/isolinux.bin \
-          -eltorito-catalog isolinux/boot.cat \
-          -no-emul-boot -boot-load-size 4 -boot-info-table \
-          -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
-          $EFI_ARGS \
-          -output "../warden- ${{ matrix.name }}.iso" .         cd ..         ls -lh warden-${{ matrix.name }}.iso
-    - name: 🔐 Upload ISO
-      uses: actions/upload-artifact@v4
-      with:
-        name: warden- ${{ matrix.name }}.iso         path: warden-${{ matrix.name }}.iso
+        echo "menu title Warden OS ${{ matrix.name }} - Built from Guelma 🇩🇿 by Taki" | sudo tee -a ext/isolinux/isolinux.cfg                  cd ext         EFI_ARGS=""         if [ -f boot/grub/efi.img ]; then           EFI_ARGS="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"         fi         sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "WARDEN_${{ matrix.name }}" -eltorito-boot isolinux/isolinux.bin -eltorito-catalog isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin $EFI_ARGS -output "../warden-${{ matrix.name }}.iso" .
+        cd ..
+        ls -lh warden- ${{ matrix.name }}.iso     - name: 🔐 Upload ISO       uses: actions/upload-artifact@v4       with:         name: warden-${{ matrix.name }}.iso
+        path: warden-${{ matrix.name }}.iso
     - name: 🚀 Create Release
       if: github.event_name != 'workflow_dispatch'
       uses: softprops/action-gh-release@v2
