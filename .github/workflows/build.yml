@@ -22,14 +22,17 @@ jobs:
             desc: "Warden Lite Ghost 💪 - For 1GB RAM"
             base_url: https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso
             ui: "Moksha"
+            base: "ubuntu"
           - name: pro-maxmini
             desc: "Warden Fatih Pro 👑 - For 4GB+ RAM"
             base_url: https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso
             ui: "Moksha"
+            base: "ubuntu"
           - name: legacy-32
             desc: "Warden Legacy 32 🔧 - For Old PCs"
             base_url: https://downloads.sourceforge.net/project/bodhilinux/7.0.0-beta/bodhi-7.0.0-legacy-beta.iso
             ui: "Moksha"
+            base: "debian"
     steps:
       - name: ⚔️ Checkout Code
         uses: actions/checkout@v4
@@ -82,20 +85,26 @@ jobs:
           sudo chroot chroot bash -c "rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* || true"
           sudo chroot chroot dpkg --configure -a || true
           
-          sudo sed -i '/cdrom:/d' chroot/etc/apt/sources.list
-          sudo sed -i '/file:\/run\/live/d' chroot/etc/apt/sources.list
           sudo rm -f chroot/etc/apt/sources.list.d/* || true
           
-          sudo tee chroot/etc/apt/sources.list << 'EOF'
-          deb http://packages.bodhilinux.com/bodhi bookworm b7main
+          if [ "${{ matrix.base }}" = "ubuntu" ]; then
+            # Bodhi 7 64-bit = Ubuntu 22.04 Jammy
+            sudo tee chroot/etc/apt/sources.list << 'EOF'
+          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
+          EOF
+          else
+            # Bodhi 7 Legacy = Debian 12 Bookworm
+            sudo tee chroot/etc/apt/sources.list << 'EOF'
           deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
           deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
           deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
           EOF
+          fi
           
-          sudo chroot chroot apt-get update --allow-insecure-repositories || true
-          sudo chroot chroot apt-get install -y --allow-unauthenticated debian-archive-keyring bodhi-keyring || true
-          sudo chroot chroot apt-get update
+          sudo chroot chroot apt-get update || true
           
           echo "Warden OS ${{ matrix.name }} - ${{ github.event.inputs.version || github.ref_name }}" | sudo tee chroot/etc/warden-version
           echo "Built from Guelma, Algeria 🇩🇿 by Taki" | sudo tee -a chroot/etc/warden-version
@@ -241,9 +250,9 @@ jobs:
             **Dedicated to El-Fatih 👑**
             
             ### 📦 Editions:
-            **1. Warden Lite Ghost 💪** - For 1GB RAM PCs | UI: Moksha | Base: Bodhi 7.0 64bit
-            **2. Warden Fatih Pro 👑** - For 4GB+ RAM PCs | UI: Moksha | Base: Bodhi 7.0 64bit  
-            **3. Warden Legacy 32 🔧** - For Old 32-bit PCs | UI: Moksha | Base: Bodhi 7.0 Legacy
+            **1. Warden Lite Ghost 💪** - For 1GB RAM PCs | UI: Moksha | Base: Bodhi 7.0 Ubuntu 22.04
+            **2. Warden Fatih Pro 👑** - For 4GB+ RAM PCs | UI: Moksha | Base: Bodhi 7.0 Ubuntu 22.04  
+            **3. Warden Legacy 32 🔧** - For Old 32-bit PCs | UI: Moksha | Base: Bodhi 7.0 Legacy Debian 12
             
             ### 🌍 Features:
             - **Interactive Setup Wizard**: Choose browser, languages, install type
