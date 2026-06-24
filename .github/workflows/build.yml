@@ -1,11 +1,11 @@
-name: Build & Release Warden OS v1.4 Zero-Bloat ♾️🇩🇿
+name: Build Warden OS Triple Edition ♾️🇩🇿
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release Version مثل: v1.4'
+        description: 'Release Version مثل: v2.0'
         required: true
-        default: 'v1.4'
+        default: 'v2.0'
   push:
     tags:
       - 'v_'
@@ -14,297 +14,227 @@ permissions:
 jobs:
   build-release:
     runs-on: ubuntu-22.04
-    timeout-minutes: 150
+    timeout-minutes: 120
+    strategy:
+      matrix:
+        include:
+          - name: lite-ghost
+            desc: "Warden Lite Ghost 💪 - For 1GB RAM"
+            base_url: https://sourceforge.net/projects/bodhilinux/files/7.0.0/bodhi-7.0.0-64.iso
+            ui: "Moksha"
+          - name: pro-maxmini
+            desc: "Warden Fatih Pro 👑 - For 4GB+ RAM"
+            base_url: https://archive.org/download/linuxmint-21.3-cinnamon-64bit/linuxmint-21.3-cinnamon-64bit.iso
+            ui: "Cinnamon"
+          - name: legacy-32
+            desc: "Warden Legacy 32 🔧 - For Old PCs"
+            base_url: https://sourceforge.net/projects/bodhilinux/files/6.0.0/bodhi-6.0.0-legacy.iso
+            ui: "Moksha"
     steps:
-      - name: ⚔️ Checkout Code
-        uses: actions/checkout@v4
-      - name: 💪 Free Disk Space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
-          sudo apt-get clean
-          df -h
-      - name: 📦 Install Build Tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y squashfs-tools xorriso wget curl genisoimage rsync zstd grub-efi-amd64-bin grub-pc-bin mtools
-      - name: ⬇️ Download Bodhi Base 64-bit
-        run: |
-          echo "Downloading 64-bit from Archive.org"
-          wget --tries=5 --timeout=30 -O bodhi64.iso "https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso"
-          file bodhi64.iso
-          SIZE=$(stat -c%s bodhi64.iso)
-          echo "Size: $SIZE bytes"
-          if [ $SIZE -lt 1000000000 ]; then echo "❌ Download failed! File too small"; exit 1; fi
-          mkdir -p bodhi64
-          sudo mount -o loop bodhi64.iso bodhi64
-      - name: ⬇️ Download Bodhi Base 32-bit Legacy
-        run: |
-          echo "Downloading 32-bit Legacy from SF using curl"
-          curl -L --retry 5 --retry-delay 3 -o bodhi32.iso "https://downloads.sourceforge.net/project/bodhilinux/7.0.0-beta/bodhi-7.0.0-legacy-beta.iso"
-          file bodhi32.iso
-          SIZE=$(stat -c%s bodhi32.iso)
-          echo "Size: $SIZE bytes"
-          if [ $SIZE -lt 800000000 ]; then echo "❌ Download failed! File too small"; exit 1; fi
-          mkdir -p bodhi32
-          sudo mount -o loop bodhi32.iso bodhi32
-      - name: 🔓 Extract Base System 64-bit
-        run: |
-          sudo unsquashfs -f -d squashfs-root-64 -processors $(nproc) bodhi64/casper/filesystem.squashfs
-          
-      - name: 🔓 Extract Base System 32-bit
-        run: |
-          echo "=== Finding filesystem.squashfs inside Bodhi 32-bit ==="
-          SQUASH_PATH=$(find bodhi32/ -name "filesystem.squashfs" | head -1)
-          if [ -z "$SQUASH_PATH" ]; then 
-            echo "❌ filesystem.squashfs not found"
-            find bodhi32/ -type f
-            exit 1
-          fi
-          echo "✅ Found squashfs at: $SQUASH_PATH"
-          sudo unsquashfs -f -d squashfs-root-32 -processors $(nproc) "$SQUASH_PATH"
-    - name: Create Warden Scripts
+    - name: ⚔️ Checkout Code
+      uses: actions/checkout@v4
+    - name: 💪 Free Disk Space
       run: |
-        cat > warden-setup-64.sh << 'EOF'
+        sudo rm -rf /usr/share/dotnet /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
+        sudo apt-get clean
+        df -h
+    - name: 📦 Install Build Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y squashfs-tools xorriso wget genisoimage rsync zstd
+    - name: ⬇️ Download Base ISO
+      run: |
+        wget -O base.iso "${{ matrix.base_url }}"
+        mkdir -p base
+        sudo mount -o loop base.iso base
+    - name: 🔓 Extract Base System Once
+      run: |
+        sudo unsquashfs -f -d squashfs-root base/casper/filesystem.squashfs
+    - name: 🏗️ Build ${{ matrix.name }} Edition
+      run: |
+        echo "=== Building Warden ${{ matrix.name }} ==="
+        sudo rsync -a base/ ext/ --exclude=/casper/filesystem.squashfs
+        sudo rm -rf chroot
+        sudo rsync -a --delete squashfs-root/ chroot/
+        
+        sudo mount --bind /dev chroot/dev
+        sudo mount --bind /run chroot/run
+        sudo mount -t proc none chroot/proc
+        sudo mount -t sysfs none chroot/sys
+        sudo mount -t devpts none chroot/dev/pts
+        sudo cp /etc/resolv.conf chroot/etc/resolv.conf
+        
+        echo "Warden OS ${{ matrix.name }} - ${{ github.event.inputs.version || github.ref_name }}" | sudo tee chroot/etc/warden-version
+        echo "Built from Guelma, Algeria 🇩🇿 by Taki" | sudo tee -a chroot/etc/warden-version
+        echo "Because no PC deserves to die 🔥" | sudo tee -a chroot/etc/warden-version
+        echo "Dedicated to El-Fatih 👑" | sudo tee -a chroot/etc/warden-version
+        
+        sudo tee chroot/usr/local/bin/warden-setup << 'EOF'
         #!/bin/bash
-        set -e
-        echo "WARDEN: Starting aggressive debloat..."
+        zenity --info --title="Warden OS Setup" --text="Salam! Welcome to Warden OS ♾️\nBuilt from Guelma, Algeria 🇩🇿\n\nBecause no PC deserves to die 🔥" --width=400 --height=200
         
-        apt purge -y firefox* libreoffice* thunderbird* transmission* \
-            hexchat pidgin rhythmbox* totem* cheese simple-scan \
-            gnome-games aisleriot mahjongg gnome-sudoku \
-            snapd flatpak 2>/dev/null || true
-            
-        apt-get install -y debian-archive-keyring ca-certificates || true
-        apt-get update --allow-insecure-repositories || true
-        apt-get update --allow-unauthenticated || true
-        apt autoremove --purge -y || true
-        apt clean || true
+        INSTALL_TYPE=$(zenity --list --radiolist --title="Installation Type" --text="Choose your installation:" \
+          --column="Select" --column="Type" --column="Description" \
+          TRUE "Minimal" "Just browser + essentials - Fastest" \
+          FALSE "Standard" "Browser + Office + Media - Recommended" \
+          FALSE "Full" "Install everything - For 4GB+ RAM" \
+          --height=300 --width=500)
         
-        zenity --info --title="Setup Complete" --text="Warden OS Ready"
+        BROWSER=$(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" \
+          --column="Select" --column="Browser" \
+          TRUE "falkon" \
+          FALSE "epiphany-browser" \
+          FALSE "firefox-esr" \
+          FALSE "chromium" \
+          FALSE "none" \
+          --height=300)
+        
+        LANGS=$(zenity --list --checklist --title="Select Languages" --text="Choose languages to install:" \
+          --column="Select" --column="Language" \
+          TRUE "Arabic" \
+          TRUE "English" \
+          TRUE "French" \
+          FALSE "Spanish" \
+          FALSE "German" \
+          FALSE "Chinese" \
+          --height=350 --width=400)
+        
+        EXTRA_APPS=$(zenity --list --checklist --title="Extra Apps" --text="Select apps to install or skip all:" \
+          --column="Install" --column="App" --column="Description" \
+          FALSE "vlc" "Media Player" \
+          FALSE "gimp" "Image Editor" \
+          FALSE "libreoffice" "Office Suite" \
+          FALSE "kdenlive" "Video Editor" \
+          FALSE "audacity" "Audio Editor" \
+          FALSE "thunderbird" "Email Client" \
+          FALSE "transmission" "Torrent Client" \
+          FALSE "gparted" "Partition Editor" \
+          --height=400 --width=500)
+        
+        RAM=$(free -m | awk '/^Mem:/{print $2}')
+        if [ $RAM -lt 2048 ]; then
+          if zenity --question --title="Low RAM Detected" --text="Your PC has ${RAM}MB RAM\nEnable ZRAM for better performance?"; then
+            pkexec apt-get install -y zram-config
+            pkexec systemctl enable zram-config
+            zenity --info --text="ZRAM enabled! System will be faster 💪"
+          fi
+        fi
+        
+        pkexec bash -c "
+        apt-get update
+        apt-get install -y $BROWSER htop zenity
+        
+        if [[ '$LANGS' == _Arabic_ ]]; then apt-get install -y language-pack-ar fonts-noto-core; fi
+        if [[ '$LANGS' == _French_ ]]; then apt-get install -y language-pack-fr; fi
+        if [[ '$LANGS' == _Spanish_ ]]; then apt-get install -y language-pack-es; fi
+        if [[ '$LANGS' == _German_ ]]; then apt-get install -y language-pack-de; fi
+        if [[ '$LANGS' == _Chinese_ ]]; then apt-get install -y language-pack-zh-hans fonts-noto-cjk; fi
+        
+        if [ '$INSTALL_TYPE' = 'Standard' ]; then
+          apt-get install -y libreoffice-writer libreoffice-calc vlc gimp
+        elif [ '$INSTALL_TYPE' = 'Full' ]; then
+          apt-get install -y libreoffice gimp vlc audacity kdenlive thunderbird
+        fi
+        
+        if [ -n '$EXTRA_APPS' ]; then
+          apt-get install -y $(echo $EXTRA_APPS | tr '|' ' ')
+        fi
+        "
+        
+        zenity --info --title="Setup Complete" --text="Warden OS Ready!\n\nInstalled: $INSTALL_TYPE\nBrowser: $BROWSER\nLanguages: $LANGS\nExtra: $EXTRA_APPS\n\n- Taki from Guelma, Algeria 🇩🇿\nDedicated to El-Fatih 👑" --width=450
+        EOF
+        sudo chmod +x chroot/usr/local/bin/warden-setup
+        
+        sudo mkdir -p chroot/etc/skel/.config/autostart
+        sudo tee chroot/etc/skel/.config/autostart/warden-setup.desktop << 'EOF'
+        [Desktop Entry]
+        Type=Application
+        Name=Warden Setup
+        Exec=warden-setup
+        X-GNOME-Autostart-enabled=true
         EOF
         
-        cat > warden-setup-64-lite.sh << 'EOF'
-        #!/bin/bash
-        set -e
-        echo "WARDEN LITE: Starting aggressive debloat..."
+        sudo chroot chroot apt-get install -y debian-archive-keyring ca-certificates
+        sudo chroot chroot apt-get update --allow-insecure-repositories || true
+        sudo chroot chroot apt-get update --allow-unauthenticated || true
+        sudo chroot chroot apt-get install -y zenity htop
         
-        apt purge -y firefox* libreoffice* thunderbird* transmission* \
-            hexchat pidgin rhythmbox* totem* cheese simple-scan \
-            gnome-games aisleriot mahjongg gnome-sudoku \
-            snapd flatpak 2>/dev/null || true
-            
-        apt-get install -y debian-archive-keyring ca-certificates || true
-        apt-get update --allow-insecure-repositories || true
-        apt-get update --allow-unauthenticated || true
-        apt autoremove --purge -y || true
-        apt clean || true
+        if [ " ${{ matrix.name }}" = "lite-ghost" ]; then           sudo chroot chroot apt-get purge -y 'firefox_' 'libreoffice_' 'thunderbird_' 'snapd_' 'flatpak_' 'midori_' 'netsurf_' 'epad_' 'leafpad_' 2>/dev/null || true         elif [ "${{ matrix.name }}" = "pro-maxmini" ]; then
+          sudo chroot chroot apt-get purge -y 'snapd_' 'flatpak_' 'thunderbird_' 'transmission_' 'hexchat_' 'pidgin_' 'rhythmbox_' 'totem_' 'cheese_' 2>/dev/null || true
+        else
+          sudo chroot chroot apt-get purge -y 'midori_' 'netsurf_' 'epad_' 'leafpad_' 2>/dev/null || true
+        fi
         
-        systemctl disable cups bluetooth avahi-daemon || true
+        sudo chroot chroot apt-get autoremove --purge -y
+        sudo chroot chroot apt-get clean
+        sudo rm -rf chroot/tmp/_ chroot/var/cache/apt/archives/_
         
-        zenity --info --title="Setup Complete" --text="Warden OS Lite Ready"
-        EOF
+        sudo umount chroot/dev/pts
+        sudo umount chroot/dev
+        sudo umount chroot/run
+        sudo umount chroot/proc
+        sudo umount chroot/sys
         
-        cat > warden-setup-32.sh << 'EOF'
-        #!/bin/bash
-        set -e
-        echo "WARDEN 32: Starting aggressive debloat..."
+        sudo rm -f ext/casper/filesystem.squashfs
+        sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
+        sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext/casper/filesystem.size
         
-        apt purge -y firefox* libreoffice* thunderbird* transmission* \
-            hexchat pidgin rhythmbox* totem* cheese simple-scan \
-            gnome-games aisleriot mahjongg gnome-sudoku \
-            snapd flatpak 2>/dev/null || true
-            
-        apt-get install -y debian-archive-keyring ca-certificates || true
-        apt-get update --allow-insecure-repositories || true
-        apt-get update --allow-unauthenticated || true
-        apt autoremove --purge -y || true
-        apt clean || true
+        sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/boot/grub/grub.cfg 2>/dev/null || true
+        sudo sed -i 's/Linux Mint/Warden OS - Guelma 🇩🇿/g' ext/boot/grub/grub.cfg 2>/dev/null || true
+        sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
+        sudo sed -i 's/Linux Mint/Warden OS - Guelma 🇩🇿/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
+        echo "menu title Warden OS ${{ matrix.name }} - Built from Guelma 🇩🇿 by Taki" | sudo tee -a ext/isolinux/isolinux.cfg
         
-        zenity --info --title="Setup Complete" --text="Warden OS 32-bit Ready"
-        EOF
-        
-        chmod +x warden-setup-*.sh
-      - name: 🏗️ Build All Three Editions
-        run: |
-          sudo rsync -a bodhi64/ ext64/ --exclude=/casper/filesystem.squashfs
-          for EDITION in lite-ghost pro-maxmini; do
-            echo "=== Building Warden $EDITION v1.4 64-bit ==="
-            sudo rm -rf chroot
-            sudo rsync -a --delete squashfs-root-64/ chroot/
-            sudo mount --bind /dev chroot/dev
-            sudo mount --bind /run chroot/run
-            sudo mount -t proc none chroot/proc
-            sudo mount -t sysfs none chroot/sys
-            sudo mount -t devpts none chroot/dev/pts
-            sudo rm -f chroot/etc/resolv.conf
-            echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
-            echo "Warden OS $EDITION v1.4 64-bit - Guelma 🇩🇿 by Taki" | sudo tee chroot/etc/warden-version
-            echo "No PC deserves to die 🔥" | sudo tee -a chroot/etc/warden-version
-            echo "Dedicated to El-Fatih 👑" | sudo tee -a chroot/etc/warden-version
-            sudo mkdir -p chroot/etc/skel/Desktop chroot/usr/share/warden
-            sudo cp README.txt chroot/etc/skel/Desktop/README.txt 2>/dev/null || true
-            sudo cp README.txt chroot/usr/share/warden/README.txt 2>/dev/null || true
-            sudo cp warden-setup-64.sh chroot/usr/local/bin/warden-setup
-            sudo cp warden-store.sh chroot/usr/local/bin/warden-store
-            sudo chmod +x chroot/usr/local/bin/warden-setup chroot/usr/local/bin/warden-store
-            sudo mkdir -p chroot/etc/skel/.config/autostart
-            sudo tee chroot/etc/skel/.config/autostart/warden-setup.desktop > /dev/null << 'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=Warden Setup
-          Exec=warden-setup
-          X-GNOME-Autostart-enabled=true
-          EOF
-            sudo tee chroot/etc/skel/Desktop/Warden-Store.desktop > /dev/null << 'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=Warden Store
-          Comment=Install apps the easy way
-          Exec=warden-store
-          Icon=system-software-install
-          Terminal=false
-          Categories=System;
-          EOF
-            sudo chmod +x chroot/etc/skel/Desktop/Warden-Store.desktop
-            sudo rm -f chroot/etc/apt/sources.list.d/_
-            echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" | sudo tee chroot/etc/apt/sources.list
-            echo "deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware" | sudo tee -a chroot/etc/apt/sources.list
-            echo "deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" | sudo tee -a chroot/etc/apt/sources.list
-            sudo chroot chroot apt-get update
-            sudo chroot chroot apt-get purge -y firefox_ libreoffice_ thunderbird_ snapd_ transmission_ epiphany_ || true
-            sudo chroot chroot apt-get install -y --no-install-recommends falkon htop zenity fuse network-manager
-            sudo chroot chroot apt-get autoremove -y --purge
-            sudo chroot chroot apt-get clean
-            sudo rm -rf chroot/usr/share/doc/_ chroot/usr/share/man/_ chroot/usr/share/info/_
-            sudo find chroot/usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en' ! -name 'ar' ! -name 'fr' -exec rm -rf {} +
-            sudo rm -rf chroot/var/cache/apt/archives/_ chroot/tmp/_
-            sudo chroot chroot systemctl disable ModemManager bluetooth avahi-daemon cups || true
-            sudo umount chroot/dev/pts chroot/dev chroot/run chroot/proc chroot/sys
-            sudo rm -f ext64/casper/filesystem.squashfs
-            sudo mksquashfs chroot ext64/casper/filesystem.squashfs -comp zstd -Xcompression-level 22 -b 1M -noappend -wildcards -e var/cache/apt -e usr/share/doc -e usr/share/man
-            sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext64/casper/filesystem.size
-            sudo mkdir -p ext64/EFI/boot ext64/boot/grub/i386-pc
-            sudo cp /usr/lib/ISOLINUX/isohdpfx.bin ext64/boot/grub/i386-pc/ 2>/dev/null || true
-            sudo cp /usr/lib/grub/i386-pc/eltorito.img ext64/boot/grub/i386-pc/ 2>/dev/null || true
-            sudo grub-mkimage -O x86_64-efi -o ext64/EFI/boot/bootx64.efi -p /boot/grub part_gpt part_msdos fat iso9660 normal configfile linux search search_fs_file 2>/dev/null || true
-            echo 'set timeout=5' | sudo tee ext64/boot/grub/grub.cfg
-            echo "menuentry \"Warden OS Live - $EDITION\" { linux /casper/vmlinuz boot=casper quiet splash --- initrd /casper/initrd }" | sudo tee -a ext64/boot/grub/grub.cfg             sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext64/boot/grub/grub.cfg || true             cd ext64             sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "WARDEN_${EDITION^^}_64" -eltorito-boot boot/grub/i386-pc/eltorito.img -eltorito-catalog boot/grub/i386-pc/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e EFI/boot/bootx64.efi -no-emul-boot -isohybrid-gpt-basdat -isohybrid-apm-hfsplus -output "../warden- ${EDITION}.iso" .             cd ..             ls -lh warden-${EDITION}.iso
-          done
-      - name: 🏗️ Build 32-bit Edition
-        run: |
-          echo "=== Building Warden lite-ghost-32 v1.4 32-bit ==="
-          sudo rsync -a bodhi32/ ext32/ --exclude=/casper/filesystem.squashfs
-          sudo rm -rf chroot
-          sudo rsync -a --delete squashfs-root-32/ chroot/
-          sudo mount --bind /dev chroot/dev
-          sudo mount --bind /run chroot/run
-          sudo mount -t proc none chroot/proc
-          sudo mount -t sysfs none chroot/sys
-          sudo mount -t devpts none chroot/dev/pts
-          sudo rm -f chroot/etc/resolv.conf
-          echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
-          echo "Warden OS lite-ghost-32 v1.4 32-bit - Guelma 🇩🇿 by Taki" | sudo tee chroot/etc/warden-version
-          echo "For PCs from 2004 🔥" | sudo tee -a chroot/etc/warden-version
-          echo "Dedicated to El-Fatih 👑" | sudo tee -a chroot/etc/warden-version
-          sudo mkdir -p chroot/etc/skel/Desktop chroot/usr/share/warden
-          sudo cp README.txt chroot/etc/skel/Desktop/README.txt 2>/dev/null || true
-          sudo cp README.txt chroot/usr/share/warden/README.txt 2>/dev/null || true
-          sudo cp warden-setup-32.sh chroot/usr/local/bin/warden-setup
-          sudo cp warden-store.sh chroot/usr/local/bin/warden-store
-          sudo chmod +x chroot/usr/local/bin/warden-setup chroot/usr/local/bin/warden-store
-          sudo mkdir -p chroot/etc/skel/.config/autostart
-          sudo tee chroot/etc/skel/.config/autostart/warden-setup.desktop > /dev/null << 'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=Warden Setup
-          Exec=warden-setup
-          X-GNOME-Autostart-enabled=true
-          EOF
-          sudo tee chroot/etc/skel/Desktop/Warden-Store.desktop > /dev/null << 'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=Warden Store
-          Comment=Install apps the easy way
-          Exec=warden-store
-          Icon=system-software-install
-          Terminal=false
-          Categories=System;
-          EOF
-          sudo chmod +x chroot/etc/skel/Desktop/Warden-Store.desktop
-          sudo rm -f chroot/etc/apt/sources.list.d/_
-          echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" | sudo tee chroot/etc/apt/sources.list
-          echo "deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware" | sudo tee -a chroot/etc/apt/sources.list
-          echo "deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" | sudo tee -a chroot/etc/apt/sources.list
-          sudo chroot chroot apt-get update
-          sudo chroot chroot apt-get purge -y firefox_ libreoffice_ thunderbird_ snapd_ transmission_ || true
-          sudo chroot chroot apt-get install -y --no-install-recommends falkon htop zenity fuse network-manager
-          sudo chroot chroot apt-get autoremove -y --purge
-          sudo chroot chroot apt-get clean
-          sudo rm -rf chroot/usr/share/doc/_ chroot/usr/share/man/_ chroot/usr/share/info/_
-          sudo find chroot/usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en' ! -name 'ar' ! -name 'fr' -exec rm -rf {} +
-          sudo rm -rf chroot/var/cache/apt/archives/_ chroot/tmp/_
-          sudo chroot chroot systemctl disable ModemManager bluetooth avahi-daemon cups || true
-          sudo umount chroot/dev/pts chroot/dev chroot/run chroot/proc chroot/sys
-          sudo rm -f ext32/casper/filesystem.squashfs
-          sudo mksquashfs chroot ext32/casper/filesystem.squashfs -comp xz -Xbcj x86 -b 1M -noappend -wildcards -e var/cache/apt -e usr/share/doc -e usr/share/man
-          sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext32/casper/filesystem.size
-          sudo mkdir -p ext32/boot/grub/i386-pc
-          sudo cp /usr/lib/ISOLINUX/isohdpfx.bin ext32/boot/grub/i386-pc/ 2>/dev/null || true
-          sudo cp /usr/lib/grub/i386-pc/eltorito.img ext32/boot/grub/i386-pc/ 2>/dev/null || true
-          echo 'set timeout=5' | sudo tee ext32/boot/grub/grub.cfg
-          echo 'menuentry "Warden OS Live 32-bit" { linux /casper/vmlinuz boot=casper quiet splash --- initrd /casper/initrd }' | sudo tee -a ext32/boot/grub/grub.cfg
-          sudo sed -i 's/Bodhi Linux/Warden OS 32-bit - Guelma 🇩🇿/g' ext32/boot/grub/grub.cfg || true
-          cd ext32
-          sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "WARDEN_LITE32" -eltorito-boot boot/grub/i386-pc/eltorito.img -eltorito-catalog boot/grub/i386-pc/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -output "../warden-lite-ghost-32.iso" .
-          cd ..
-          ls -lh warden-lite-ghost-32.iso
-      - name: 🧹 Cleanup mounts always
-        if: always()
-        run: |
-          sudo umount -lf chroot/dev/pts 2>/dev/null || true
-          sudo umount -lf chroot/dev 2>/dev/null || true
-          sudo umount -lf chroot/run 2>/dev/null || true
-          sudo umount -lf chroot/proc 2>/dev/null || true
-          sudo umount -lf chroot/sys 2>/dev/null || true
-          sudo umount -lf bodhi64 2>/dev/null || true
-          sudo umount -lf bodhi32 2>/dev/null || true
-      - name: 🔐 Generate SHA256
-        run: |
-          sha256sum warden-_.iso > SHA256SUMS.txt
-          echo "### Final ISO Sizes v1.4:" >> $GITHUB_STEP_SUMMARY
-          ls -lh warden-_.iso >> $GITHUB_STEP_SUMMARY
-      - name: 🚀 Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.inputs.version || github.ref_name }}
-          name: Warden OS ${{ github.event.inputs.version || github.ref_name }} Zero-Bloat ♾️🇩🇿
-          body: |
-            ## Warden OS ${{ github.event.inputs.version || github.ref_name }} - Ultra Clean
-            _By: Taki - 17 y/o, Guelma 🇩🇿_
-            _Motto: No PC deserves to die, No ISO deserves to be fat 🔥_
-            ### 📦 Downloads:
-            1. Warden Lite Ghost 64-bit 💪 - For 1GB+ RAM 64-bit PCs
-            `warden-lite-ghost.iso` | ∼380MB | Falkon only
-            2. Warden Fatih Pro 64-bit 👑 - For 4GB+ RAM 64-bit PCs  
-            `warden-pro-maxmini.iso` | ∼420MB | Zero pre-installed apps
-            3. Warden Lite Ghost 32-bit 🦖 - For 512MB+ RAM 32-bit PCs from 2004
-            `warden-lite-ghost-32.iso` | ∼360MB | Falkon only
-            ### 🌍 v1.4 Features:
-            - Three editions: Cover ALL PCs from 2004 to 2024
-            - Hybrid ISO: Boots on BIOS + UEFI 64-bit, Legacy BIOS 32-bit
-            - Base ISO: 360-420MB. Zero pre-installed bloat
-            - Warden Setup: Connect/Offline first, then choose apps
-            - Warden Store v2.0: Full App Store with Search
-            - Zstd/XZ compression = Smallest possible size
-            - Auto ZRAM + Hibernate for <2GB RAM
-            - Zero Terminal Required - Everything GUI
-            ### 🔐 Verify:
-            sha256sum -c SHA256SUMS.txt
-            Built to save bandwidth and old PCs ✌️
-          files: |
-            warden-lite-ghost.iso
-            warden-pro-maxmini.iso
-            warden-lite-ghost-32.iso
-            SHA256SUMS.txt
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        cd ext
+        EFI_ARGS=""
+        if [ -f boot/grub/efi.img ]; then
+          EFI_ARGS="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"
+        fi
+        sudo xorriso -as mkisofs \
+          -iso-level 3 -full-iso9660-filenames \
+          -volid "WARDEN_${{ matrix.name }}" \
+          -eltorito-boot isolinux/isolinux.bin \
+          -eltorito-catalog isolinux/boot.cat \
+          -no-emul-boot -boot-load-size 4 -boot-info-table \
+          -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+          $EFI_ARGS \
+          -output "../warden- ${{ matrix.name }}.iso" .         cd ..         ls -lh warden-${{ matrix.name }}.iso
+    - name: 🔐 Upload ISO
+      uses: actions/upload-artifact@v4
+      with:
+        name: warden- ${{ matrix.name }}.iso         path: warden-${{ matrix.name }}.iso
+    - name: 🚀 Create Release
+      if: github.event_name != 'workflow_dispatch'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event.inputs.version || github.ref_name }}
+        name: Warden OS ${{ github.event.inputs.version || github.ref_name }} ♾️🇩🇿
+        body: |
+          ## Warden OS ${{ github.event.inputs.version || github.ref_name }} - Built from Guelma, Algeria 🇩🇿
+          *By: Taki - 17 Years Old*
+          *Because no PC deserves to die 🔥*
+          *Dedicated to El-Fatih 👑*
+          
+          ### 📦 Editions:
+          *1. Warden Lite Ghost 💪* - For 1GB RAM PCs | UI: Moksha
+          *2. Warden Fatih Pro 👑* - For 4GB+ RAM PCs | UI: Cinnamon  
+          *3. Warden Legacy 32 🔧* - For Old 32-bit PCs | UI: Moksha
+          
+          ### 🌍 Features:
+          - *Interactive Setup Wizard*: Choose browser, languages, install type
+          - *Minimal/Standard/Full* install modes
+          - *Extra Apps Checklist*: Install or skip all
+          - *ZRAM auto-enable* for <2GB RAM  
+          - *6 Languages*: AR+EN+FR+ES+DE+ZH
+          - *Zero telemetry, zero Snap, zero bloat*
+          - *UEFI + Legacy BIOS* support
+          - *zstd compression* = 3x faster build
+          
+          _Tested on:_ Packard Bell TE11HC, Acer Aspire One D270
+          _Built from Algeria to all world with love ✌️_
+        files: |
+          warden-_.iso
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
