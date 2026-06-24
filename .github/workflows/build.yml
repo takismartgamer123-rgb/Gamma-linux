@@ -47,13 +47,31 @@ jobs:
         wget --tries=5 --timeout=30 --waitretry=10 -O base.iso "${{ matrix.base_url }}"
         mkdir -p base
         sudo mount -o loop base.iso base
-    - name: 🔓 Extract Base System Once
+    - name: 🔍 Find & Extract Base System
       run: |
-        sudo unsquashfs -f -d squashfs-root base/casper/filesystem.squashfs
+        # نقلبو وين راه filesystem.squashfs - casper ولا live
+        if [ -f base/casper/filesystem.squashfs ]; then
+          SQUASHFS_PATH="base/casper/filesystem.squashfs"
+        elif [ -f base/live/filesystem.squashfs ]; then
+          SQUASHFS_PATH="base/live/filesystem.squashfs"
+        else
+          echo "ERROR: filesystem.squashfs not found in casper/ or live/"
+          find base/ -name "_.squashfs"
+          exit 1
+        fi
+        echo "Found squashfs at: $SQUASHFS_PATH"
+        sudo unsquashfs -f -d squashfs-root "$SQUASHFS_PATH"
     - name: 🏗️ Build ${{ matrix.name }} Edition
       run: |
         echo "=== Building Warden ${{ matrix.name }} ==="
-        sudo rsync -a base/ ext/ --exclude=/casper/filesystem.squashfs
+        # نحددو مسار الـ base الصحيح
+        if [ -d base/casper ]; then
+          BASE_DIR="base"
+        elif [ -d base/live ]; then
+          BASE_DIR="base"
+        fi
+        
+        sudo rsync -a $BASE_DIR/ ext/ --exclude=/casper/filesystem.squashfs --exclude=/live/filesystem.squashfs
         sudo rm -rf chroot
         sudo rsync -a --delete squashfs-root/ chroot/
         
@@ -161,9 +179,16 @@ jobs:
         sudo umount chroot/proc
         sudo umount chroot/sys
         
-        sudo rm -f ext/casper/filesystem.squashfs
-        sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
-        sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext/casper/filesystem.size
+        # نحطو الـ squashfs في البلاصة الصحيحة حسب النسخة
+        if [ -d ext/casper ]; then
+          sudo rm -f ext/casper/filesystem.squashfs
+          sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
+          sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext/casper/filesystem.size
+        elif [ -d ext/live ]; then
+          sudo rm -f ext/live/filesystem.squashfs
+          sudo mksquashfs chroot ext/live/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
+          sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext/live/filesystem.size
+        fi
         
         sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/boot/grub/grub.cfg 2>/dev/null || true
         sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
@@ -201,7 +226,7 @@ jobs:
           _Tested on:_ Packard Bell TE11HC, Acer Aspire One D270
           _Built from Algeria to all world with love ✌️_
         files: |
-          warden-_.iso
+          warden-*.iso
         draft: false
         prerelease: false
       env:
