@@ -211,9 +211,10 @@ jobs:
           Terminal=false
           Categories=System;
           EOF
-            sudo chmod +x chroot/etc/skel/Desktop/Warden-Store.desktop
-      - name: Fix apt sources for i386 build
-          run: |
+          sudo chmod +x chroot/etc/skel/Desktop/Warden-Store.desktop
+          EOF
+      - name: Fix apt sources
+        run: |
           # حل مشكلة مصادر i386 - الطريقة السهلة
           sudo rm -f chroot/etc/apt/sources.list.d/*
           sudo echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" > chroot/etc/apt/sources.list
