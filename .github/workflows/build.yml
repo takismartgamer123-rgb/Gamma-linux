@@ -80,14 +80,26 @@ jobs:
         sudo rm -f chroot/etc/resolv.conf
         echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
         
-        # Fix 2: Kill apt locks + fix broken dpkg
+        # Fix 2: Kill apt locks + fix dpkg
         sudo chroot chroot bash -c "rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock_ || true"
         sudo chroot chroot dpkg --configure -a || true
         
-        # Fix 3: Force update + fix keys for Bodhi
+        # Fix 3: CRITICAL - Remove CD-ROM from sources for legacy
+        sudo sed -i '/cdrom:/d' chroot/etc/apt/sources.list
+        sudo sed -i '/file:\/run\/live/d' chroot/etc/apt/sources.list
+        sudo rm -f chroot/etc/apt/sources.list.d/_ || true
+        
+        # Fix 4: Add proper Bodhi/Debian repos
+        sudo tee chroot/etc/apt/sources.list << 'EOF'
+        deb http://packages.bodhilinux.com/bodhi bookworm main
+        deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+        deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+        deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
+        EOF
+        
+        # Fix 5: Update + install keyrings
         sudo chroot chroot apt-get update --allow-insecure-repositories || true
-        sudo chroot chroot apt-get update --allow-unauthenticated || true
-        sudo chroot chroot apt-get install -y --allow-unauthenticated bodhi-keyring || true
+        sudo chroot chroot apt-get install -y --allow-unauthenticated debian-archive-keyring bodhi-keyring || true
         sudo chroot chroot apt-get update
         
         echo "Warden OS ${{ matrix.name }} - ${{ github.event.inputs.version || github.ref_name }}" | sudo tee chroot/etc/warden-version
@@ -171,7 +183,7 @@ jobs:
         X-GNOME-Autostart-enabled=true
         EOF
         
-        # Fix 4: Install zenity safely
+        # Install zenity safely
         sudo chroot chroot apt-get install -y zenity htop || true
         sudo chroot chroot apt-get purge -y 'midori_' 'netsurf_' 'epad_' 'leafpad_' 'snapd_' 'flatpak_' 2>/dev/null || true
         
@@ -185,7 +197,6 @@ jobs:
         sudo umount chroot/proc || true
         sudo umount chroot/sys || true
         
-        # Fix 5: Use correct squashfs dir
         if [ "${{ env.SQUASHFS_DIR }}" = "casper" ]; then
           sudo rm -f ext/casper/filesystem.squashfs
           sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
@@ -196,7 +207,6 @@ jobs:
           sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext/live/filesystem.size
         fi
         
-        # Fix 6: sed for both grub and isolinux
         sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/boot/grub/grub.cfg 2>/dev/null || true
         sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
         sudo sed -i 's/bodhi/warden/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
@@ -234,7 +244,7 @@ jobs:
           _Tested on:_ Packard Bell TE11HC, Acer Aspire One D270
           _Built from Algeria to all world with love ✌️_
         files: |
-          warden-*.iso
+          warden-_.iso
         draft: false
         prerelease: false
       env:
