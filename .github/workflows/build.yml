@@ -9,8 +9,10 @@ on:
   push:
     tags:
       - 'v*'
+
 permissions:
   contents: write
+
 jobs:
   build-release:
     runs-on: ubuntu-22.04
@@ -36,20 +38,24 @@ jobs:
     steps:
       - name: ⚔️ Checkout Code
         uses: actions/checkout@v4
+        
       - name: 💪 Free Disk Space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
           sudo apt-get clean
           df -h
+          
       - name: 📦 Install Build Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y squashfs-tools xorriso wget genisoimage rsync zstd isolinux syslinux-common syslinux-utils
+          
       - name: ⬇️ Download Base ISO
         run: |
           wget --tries=5 --timeout=30 --waitretry=10 -O base.iso "${{ matrix.base_url }}"
           mkdir -p base
           sudo mount -o loop base.iso base
+          
       - name: 🔍 Find & Extract Base System
         run: |
           if [ -f base/casper/filesystem.squashfs ]; then
@@ -66,27 +72,23 @@ jobs:
           echo "SQUASHFS_DIR=$SQUASHFS_DIR" >> $GITHUB_ENV
           echo "Found squashfs at: $SQUASHFS_PATH"
           sudo unsquashfs -f -d squashfs-root "$SQUASHFS_PATH"
+          
       - name: 🏗️ Build ${{ matrix.name }} Edition
         run: |
           echo "=== Building Warden ${{ matrix.name }} ==="
           sudo rsync -a base/ ext/ --exclude=/casper/filesystem.squashfs --exclude=/live/filesystem.squashfs
           sudo rm -rf chroot
           sudo rsync -a --delete squashfs-root/ chroot/
-          
           sudo mount --bind /dev chroot/dev
           sudo mount --bind /run chroot/run
           sudo mount -t proc none chroot/proc
           sudo mount -t sysfs none chroot/sys
           sudo mount -t devpts none chroot/dev/pts
-          
           sudo rm -f chroot/etc/resolv.conf
           echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
-          
           sudo chroot chroot bash -c "rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* || true"
           sudo chroot chroot dpkg --configure -a || true
-          
           sudo rm -f chroot/etc/apt/sources.list.d/* || true
-          
           if [ "${{ matrix.base }}" = "ubuntu" ]; then
             sudo tee chroot/etc/apt/sources.list << 'EOF'
           deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
@@ -101,90 +103,70 @@ jobs:
           deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
           EOF
           fi
-          
           sudo chroot chroot apt-get update || true
-          
           echo "Warden OS ${{ matrix.name }} - ${{ github.event.inputs.version || github.ref_name }}" | sudo tee chroot/etc/warden-version
           echo "Built from Guelma, Algeria 🇩🇿 by Taki" | sudo tee -a chroot/etc/warden-version
           echo "Because no PC deserves to die 🔥" | sudo tee -a chroot/etc/warden-version
           echo "Dedicated to El-Fatih 👑" | sudo tee -a chroot/etc/warden-version
-          
           sudo tee chroot/usr/local/bin/warden-setup << 'EOF'
           #!/bin/bash
           zenity --info --title="Warden OS Setup" --text="Salam! Welcome to Warden OS ♾️\nBuilt from Guelma, Algeria 🇩🇿\n\nBecause no PC deserves to die 🔥" --width=400 --height=200
-          
           INSTALL_TYPE=$(zenity --list --radiolist --title="Installation Type" --text="Choose your installation:" \
-            --column="Select" --column="Type" --column="Description" \
-            TRUE "Minimal" "Just browser + essentials - Fastest" \
-            FALSE "Standard" "Browser + Office + Media - Recommended" \
-            FALSE "Full" "Install everything - For 4GB+ RAM" \
-            --height=300 --width=500)
-          
+          --column="Select" --column="Type" --column="Description" \
+          TRUE "Minimal" "Just browser + essentials - Fastest" \
+          FALSE "Standard" "Browser + Office + Media - Recommended" \
+          FALSE "Full" "Install everything - For 4GB+ RAM" \
+          --height=300 --width=500)
           BROWSER=$(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" \
-            --column="Select" --column="Browser" \
-            TRUE "falkon" \
-            FALSE "epiphany-browser" \
-            FALSE "firefox-esr" \
-            FALSE "chromium" \
-            FALSE "none" \
-            --height=300)
-          
+          --column="Select" --column="Browser" \
+          TRUE "falkon" \
+          FALSE "epiphany-browser" \
+          FALSE "firefox-esr" \
+          FALSE "chromium" \
+          FALSE "none" \
+          --height=300)
           LANGS=$(zenity --list --checklist --title="Select Languages" --text="Choose languages to install:" \
-            --column="Select" --column="Language" \
-            TRUE "Arabic" \
-            TRUE "English" \
-            TRUE "French" \
-            FALSE "Spanish" \
-            FALSE "German" \
-            FALSE "Chinese" \
-            --height=350 --width=400)
-          
+          --column="Select" --column="Language" \
+          TRUE "Arabic" \
+          TRUE "English" \
+          TRUE "French" \
+          FALSE "Spanish" \
+          FALSE "German" \
+          FALSE "Chinese" \
+          --height=350 --width=400)
           EXTRA_APPS=$(zenity --list --checklist --title="Extra Apps" --text="Select apps to install or skip all:" \
-            --column="Install" --column="App" --column="Description" \
-            FALSE "vlc" "Media Player" \
-            FALSE "gimp" "Image Editor" \
-            FALSE "libreoffice" "Office Suite" \
-            FALSE "kdenlive" "Video Editor" \
-            FALSE "audacity" "Audio Editor" \
-            FALSE "thunderbird" "Email Client" \
-            FALSE "transmission" "Torrent Client" \
-            FALSE "gparted" "Partition Editor" \
-            --height=400 --width=500)
-          
+          --column="Install" --column="App" --column="Description" \
+          FALSE "vlc" "Media Player" \
+          FALSE "gimp" "Image Editor" \
+          FALSE "libreoffice" "Office Suite" \
+          FALSE "kdenlive" "Video Editor" \
+          FALSE "audacity" "Audio Editor" \
+          FALSE "thunderbird" "Email Client" \
+          FALSE "transmission" "Torrent Client" \
+          FALSE "gparted" "Partition Editor" \
+          --height=400 --width=500)
           RAM=$(free -m | awk '/^Mem:/{print $2}')
           if [ $RAM -lt 2048 ]; then
-            if zenity --question --title="Low RAM Detected" --text="Your PC has ${RAM}MB RAM\nEnable ZRAM for better performance?"; then
-              pkexec apt-get install -y zram-config
-              pkexec systemctl enable zram-config
-              zenity --info --text="ZRAM enabled! System will be faster 💪"
-            fi
+          if zenity --question --title="Low RAM Detected" --text="Your PC has ${RAM}MB RAM\nEnable ZRAM for better performance?"; then
+          pkexec apt-get install -y zram-config
+          pkexec systemctl enable zram-config
+          zenity --info --text="ZRAM enabled! System will be faster 💪"
           fi
-          
+          fi
           pkexec bash -c "
           apt-get update
           apt-get install -y $BROWSER htop zenity
-          
           if [[ '$LANGS' == *Arabic* ]]; then apt-get install -y language-pack-ar fonts-noto-core; fi
           if [[ '$LANGS' == *French* ]]; then apt-get install -y language-pack-fr; fi
           if [[ '$LANGS' == *Spanish* ]]; then apt-get install -y language-pack-es; fi
           if [[ '$LANGS' == *German* ]]; then apt-get install -y language-pack-de; fi
           if [[ '$LANGS' == *Chinese* ]]; then apt-get install -y language-pack-zh-hans fonts-noto-cjk; fi
-          
-          if [ '$INSTALL_TYPE' = 'Standard' ]; then
-            apt-get install -y libreoffice-writer libreoffice-calc vlc gimp
-          elif [ '$INSTALL_TYPE' = 'Full' ]; then
-            apt-get install -y libreoffice gimp vlc audacity kdenlive thunderbird
-          fi
-          
-          if [ -n '$EXTRA_APPS' ]; then
-            apt-get install -y $(echo $EXTRA_APPS | tr '|' ' ')
-          fi
+          if [ '$INSTALL_TYPE' = 'Standard' ]; then apt-get install -y libreoffice-writer libreoffice-calc vlc gimp; elif [ '$INSTALL_TYPE' = 'Full' ]; then apt-get install -y libreoffice gimp vlc audacity kdenlive thunderbird; fi
+          if [ -n '$EXTRA_APPS' ]; then apt-get install -y $(echo $EXTRA_APPS | tr '|' ' '); fi
           "
-          
           zenity --info --title="Setup Complete" --text="Warden OS Ready!\n\nInstalled: $INSTALL_TYPE\nBrowser: $BROWSER\nLanguages: $LANGS\nExtra: $EXTRA_APPS\n\n- Taki from Guelma, Algeria 🇩🇿\nDedicated to El-Fatih 👑" --width=450
           EOF
           sudo chmod +x chroot/usr/local/bin/warden-setup
-          
           sudo mkdir -p chroot/etc/skel/.config/autostart
           sudo tee chroot/etc/skel/.config/autostart/warden-setup.desktop << 'EOF'
           [Desktop Entry]
@@ -193,20 +175,16 @@ jobs:
           Exec=warden-setup
           X-GNOME-Autostart-enabled=true
           EOF
-          
           sudo chroot chroot apt-get install -y zenity htop || true
           sudo chroot chroot apt-get purge -y 'midori*' 'netsurf*' 'epad*' 'leafpad*' 'snapd*' 'flatpak*' 2>/dev/null || true
-          
           sudo chroot chroot apt-get autoremove --purge -y || true
           sudo chroot chroot apt-get clean
           sudo rm -rf chroot/tmp/* chroot/var/cache/apt/archives/* chroot/var/lib/apt/lists/*
-          
           sudo umount chroot/dev/pts || true
           sudo umount chroot/dev || true
           sudo umount chroot/run || true
           sudo umount chroot/proc || true
           sudo umount chroot/sys || true
-          
           if [ "${{ env.SQUASHFS_DIR }}" = "casper" ]; then
             sudo rm -f ext/casper/filesystem.squashfs
             sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
@@ -216,12 +194,10 @@ jobs:
             sudo mksquashfs chroot ext/live/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
             sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext/live/filesystem.size
           fi
-          
           sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/boot/grub/grub.cfg 2>/dev/null || true
           sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
           sudo sed -i 's/bodhi/warden/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
           echo "menu title Warden OS ${{ matrix.name }} - Built from Guelma 🇩🇿 by Taki" | sudo tee -a ext/isolinux/isolinux.cfg
-          
           cd ext
           EFI_ARGS=""
           if [ -f boot/grub/efi.img ]; then
@@ -230,42 +206,61 @@ jobs:
           sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "WARDEN_${{ matrix.name }}" -eltorito-boot isolinux/isolinux.bin -eltorito-catalog isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin $EFI_ARGS -output "../warden-${{ matrix.name }}.iso" .
           cd ..
           ls -lh warden-${{ matrix.name }}.iso
-      - name: 🔐 Upload ISO
+          
+      - name: 📤 Upload ISO as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: warden-${{ matrix.name }}.iso
           path: warden-${{ matrix.name }}.iso
-      - name: 🚀 Create Release
-        if: github.event_name != 'workflow_dispatch'
+
+  publish-release:
+    name: 🚀 Publish Release v2.0
+    needs: build-release
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: 📥 Download all ISOs
+        uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          
+      - name: 🔐 Generate SHA256
+        run: |
+          cd release-files
+          find . -name "*.iso" -exec sha256sum {} \; > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          
+      - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version || github.ref_name }}
-          name: Warden OS ${{ github.event.inputs.version || github.ref_name }} ♾️🇩🇿
+          tag_name: ${{ github.event.inputs.version || 'v2.0' }}
+          name: Warden OS ${{ github.event.inputs.version || 'v2.0' }} Triple Edition ♾️🇩🇿
           body: |
-            ## Warden OS ${{ github.event.inputs.version || github.ref_name }} - Built from Guelma, Algeria 🇩🇿
-            **By: Taki - 17 Years Old**
-            **Because no PC deserves to die 🔥**
+            ## Warden OS ${{ github.event.inputs.version || 'v2.0' }} - Built from Guelma, Algeria 🇩🇿
+            **By: Taki - 17 Years Old**  
+            **Because no PC deserves to die 🔥**  
             **Dedicated to El-Fatih 👑**
             
             ### 📦 Editions:
-            **1. Warden Lite Ghost 💪** - For 1GB RAM PCs | UI: Moksha | Base: Bodhi 7.0 Ubuntu 22.04
+            **1. Warden Lite Ghost 💪** - For 1GB RAM PCs | UI: Moksha | Base: Bodhi 7.0 Ubuntu 22.04  
             **2. Warden Fatih Pro 👑** - For 4GB+ RAM PCs | UI: Moksha | Base: Bodhi 7.0 Ubuntu 22.04  
-            **3. Warden Legacy 32 🔧** - For Old 32-bit PCs | UI: Moksha | Base: Bodhi 7.0 Legacy Debian 12
+            **3. Warden Legacy 32 🔧** - For Old 32-bit PCs | UI: Moksha | Base: Bodhi 7.0 Legacy Debian 12  
             
             ### 🌍 Features:
             - **Interactive Setup Wizard**: Choose browser, languages, install type
             - **Minimal/Standard/Full** install modes
             - **Extra Apps Checklist**: Install or skip all
-            - **ZRAM auto-enable** for <2GB RAM  
+            - **ZRAM auto-enable** for <2GB RAM
             - **6 Languages**: AR+EN+FR+ES+DE+ZH
             - **Zero telemetry, zero Snap, zero bloat**
             - **UEFI + Legacy BIOS** support
             - **zstd compression** = 3x faster build
             
-            *Tested on:* Packard Bell TE11HC, Acer Aspire One D270
+            *Tested on:* Packard Bell TE11HC, Acer Aspire One D270  
             *Built from Algeria to all world with love ✌️*
           files: |
-            warden-*.iso
+            release-files/warden-*/warden-*.iso
+            release-files/SHA256SUMS.txt
           draft: false
           prerelease: false
         env:
