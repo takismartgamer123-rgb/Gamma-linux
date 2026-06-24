@@ -50,7 +50,7 @@ jobs:
       - name: ⬇️ Download Bodhi Base 32-bit Legacy
         run: |
           echo "Downloading 32-bit Legacy from SF using curl"
-          curl -L --retry 5 --retry-delay 3 -o bodhi32.iso "https://sourceforge.net/projects/bodhilinux/files/7.0.0/bodhi-7.0.0-legacy.iso/download"
+          curl -L --retry 5 --retry-delay 3 -o bodhi32.iso "https://downloads.sourceforge.net/project/bodhilinux/7.0.0-beta/bodhi-7.0.0-legacy-beta.iso?ts=gAAAAABqO7Q_444RgNwHAiEeur1GwXJ0pBRaGaFhwezY-kgAXsckySA7V3fezOCQhGl_gF0YyqFemmuII5-zNnEHdun0KbZdzg%3D%3D&use_mirror=netix&r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fbodhilinux%2Ffiles%2F7.0.0-beta%2F"
           file bodhi32.iso
           SIZE=$(stat -c%s bodhi32.iso)
           echo "Size: $SIZE bytes"
