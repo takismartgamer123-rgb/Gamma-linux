@@ -1,0 +1,242 @@
+name: Build & Release Warden OS v1.4 Zero-Bloat ♾️🇩🇿
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version مثل: v1.4'
+        required: true
+        default: 'v1.4'
+  push:
+    tags:
+      - 'v_'
+permissions:
+  contents: write
+jobs:
+  build-release:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: ⚔️ Checkout Code
+        uses: actions/checkout@v4
+      - name: 💪 Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get clean
+          df -h
+      - name: 📦 Install Build Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools xorriso wget genisoimage rsync zstd grub-efi-amd64-bin grub-pc-bin mtools
+      - name: ⬇️ Download Bodhi Base
+        run: |
+          wget -O bodhi.iso https://mirror.umd.edu/bodhi/7.0.0/bodhi-7.0.0-legacy.iso
+          mkdir -p bodhi
+          sudo mount -o loop bodhi.iso bodhi
+      - name: 🔓 Extract Base System Once
+        run: |
+          sudo unsquashfs -f -d squashfs-root -processors $(nproc) bodhi/casper/filesystem.squashfs
+      - name: 🏗️ Build Both Editions - Ultra Clean
+        run: |
+          sudo rsync -a bodhi/ ext/ --exclude=/casper/filesystem.squashfs
+          for EDITION in lite-ghost pro-maxmini; do
+          echo "=== Building Warden $EDITION v1.4 ==="
+          sudo rm -rf chroot
+          sudo rsync -a --delete squashfs-root/ chroot/
+          sudo mount --bind /dev chroot/dev
+          sudo mount --bind /run chroot/run
+          sudo mount -t proc none chroot/proc
+          sudo mount -t sysfs none chroot/sys
+          sudo mount -t devpts none chroot/dev/pts
+          sudo cp /etc/resolv.conf chroot/etc/resolv.conf
+          echo "Warden OS $EDITION v1.4 - Guelma 🇩🇿 by Taki" | sudo tee chroot/etc/warden-version
+          echo "No PC deserves to die 🔥" | sudo tee -a chroot/etc/warden-version
+          echo "Dedicated to El-Fatih 👑" | sudo tee -a chroot/etc/warden-version
+          sudo cp README.txt chroot/etc/skel/Desktop/README.txt
+          sudo mkdir -p chroot/usr/share/warden
+          sudo cp README.txt chroot/usr/share/warden/README.txt
+          sudo tee chroot/usr/local/bin/warden-setup << 'SETUP_EOF'
+          #!/bin/bash
+          zenity --info --title="Warden OS Setup ♾️" --text="Salam! Welcome to Warden OS\n\nBuilt from Guelma, Algeria 🇩🇿\nBecause no PC deserves to die 🔥" --width=400
+          NET_CHOICE=$(zenity --list --title="Network Setup" --text="Choose how to continue:" --width=400 --height=250 --column="Option" --column="Description" \
+          "Connect" "Connect to WiFi/Ethernet first" \
+          "Offline" "Continue without internet - 100% offline mode" \
+          "Skip" "I will connect later, just setup the basics")
+          case $NET_CHOICE in           "Connect") nm-connection-editor & zenity --info --text="Connect to your network then press OK to continue." ;;           "Offline"|"Skip"|"") OFFLINE_MODE=1 ;;           esac           RAM=$(free -m | awk '/^Mem:/{print $2}')
+          if [ $RAM -lt 2048 ]; then
+          if zenity --question --title="Speed Boost" --text="Your PC has ${RAM}MB RAM\n\nEnable ZRAM + Hibernate?\nRecommended for old PCs." --width=400; then           sudo apt-get install -y zram-config           sudo systemctl enable zram-config           SWAPSIZE=$(($RAM _ 2))
+          if [ ! -f /swapfile ]; then
+          sudo fallocate -l ${SWAPSIZE}M /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+          sudo swapon /swapfile
+          fi
+          fi
+          fi
+          if [ -z "$OFFLINE_MODE" ]; then
+          if ping -c 1 -W 2 google.com &> /dev/null; then ONLINE=1; else ONLINE=0; fi
+          else ONLINE=0; fi
+          if [ " $ONLINE" = "1" ]; then           if zenity --question --title="Language Packs" --text="Install AR + EN + FR + ES + DE + ZH?\nSize: ∼150MB" --width=400; then           xterm -e "sudo apt-get update && sudo apt-get install -y language-pack-ar language-pack-fr language-pack-es language-pack-de language-pack-zh-hans"           fi           APPS=$(zenity --list --checklist --title="Warden App Store ♾️" --text="Select ONLY what you need:" --width=700 --height=550 --column="Install" --column="App" --column="Size" --column="Why you need it" \
+          FALSE "Browser" "∼0MB" "Update Firefox-ESR" \
+          FALSE "FreeTube" "∼80MB" "YouTube without ads" \
+          FALSE "VLC" "∼40MB" "Play any video/music" \
+          FALSE "LibreOffice" "∼250MB" "Word, Excel, PowerPoint" \
+          FALSE "GIMP" "∼90MB" "Photoshop alternative" \
+          FALSE "Minetest" "∼40MB" "Minecraft-like game offline" \
+          FALSE "Code-OSS" "∼80MB" "VSCode for programming" \
+          FALSE "Telegram" "∼60MB" "Fast chat app" \
+          --separator=":")
+          if [ -n "$APPS" ]; then
+          IFS=":" read -ra SELECTED <<< " $APPS"           INSTALL_CMD="sudo apt-get update && sudo apt-get install -y --no-install-recommends"           for APP in "${SELECTED[@]}"; do
+          case $APP in
+          "Browser") INSTALL_CMD="$INSTALL_CMD firefox-esr" ;;
+          "VLC") INSTALL_CMD="$INSTALL_CMD vlc" ;;
+          "LibreOffice") INSTALL_CMD="$INSTALL_CMD libreoffice" ;;
+          "GIMP") INSTALL_CMD="$INSTALL_CMD gimp" ;;
+          "Minetest") INSTALL_CMD="$INSTALL_CMD minetest" ;;
+          "Code-OSS") INSTALL_CMD="$INSTALL_CMD code-oss" ;;
+          "Telegram") INSTALL_CMD=" $INSTALL_CMD telegram-desktop" ;;           "FreeTube") FT_URL=$(wget -qO- https://api.github.com/repos/FreeTubeApp/FreeTube/releases/latest | grep browser_download_url | grep amd64.deb | cut -d'"' -f4); wget $FT_URL -O /tmp/freetube.deb; INSTALL_CMD="$INSTALL_CMD /tmp/freetube.deb" ;;
+          esac
+          done
+          xterm -hold -e "$INSTALL_CMD; echo 'Done! Close this window.'; bash"
+          fi
+          fi
+          zenity --info --title="Setup Complete ♾️" --text="Warden OS Ready!\n\nRun 'warden-setup' anytime for apps\nBuilt by Taki from Guelma 🇩🇿"
+          SETUP_EOF
+          sudo chmod +x chroot/usr/local/bin/warden-setup
+          sudo tee chroot/usr/local/bin/warden-store << 'STORE_EOF'
+          #!/bin/bash
+          install_app() {
+          PKG=$1; NAME=$2
+          (
+          echo "10"; sleep 1
+          echo "# Updating package list..."; sudo apt-get update -y > /dev/null 2>&1
+          echo "50"; sleep 1
+          echo "# Installing $NAME..."; sudo apt-get install -y --no-install-recommends $PKG > /dev/null 2>&1
+          echo "100"; sleep 1
+          echo "# Done!"
+          ) | zenity --progress --title="Installing $NAME" --text="Please wait..." --percentage=0 --auto-close --width=400
+          if [ $? = 0 ]; then zenity --info --text="$NAME installed successfully! ✅\n\nCheck your app menu." --width=300; else zenity --error --text="Failed to install $NAME\n\nCheck your internet connection."; fi           }           while true; do           CHOICE=$(zenity --list --title="Warden Store v2.0 ♾️" --text="Welcome! Install apps without terminal\n\nChoose an option:" --width=550 --height=450 --column="Option" --column="Description" \
+          "🔍 Search" "Search any app from 60,000 packages" \
+          "⭐ Popular" "Curated list of best apps for old PCs" \
+          "📦 Installed" "View & remove your apps" \
+          "❌ Exit" "Close Warden Store")
+          case $CHOICE in           "🔍 Search")           SEARCH_TERM=$(zenity --entry --title="Search Apps" --text="Type app name or keyword:\nExample: photo, video, music, game" --width=400)
+          if [ -n " $SEARCH_TERM" ]; then           RESULTS=$(apt-cache search $SEARCH_TERM | grep -vE 'lib|dev|dbg|python-|ruby-|perl-' | head -20 | awk -F' - ' '{print "FALSE", $1, $2}')
+          if [ -z "$RESULTS" ]; then zenity --info --text="No results found for ' $SEARCH_TERM'\n\nTry different keyword."           else SELECTED=$(echo $RESULTS | xargs zenity --list --radiolist --title="Search Results" --text="Found these apps for '$SEARCH_TERM':" --width=700 --height=500 --column="Install" --column="Package" --column="Description")
+          if [ -n "$SELECTED" ]; then if zenity --question --text="Install $SELECTED?\n\nThis will download from Ubuntu repos."; then install_app "$SELECTED" " $SELECTED"; fi; fi; fi; fi ;;           "⭐ Popular")           APP=$(zenity --list --radiolist --title="Popular Apps" --text="Best apps tested on old PCs:" --width=700 --height=500 --column="Pick" --column="App" --column="Size" --column="Why it's good" \
+          FALSE "freetube" "∼80MB" "YouTube without ads. Privacy king." \
+          FALSE "vlc" "∼40MB" "Plays everything. Essential player." \
+          FALSE "libreoffice" "∼250MB" "Complete Office suite. For study/work." \
+          FALSE "gimp" "∼90MB" "Photoshop free. Edit photos like pro." \
+          FALSE "minetest" "∼40MB" "Minecraft offline. Kids love it." \
+          FALSE "telegram-desktop" "∼60MB" "Fast chat. Better than Discord." \
+          FALSE "code-oss" "∼80MB" "VSCode for coding. No Microsoft spy." \
+          FALSE "onlyoffice-desktopeditors" "∼300MB" "MS Office clone. Best compatibility.")
+          if [ -n "$APP" ]; then
+          if [ " $APP" = "freetube" ]; then FT_URL=$(wget -qO- https://api.github.com/repos/FreeTubeApp/FreeTube/releases/latest | grep browser_download_url | grep amd64.deb | cut -d'"' -f4); xterm -hold -e "wget $FT_URL -O /tmp/ft.deb && sudo apt install -y /tmp/ft.deb"; zenity --info --text="FreeTube installed! ✅"
+          elif [ "$APP" = "onlyoffice-desktopeditors" ]; then xterm -hold -e "wget https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb -O /tmp/oo.deb && sudo apt install -y /tmp/oo.deb"; zenity --info --text="OnlyOffice installed! ✅"
+          else install_app "$APP" " $APP"; fi; fi ;;           "📦 Installed")           INSTALLED=$(dpkg --get-selections | grep -v deinstall | awk '{print $1}' | grep -vE '^lib|^linux-|^gir1.2' | sort)           REMOVE_APP=$(echo $INSTALLED | xargs zenity --list --title="Installed Apps" --text="Select app to remove:" --width=500 --height=600 --column="Package")
+          if [ -n "$REMOVE_APP" ]; then if zenity --question --text="Remove $REMOVE_APP?\n\nThis will free up space."; then xterm -hold -e "sudo apt purge -y $REMOVE_APP && sudo apt autoremove -y && echo 'Removed!' ; bash"; fi; fi ;;
+          "❌ Exit"|"") exit 0 ;;
+          esac
+          done
+          STORE_EOF
+          sudo chmod +x chroot/usr/local/bin/warden-store
+          sudo mkdir -p chroot/etc/skel/.config/autostart
+          sudo tee chroot/etc/skel/.config/autostart/warden-setup.desktop << 'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Warden Setup
+          Exec=warden-setup
+          X-GNOME-Autostart-enabled=true
+          EOF
+          sudo tee chroot/etc/skel/Desktop/Warden-Store.desktop << 'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Warden Store
+          Comment=Install apps the easy way
+          Exec=warden-store
+          Icon=system-software-install
+          Terminal=false
+          Categories=System;
+          EOF
+          sudo chmod +x chroot/etc/skel/Desktop/Warden-Store.desktop
+          sudo chroot chroot apt-get update
+          if [ "$EDITION" = "lite-ghost" ]; then
+          sudo chroot chroot apt-get install -y falkon htop zenity fuse network-manager --no-install-recommends
+          sudo chroot chroot apt-get purge -y 'firefox_' 'libreoffice_' 'thunderbird_' 'snapd_' 'transmission_' || true
+          else
+          sudo chroot chroot apt-get install -y firefox-esr falkon htop zenity fuse network-manager --no-install-recommends
+          sudo chroot chroot apt-get purge -y 'snapd_' 'libreoffice_' 'thunderbird_' || true
+          fi
+          sudo chroot chroot apt-get autoremove -y --purge
+          sudo chroot chroot apt-get clean
+          sudo rm -rf chroot/usr/share/doc/_
+          sudo rm -rf chroot/usr/share/man/_
+          sudo rm -rf chroot/usr/share/info/_
+          sudo find chroot/usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en' ! -name 'ar' ! -name 'fr' -exec rm -rf {} +
+          sudo rm -rf chroot/var/cache/apt/archives/_
+          sudo rm -rf chroot/tmp/_
+          sudo chroot chroot systemctl disable ModemManager bluetooth avahi-daemon cups || true
+          sudo umount chroot/dev/pts chroot/dev chroot/run chroot/proc chroot/sys
+          sudo rm -f ext/casper/filesystem.squashfs
+          sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 22 -b 1M -noappend -wildcards -e var/cache/apt -e usr/share/doc -e usr/share/man
+          sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext/casper/filesystem.size
+          sudo mkdir -p ext/EFI/boot ext/boot/grub/i386-pc
+          sudo cp /usr/lib/ISOLINUX/isohdpfx.bin ext/boot/grub/i386-pc/
+          sudo cp /usr/lib/grub/i386-pc/eltorito.img ext/boot/grub/i386-pc/
+          sudo grub-mkimage -O x86_64-efi -o ext/EFI/boot/bootx64.efi -p /boot/grub part_gpt part_msdos fat iso9660 normal configfile linux search search_fs_file
+          echo 'set timeout=5' | sudo tee ext/boot/grub/grub.cfg
+          echo 'menuentry "Warden OS Live - $EDITION" { linux /casper/vmlinuz boot=casper quiet splash --- initrd /casper/initrd }' | sudo tee -a ext/boot/grub/grub.cfg           sudo sed -i 's/Bodhi Linux/Warden OS - Guelma 🇩🇿/g' ext/boot/grub/grub.cfg || true           cd ext           sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "WARDEN_${EDITION^^}" -eltorito-boot boot/grub/i386-pc/eltorito.img -eltorito-catalog boot/grub/i386-pc/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e EFI/boot/bootx64.efi -no-emul-boot -isohybrid-gpt-basdat -isohybrid-apm-hfsplus -output "../warden- ${EDITION}.iso"           cd ..           ls -lh warden-${EDITION}.iso
+          done
+      - name: 🧹 Cleanup mounts always run
+        if: always()
+        run: |
+          sudo umount -lf chroot/dev/pts 2>/dev/null || true
+          sudo umount -lf chroot/dev 2>/dev/null || true
+          sudo umount -lf chroot/run 2>/dev/null || true
+          sudo umount -lf chroot/proc 2>/dev/null || true
+          sudo umount -lf chroot/sys 2>/dev/null || true
+      - name: 🔐 Generate SHA256
+        run: |
+          sha256sum warden-_.iso > SHA256SUMS.txt
+          echo "### Final ISO Sizes v1.4:" >> $GITHUB_STEP_SUMMARY
+          ls -lh warden-_.iso >> $GITHUB_STEP_SUMMARY
+      - name: 🚀 Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: Warden OS ${{ github.event.inputs.version || github.ref_name }} Zero-Bloat ♾️🇩🇿
+          body: |
+            ## Warden OS ${{ github.event.inputs.version || github.ref_name }} - Ultra Clean
+            _By: Taki - 17 y/o, Guelma 🇩🇿_
+            _Motto: No PC deserves to die, No ISO deserves to be fat 🔥_
+            
+            ### 📦 Downloads:
+            _1. Warden Lite Ghost 💪_ - For 1GB RAM PCs
+            `warden-lite-ghost.iso` | ∼400MB | Falkon only
+            
+            _2. Warden Fatih Pro 👑* - For 4GB+ RAM PCs
+            `warden-pro-maxmini.iso` | ∼500MB | Firefox-ESR + Falkon
+            
+            ### 🌍 v1.4 Features:
+            - Hybrid ISO: Boots on BIOS + UEFI
+            - Base ISO: ∼400-500MB. Zero pre-installed bloat.
+            - Warden Setup: Connect/Offline first, then choose apps
+            - Warden Store v2.0: Full App Store with Search + 60,000 packages
+            - Zstd level 22 compression = Smallest possible size
+            - Auto ZRAM + Hibernate for <2GB RAM
+            - All languages AR+EN+FR+ES+DE+ZH optional
+            - Zero Terminal Required - Everything GUI
+            
+            ### 🔐 Verify:
+            sha256sum -c SHA256SUMS.txt
+            
+            _Built from Algeria to save bandwidth and old PCs ✌️_
+          files: |
+            warden-lite-ghost.iso
+            warden-pro-maxmini.iso
+            SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
