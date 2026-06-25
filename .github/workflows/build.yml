@@ -91,7 +91,7 @@ jobs:
         run: |
           sudo rsync -a base/ ext/ --exclude=/${{ env.SQUASHFS_DIR }}/filesystem.squashfs
 
-          # FIX v4.6: Force copy isolinux files to prevent Exit Code 5
+          # FIX v4.7: Force copy isolinux files to prevent Exit Code 5
           sudo rm -rf ext/isolinux
           sudo mkdir -p ext/isolinux
           sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/isolinux/
