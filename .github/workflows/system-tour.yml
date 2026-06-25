@@ -1,9 +1,9 @@
-name: Record Gamma Full Install + Tour 🎥♾️
+name: Record Gamma Demo - VirtualBox 🎥♾️
 on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'التاق تاع الريليز الحالي'
+        description: 'التاق تاع الريليز'
         required: true
         default: 'v2.1-Royal'
       store_deb_name:
@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 jobs:
-  record-all:
+  record-vbox:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     strategy:
@@ -23,143 +23,95 @@ jobs:
       matrix:
         iso: [gamma-legacy-32, gamma-lite-ghost, gamma-pro-maxmini]
     steps:
-      - name: Install QEMU + FFmpeg + Xvfb + xdotool
+      - name: Install VirtualBox + FFmpeg
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 qemu-utils ffmpeg xvfb xdotool wmctrl
-
+          sudo apt-get install -y virtualbox virtualbox-ext-pack ffmpeg xvfb xdotool
+          
       - name: Download ISO ${{ matrix.iso }}
         run: |
           wget -O gamma.iso "https://github.com/takismartgamer123-rgb/Gamma-linux/releases/download/${{ github.event.inputs.release_tag }}/${{ matrix.iso }}.iso"
           ls -lh gamma.iso
-
-      - name: Record Full Install Demo - 3min
-        run: |
-          qemu-img create -f qcow2 disk.qcow2 15G
           
-          # 1. شاشة وهمية
+      - name: Create VM + Record 3min
+        run: |
+          VM_NAME="gamma-${{ matrix.iso }}"
+          
+          # 1. انشاء VM
+          VBoxManage createvm --name "$VM_NAME" --ostype Ubuntu_64 --register
+          VBoxManage modifyvm "$VM_NAME" --memory 3072 --vram 128 --cpus 2
+          VBoxManage modifyvm "$VM_NAME" --nic1 nat --graphicscontroller vmsvga
+          VBoxManage modifyvm "$VM_NAME" --accelerate3d off
+          
+          # 2. هارد ديسك + ISO
+          VBoxManage createmedium disk --filename "$VM_NAME.vdi" --size 15000
+          VBoxManage storagectl "$VM_NAME" --name "SATA" --add sata --controller IntelAhci
+          VBoxManage storageattach "$VM_NAME" --storagectl "SATA" --port 0 --device 0 --type hdd --medium "$VM_NAME.vdi"
+          VBoxManage storageattach "$VM_NAME" --storagectl "SATA" --port 1 --device 0 --type dvddrive --medium gamma.iso
+          
+          # 3. شغل VM في الخلفية
           export DISPLAY=:99
           Xvfb :99 -screen 0 1280x720x24 &
           sleep 3
+          VBoxManage startvm "$VM_NAME" --type headless &
+          sleep 90 # إقلاع
           
-          # 2. شغل QEMU Live
-          qemu-system-x86_64 \
-            -m 3072 \
-            -smp 2 \
-            -cdrom gamma.iso \
-            -drive file=disk.qcow2,format=qcow2 \
-            -boot d \
-            -vga std \
-            -vnc :1 \
-            -netdev user,id=net0 -device e1000,netdev=net0 \
-            -usb -device usb-tablet &
-          QEMU_PID=$!
-          sleep 90 # إقلاع كامل + سطح المكتب
-          
-          # 3. ابدا التسجيل
-          ffmpeg -f x11grab -video_size 1280x720 -i :99 -codec:v libx264 -preset ultrafast -t 180 ${{ matrix.iso }}-full-demo.mp4 &
+          # 4. ابدا التسجيل - VirtualBox يعرض ديركت في :99
+          ffmpeg -f x11grab -video_size 1280x720 -i :99 -framerate 30 -c:v libx264 -preset ultrafast -t 180 ${{ matrix.iso }}-vbox-demo.mp4 &
           FFMPEG_PID=$!
-          
-          # 4. السيناريو الكامل 3 دقايق
           sleep 5
           
-          # 0:00-0:10 افتح ترمينال
-          xdotool key ctrl+alt+t
+          # 5. السيناريو: ترمينال + تثبيت + ستور
+          # 0:00-0:10 ترمينال
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 1d 38  # Ctrl+Alt+T
           sleep 3
-          xdotool type "clear"
-          xdotool key Return
+          VBoxManage controlvm "$VM_NAME" keyboardputstring "clear"
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 1c # Enter
           sleep 1
-          xdotool type "echo '=== Gamma Linux ${{ matrix.iso }} ==='"
-          xdotool key Return
-          sleep 1
-          xdotool type "echo 'Dedicated to my father Fateh'"
-          xdotool key Return
+          VBoxManage controlvm "$VM_NAME" keyboardputstring "echo '=== Gamma Linux ${{ matrix.iso }} ==='"
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 1c
           sleep 3
           
-          # 0:10-1:00 حمل وثبت الستور من الترمينال
-          xdotool type "wget https://github.com/takismartgamer123-rgb/Gamma-linux/releases/download/${{ github.event.inputs.release_tag }}/${{ github.event.inputs.store_deb_name }}"
-          xdotool key Return
-          sleep 15 # وقت التحميل
+          # 0:10-1:00 wget + apt install
+          VBoxManage controlvm "$VM_NAME" keyboardputstring "wget https://github.com/takismartgamer123-rgb/Gamma-linux/releases/download/${{ github.event.inputs.release_tag }}/${{ github.event.inputs.store_deb_name }}"
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 1c
+          sleep 15
           
-          xdotool type "ls -lh ${{ github.event.inputs.store_deb_name }}"
-          xdotool key Return
-          sleep 3
+          VBoxManage controlvm "$VM_NAME" keyboardputstring "sudo apt-get install -y ./{{ github.event.inputs.store_deb_name }}"
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 1c
+          sleep 20
           
-          xdotool type "sudo apt-get install -y ./{{ github.event.inputs.store_deb_name }}"
-          xdotool key Return
-          sleep 20 # وقت التثبيت
+          # 1:00-3:00 شغل الستور واستعملو
+          VBoxManage controlvm "$VM_NAME" keyboardputstring "gamma-store"
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 1c
+          sleep 10
           
-          xdotool type "echo '=== Store Installed Successfully ==='"
-          xdotool key Return
-          sleep 3
-          
-          # 1:00-1:20 شغل الستور من الترمينال
-          xdotool type "gamma-store"
-          xdotool key Return
-          sleep 10 # وقت فتح الستور
-          
-          # 1:20-2:00 استعمل الستور: بحث
-          xdotool key Tab
-          sleep 1
-          xdotool key Return # زر Search
+          # Tab + Search + vlc
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 0f 1c  # Tab Enter
           sleep 2
-          xdotool type "firefox"
-          sleep 1
-          xdotool key Return
-          sleep 15 # نتائج البحث + الكاش
+          VBoxManage controlvm "$VM_NAME" keyboardputstring "vlc"
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 1c
+          sleep 15
           
-          # 2:00-2:20 اختار وثبت
-          xdotool key Tab
-          sleep 1
-          xdotool key space # اختار أول نتيجة
-          sleep 1
-          xdotool key Tab
-          sleep 1
-          xdotool key Tab
-          sleep 1
-          xdotool key Return # Install
-          sleep 15 # شريط التقدم
+          # Install
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 0f 39 0f 0f 1c # Tab Space Tab Tab Enter
+          sleep 20
           
-          # 2:20-2:40 اقفل الستور وروح للترمينال
-          xdotool key Alt+F4
+          # Outro
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 38 3e # Alt+F4
           sleep 2
-          xdotool key Alt+Tab
-          sleep 2
-          
-          # 2:40-3:00 النهاية
-          xdotool type "clear"
-          xdotool key Return
-          sleep 1
-          xdotool type "echo 'Alpha failed. Beta crashed. Gamma survives'"
-          xdotool key Return
-          sleep 2
-          xdotool type "echo 'Maximum Power, Minimum RAM'"
-          xdotool key Return
-          sleep 2
-          xdotool type "echo 'Dedicated to my father Fateh'"
-          xdotool key Return
-          sleep 8
+          VBoxManage controlvm "$VM_NAME" keyboardputstring "echo 'Alpha failed. Beta crashed. Gamma survives'"
+          VBoxManage controlvm "$VM_NAME" keyboardputscancode 1c
+          sleep 10
           
           wait $FFMPEG_PID
-          kill $QEMU_PID || true
-          ls -lh ${{ matrix.iso }}-full-demo.mp4
-
-      - name: Upload Video to Release ${{ github.event.inputs.release_tag }}
+          VBoxManage controlvm "$VM_NAME" poweroff
+          ls -lh ${{ matrix.iso }}-vbox-demo.mp4
+          
+      - name: Upload Video
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.release_tag }}
-          files: ${{ matrix.iso }}-full-demo.mp4
-          body: |
-            ## 🎥 Gamma Linux Full Demo - ${{ matrix.iso }}
-            
-            **3-minute complete walkthrough:**
-            1. Boot Live ISO
-            2. **Terminal: wget + apt install Gamma Store**
-            3. **Launch gamma-store from terminal**
-            4. **Search + Install firefox from store**
-            5. Outro
-            
-            *Alpha failed. Beta crashed. Gamma survives.*  
-            *Dedicated to my father Fateh* 🇩🇿
+          files: ${{ matrix.iso }}-vbox-demo.mp4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
