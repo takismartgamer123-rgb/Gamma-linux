@@ -71,7 +71,7 @@ jobs:
           mkdir -p base
           sudo mount -o loop base.iso base
 
-      - name: Find and Extract Base System
+      - name: Extract Base System
         run: |
           if [ -f base/casper/filesystem.squashfs ]; then
             SQUASHFS_PATH="base/casper/filesystem.squashfs"
@@ -85,24 +85,17 @@ jobs:
             exit 1
           fi
           echo "SQUASHFS_DIR=$SQUASHFS_DIR" >> $GITHUB_ENV
-          echo "Found squashfs at: $SQUASHFS_PATH"
           sudo unsquashfs -f -d squashfs-root "$SQUASHFS_PATH"
 
-      - name: Build ${{ matrix.name }} Edition - ANTI-DEATH MODE v4.4 FINAL
+      - name: Prepare Chroot Environment
         run: |
-          echo "=== Building Gamma ${{ matrix.name }} - ${{ matrix.desc }} ==="
-
-          # FIX 1: rsync صحيح - ننسخو كلش ماعدا squashfs فقط
           sudo rsync -a base/ ext/ --exclude=/${{ env.SQUASHFS_DIR }}/filesystem.squashfs
-
-          # FIX 2: نتأكدو بلي ملفات البوت موجودة
           if [! -f ext/isolinux/isolinux.bin ]; then
             echo "WARNING: isolinux.bin missing! Copying from syslinux..."
             sudo mkdir -p ext/isolinux
             sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/isolinux/
             sudo cp /usr/lib/syslinux/modules/bios/*.c32 ext/isolinux/ || true
           fi
-
           sudo rm -rf chroot
           sudo rsync -a --delete squashfs-root/ chroot/
           sudo mount --bind /dev chroot/dev
@@ -113,6 +106,8 @@ jobs:
           sudo rm -f chroot/etc/resolv.conf
           echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
 
+      - name: Fix APT and Sources
+        run: |
           sudo chroot chroot bash -c "
             killall apt apt-get dpkg 2>/dev/null || true
             rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* /var/lib/dpkg/lock-frontend
@@ -121,7 +116,6 @@ jobs:
             apt-get install -f -y || true
           "
           sudo rm -f chroot/etc/apt/sources.list.d/* || true
-
           if [ "${{ matrix.base }}" = "ubuntu" ]; then
             sudo tee chroot/etc/apt/sources.list << 'EOF'
           deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
@@ -136,10 +130,10 @@ jobs:
           deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
           EOF
           fi
-
           sudo chroot chroot apt-get update -y
 
-          # SAFE PURGE - منمسحوش ملفات الـ config المشتركة
+      - name: Install Gamma Core Packages
+        run: |
           sudo chroot chroot bash -c "
             apt-get remove -y --purge moksha* e17* enlightenment* || true
             apt-get remove -y --purge bodhi-artwork bodhi-theme-moksha || true
@@ -148,24 +142,20 @@ jobs:
             apt-get remove -y --purge snapd* flatpak* || true
             apt-get autoremove --purge -y || true
           "
-
           sudo chroot chroot apt-get install -y --no-install-recommends lxqt-core lxqt-themes openbox pcmanfm-qt
           sudo chroot chroot apt-get install -y --no-install-recommends materia-gtk-theme papirus-icon-theme fonts-noto-core fonts-noto-color-emoji
           sudo chroot chroot apt-get install -y --no-install-recommends lightdm lightdm-gtk-greeter lxqt-sudo
           sudo chroot chroot apt-get install -y --no-install-recommends zram-tools preload tlp zenity curl wget
           sudo chroot chroot apt-get install -y --no-install-recommends adwaita-icon-theme hicolor-icon-theme
-
           if [ "${{ matrix.installer }}" = "ubiquity" ]; then
-            echo "Installing Ubiquity for Ubuntu base..."
             sudo chroot chroot apt-get install -y --no-install-recommends ubiquity ubiquity-frontend-gtk ubiquity-slideshow-ubuntu ubiquity-casper casper
           else
-            echo "Installing Calamares for Debian base..."
             sudo chroot chroot apt-get install -y --no-install-recommends calamares calamares-settings-debian
           fi
-
           sudo chroot chroot bash -c "dpkg --configure -a || true; apt-get install -f -y || true"
 
-          # FIX 3: LightDM Auto-Login + Session LXQt
+      - name: Configure Gamma System
+        run: |
           sudo chroot chroot bash -c "
             mkdir -p /etc/lightdm/lightdm.conf.d
             echo '[Seat:*]' > /etc/lightdm/lightdm.conf.d/50-gamma-autologin.conf
@@ -176,17 +166,14 @@ jobs:
             usermod -aG sudo gamma || true
             echo 'gamma:gamma' | chpasswd
           "
-
           sudo mkdir -p chroot/usr/share/backgrounds
           sudo mkdir -p chroot/usr/share/pixmaps
           sudo mkdir -p chroot/usr/share/icons/hicolor/256x256/apps
           sudo mkdir -p chroot/usr/share/icons/hicolor/48x48/apps
-
           sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg
           sudo cp gamma-logo.png chroot/usr/share/pixmaps/gamma-logo.png
           sudo cp gamma-logo.png chroot/usr/share/icons/hicolor/256x256/apps/gamma-logo.png
           sudo cp gamma-logo.png chroot/usr/share/icons/hicolor/48x48/apps/gamma-logo.png
-
           sudo mkdir -p chroot/etc/skel/.config/lxqt
           sudo tee chroot/etc/skel/.config/lxqt/lxqt.conf << 'EOF'
           [General]
@@ -195,7 +182,6 @@ jobs:
           [Qt]
           style=Fusion
           EOF
-
           sudo mkdir -p chroot/etc/skel/Desktop
           if [ "${{ matrix.installer }}" = "ubiquity" ]; then
             sudo tee chroot/etc/skel/Desktop/install-gamma.desktop << 'EOF'
@@ -220,9 +206,10 @@ jobs:
           Keywords=install;system;
           EOF
           fi
-          # FIX 4: chmod +x للأيقونة باش تخدم مباشرة
           sudo chmod +x chroot/etc/skel/Desktop/install-gamma.desktop
 
+      - name: Create Gamma Tools
+        run: |
           sudo tee chroot/usr/local/bin/gamma-theme << 'EOF'
           #!/bin/bash
           THEME=$1
@@ -236,176 +223,18 @@ jobs:
             sed -i 's/theme=.*/theme=Materia-Dark/' ~/.config/lxqt/lxqt.conf
             sed -i 's/icon_theme=.*/icon_theme=Papirus-Dark/' ~/.config/lxqt/lxqt.conf
             notify-send "Gamma Linux" "Royal Theme Activated"
-          elif [ "$THEME" = "windows" ]; then
-            sed -i 's/theme=.*/theme=Windows/' ~/.config/lxqt/lxqt.conf
-            notify-send "Gamma Linux" "Windows Theme Activated"
-          elif [ "$THEME" = "mac" ]; then
-            sed -i 's/theme=.*/theme=Mac/' ~/.config/lxqt/lxqt.conf
-            notify-send "Gamma Linux" "Mac Theme Activated"
-          else
-            echo "Usage: gamma-theme gamma|king|windows|mac"
           fi
           EOF
           sudo chmod +x chroot/usr/local/bin/gamma-theme
-
-          sudo tee chroot/etc/skel/Desktop/README.txt << 'EOF'
-
-           Gamma Linux v2.1-Royal - Welcome
-           Built in Guelma by Taki, 17yo
-           Dedicated to my father Fateh
-
-
-          Maximum Power, Minimum RAM
-
-          Alpha failed. Beta crashed. Gamma survives
-
-          Because no PC deserves to die
-
-          INSTALLATION:
-          Double-click "Install Gamma Linux" on Desktop
-          Next → Finish. No terminal needed!
-
-          APPS:
-          - Gamma Store: Install any app from 200,000+ packages
-          - Gamma Drivers: Install hardware drivers
-          - gamma-theme gamma/king/windows/mac: Change appearance
-
-          First Setup:
-          Run: gamma-setup to install browser, office, languages
-
-          RAM Usage Empty:
-          - Legacy 32: ~60MB
-          - Lite Ghost: ~110MB
-          - Fatih Pro: ~180MB
-
-          Made from Algeria to the world
-          EOF
-
-          echo "Gamma Linux ${{ matrix.name }} - ${{ github.event.inputs.version || github.ref_name }}" | sudo tee chroot/etc/gamma-version
-          echo "UI: LXQt 1.4 + Gamma-Dark Theme" | sudo tee -a chroot/etc/gamma-version
-          echo "Installer: ${{ matrix.installer }}" | sudo tee -a chroot/etc/gamma-version
-          echo "RAM Target: ${{ matrix.ram }}" | sudo tee -a chroot/etc/gamma-version
-          echo "Maximum Power, Minimum RAM" | sudo tee -a chroot/etc/gamma-version
-          echo "Alpha failed. Beta crashed. Gamma survives" | sudo tee -a chroot/etc/gamma-version
-          echo "Built from Guelma, Algeria by Taki" | sudo tee -a chroot/etc/gamma-version
-          echo "Dedicated to my father Fateh" | sudo tee -a chroot/etc/gamma-version
-          echo "Because no PC deserves to die" | sudo tee -a chroot/etc/gamma-version
-
           sudo tee chroot/usr/local/bin/gamma-setup << 'EOF'
           #!/bin/bash
           zenity --info --title="Gamma Linux Setup" --text="Welcome to Gamma Linux\nUI: LXQt 1.4 Royal Edition\nMaximum Power, Minimum RAM\n\nAlpha failed. Beta crashed. Gamma survives\n\nBecause no PC deserves to die\n\nDedicated to my father Fateh" --width=450 --height=300
-
-          INSTALL_TYPE=$(zenity --list --radiolist --title="Installation Type" --text="Choose your installation:" --column="Select" --column="Type" --column="Description" TRUE "Minimal" "Just browser + essentials - Fastest" FALSE "Standard" "Browser + Office + Media - Recommended" FALSE "Full" "Install everything - For 4GB+ RAM" --height=300 --width=500)
-
-          BROWSER=$(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" --column="Select" --column="Browser" TRUE "falkon" FALSE "firefox-esr" FALSE "chromium" FALSE "none" --height=300)
-
-          LANGS=$(zenity --list --checklist --title="Select Languages" --text="Choose languages:" --column="Select" --column="Language" TRUE "Arabic" TRUE "English" TRUE "French" FALSE "Spanish" FALSE "German" --height=350 --width=400)
-
-          RAM=$(free -m | awk '/^Mem:/{print $2}')
-          if [ $RAM -lt 2048 ]; then
-            if zenity --question --title="Low RAM Detected" --text="Your PC has ${RAM}MB RAM\nEnable ZRAM for better performance?"; then
-              systemctl enable zram-config 2>/dev/null || true
-              zenity --info --text="ZRAM will be enabled after reboot!"
-            fi
-          fi
-
+          BROWSER=$(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" --column="Select" --column="Browser" TRUE "falkon" FALSE "firefox-esr" FALSE "chromium" --height=300)
           apt-get update
-          apt-get install -y --no-install-recommends $BROWSER htop zenity python3-pip wget curl
-          if [[ '$LANGS' == *Arabic* ]]; then apt-get install -y language-pack-ar fonts-noto-core; fi
-          if [[ '$LANGS' == *French* ]]; then apt-get install -y language-pack-fr; fi
-          if [ '$INSTALL_TYPE' = 'Standard' ]; then apt-get install -y --no-install-recommends libreoffice-writer vlc; elif [ '$INSTALL_TYPE' = 'Full' ]; then apt-get install -y --no-install-recommends libreoffice gimp vlc; fi
-
-          zenity --info --title="Setup Complete" --text="Gamma Linux Ready!\n\nInstalled: $INSTALL_TYPE\nBrowser: $BROWSER\nLanguages: $LANGS\n\nOpen 'Gamma Store' from menu to install more apps\nOpen 'Gamma Drivers' for hardware drivers\n\nMaximum Power, Minimum RAM\n\n- Taki from Guelma, Algeria\nDedicated to my father Fateh" --width=450
+          apt-get install -y --no-install-recommends $BROWSER htop zenity
+          zenity --info --title="Setup Complete" --text="Gamma Linux Ready!\n\n- Taki from Guelma, Algeria\nDedicated to my father Fateh" --width=450
           EOF
           sudo chmod +x chroot/usr/local/bin/gamma-setup
-
-          sudo tee chroot/usr/local/bin/gamma-store << 'EOF'
-          #!/bin/bash
-          while true; do
-            MAIN_CHOICE=$(zenity --list --title="Gamma Store - Universal" \
-            --text="Gamma Linux App Store\nMaximum Power, Minimum RAM\n\nDedicated to my father Fateh\n\nChoose option:" \
-            --column="Option" --column="Description" \
-            "Browse" "Browse popular apps by category" \
-            "Search" "Search all APT repositories - 200,000+ packages" \
-            "Installed" "Manage installed apps" \
-            "Update" "Update system & app list" \
-            "Cleanup" "Remove unused packages & cache" \
-            --width=500 --height=350 \
-            --ok-label="Open" --cancel-label="Exit")
-
-            [ -z "$MAIN_CHOICE" ] && exit 0
-
-            case "$MAIN_CHOICE" in
-              "Search")
-                SEARCH=$(zenity --entry --title="Search All Packages" --text="Enter app name or keyword:\nExample: video, browser, editor, game" --width=400)
-                [ -z "$SEARCH" ] && continue
-                (echo "# Searching APT repositories..."; apt-cache search "$SEARCH" | head -200 > /tmp/gamma_search_results; echo "100") | zenity --progress --title="Searching..." --text="Searching all packages..." --pulsate --auto-close --width=300
-                if [! -s /tmp/gamma_search_results ]; then zenity --warning --text="No packages found for '$SEARCH'" --width=250; continue; fi
-                SELECTED=$(cat /tmp/gamma_search_results | zenity --list --title="Search Results: $SEARCH" --text="Found $(wc -l < /tmp/gamma_search_results) packages. Select to install:" --column="Package" --column="Description" --separator=" - " --width=900 --height=600 --ok-label="Install" --cancel-label="Back")
-                [ -z "$SELECTED" ] && continue
-                PKG_NAME=$(echo "$SELECTED" | awk '{print $1}')
-                if zenity --question --title="Confirm Install" --text="Install: $PKG_NAME\n\nProceed?" --width=350; then
-                  (echo "10"; echo "# Updating..."; apt-get update -qq; echo "50"; echo "# Installing $PKG_NAME..."; apt-get install -y --no-install-recommends "$PKG_NAME"; echo "100"; echo "# Done!") | zenity --progress --title="Installing $PKG_NAME" --pulsate --auto-close --width=400
-                  [ $? = 0 ] && zenity --info --text="$PKG_NAME installed successfully!" --width=250 || zenity --error --text="Installation failed!" --width=250
-                fi
-                rm -f /tmp/gamma_search_results
-                ;;
-              "Browse")
-                CAT=$(zenity --list --title="Browse Categories" --text="Select category:" --column="Category" "Web Browsers" "Text Editors" "Media Players" "Office" "Graphics" "Video Editors" "Games" "Development" "System Tools" "Utilities" --width=300 --height=400)
-                [ -z "$CAT" ] && continue
-                case "$CAT" in "Web Browsers") QUERY="browser";; "Text Editors") QUERY="editor text";; "Media Players") QUERY="player media";; "Office") QUERY="office suite";; "Graphics") QUERY="image editor";; "Video Editors") QUERY="video editor";; "Games") QUERY="game";; "Development") QUERY="development ide";; "System Tools") QUERY="system tool";; "Utilities") QUERY="utility";; esac
-                apt-cache search "$QUERY" | head -100 > /tmp/gamma_cat_results
-                SELECTED=$(cat /tmp/gamma_cat_results | zenity --list --title="$CAT" --column="Package" --column="Description" --separator=" - " --width=900 --height=600 --ok-label="Install")
-                [ -z "$SELECTED" ] && continue
-                PKG_NAME=$(echo "$SELECTED" | awk '{print $1}')
-                if zenity --question --text="Install $PKG_NAME?" --width=250; then xterm -e "sudo apt-get update && sudo apt-get install -y --no-install-recommends $PKG_NAME && echo 'Done! Press Enter' && read"; fi
-                rm -f /tmp/gamma_cat_results
-                ;;
-              "Installed") dpkg -l | grep "^ii" | awk '{print $2 " - " $3}' | zenity --list --title="Installed Packages" --text="All installed packages. Select to remove:" --column="Package" --column="Version" --separator=" - " --width=600 --height=600 --ok-label="Remove" --cancel-label="Back" > /tmp/to_remove; [ -s /tmp/to_remove ] || continue; PKG_REMOVE=$(cat /tmp/to_remove | awk '{print $1}'); if zenity --question --text="Remove $PKG_REMOVE?" --width=350; then xterm -e "sudo apt-get remove -y $PKG_REMOVE && echo 'Done! Press Enter' && read"; fi; rm -f /tmp/to_remove;;
-              "Update") xterm -e "sudo apt-get update && sudo apt-get upgrade -y && echo 'System updated! Press Enter' && read";;
-              "Cleanup") if zenity --question --text="Remove unused packages and clean cache?" --width=350; then xterm -e "sudo apt-get autoremove --purge -y && sudo apt-get clean && echo 'Cleanup done! Press Enter' && read"; fi;;
-            esac
-          done
-          EOF
-          sudo chmod +x chroot/usr/local/bin/gamma-store
-
-          sudo tee chroot/usr/local/bin/gamma-drivers << 'EOF'
-          #!/bin/bash
-          DRIVER_CHOICE=$(zenity --list --title="Gamma Drivers Manager" --text="Install missing drivers\n\nDedicated to my father Fateh" --column="Driver" --column="Description" "nvidia" "Nvidia GPU Proprietary Driver" "amd-gpu" "AMD GPU Firmware" "intel-microcode" "Intel CPU Updates" "amd64-microcode" "AMD CPU Updates" "wifi-broadcom" "Broadcom WiFi Driver" "wifi-realtek" "Realtek WiFi Driver" "printer-hp" "HP Printer Drivers" "printer-canon" "Canon Printer Drivers" "bluetooth" "Bluetooth Support" "fingerprint" "Fingerprint Reader" "all-firmware" "Install ALL Firmware" --width=600 --height=500 --ok-label="Install" --cancel-label="Exit")
-          [ -z "$DRIVER_CHOICE" ] && exit 0
-          (echo "10"; echo "# Updating package list..."; apt-get update -qq; echo "30"; echo "# Installing $DRIVER_CHOICE..."; case "$DRIVER_CHOICE" in "nvidia") apt-get install -y --no-install-recommends nvidia-driver-535;; "amd-gpu") apt-get install -y --no-install-recommends firmware-amd-graphics libgl1-mesa-dri;; "intel-microcode") apt-get install -y --no-install-recommends intel-microcode;; "amd64-microcode") apt-get install -y --no-install-recommends amd64-microcode;; "wifi-broadcom") apt-get install -y --no-install-recommends firmware-b43-installer;; "wifi-realtek") apt-get install -y --no-install-recommends firmware-realtek;; "printer-hp") apt-get install -y --no-install-recommends hplip cups; systemctl enable cups 2>/dev/null || true;; "printer-canon") apt-get install -y --no-install-recommends cups cnijfilter2; systemctl enable cups 2>/dev/null || true;; "bluetooth") apt-get install -y --no-install-recommends bluez blueman; systemctl enable bluetooth 2>/dev/null || true;; "fingerprint") apt-get install -y --no-install-recommends fprintd;; "all-firmware") apt-get install -y --no-install-recommends linux-firmware firmware-linux firmware-amd-graphics firmware-realtek intel-microcode amd64-microcode;; esac; echo "90"; echo "# Cleaning up..."; apt-get clean; echo "100"; echo "# Done!") | zenity --progress --title="Installing Drivers" --text="Please wait..." --percentage=0 --auto-close --width=500
-          [ $? = 0 ] && zenity --info --title="Success" --text="Driver installed successfully!\n\nYou may need to REBOOT for changes to take effect.\n\nGamma Linux - Dedicated to my father Fateh" --width=400 || zenity --error --title="Failed" --text="Driver installation failed!" --width=300
-          EOF
-          sudo chmod +x chroot/usr/local/bin/gamma-drivers
-
-          sudo mkdir -p chroot/usr/share/applications
-          sudo tee chroot/usr/share/applications/gamma-store.desktop << 'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=Gamma Store
-          Comment=Install apps from 200,000+ packages
-          Exec=gamma-store
-          Icon=gamma-logo
-          Categories=System;Settings;
-          Keywords=store;install;apps;software;
-          EOF
-
-          sudo tee chroot/usr/share/applications/gamma-drivers.desktop << 'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=Gamma Drivers
-          Comment=Install hardware drivers
-          Exec=gamma-drivers
-          Icon=gamma-logo
-          Categories=System;Settings;
-          Keywords=drivers;hardware;nvidia;wifi;
-          EOF
-
-          sudo cp chroot/usr/share/applications/gamma-store.desktop chroot/etc/skel/Desktop/
-          sudo cp chroot/usr/share/applications/gamma-drivers.desktop chroot/etc/skel/Desktop/
-          sudo chmod +x chroot/etc/skel/Desktop/gamma-store.desktop
-          sudo chmod +x chroot/etc/skel/Desktop/gamma-drivers.desktop
-
           sudo mkdir -p chroot/etc/skel/.config/autostart
           sudo tee chroot/etc/skel/.config/autostart/gamma-setup.desktop << 'EOF'
           [Desktop Entry]
@@ -415,34 +244,16 @@ jobs:
           X-GNOME-Autostart-enabled=true
           EOF
 
-          echo "Services will be enabled on first boot"
-
-          echo "=== STARTING SAFE CLEANUP ==="
-          sudo chroot chroot bash -c "apt-get autoremove --purge -y || true"
-          sudo chroot chroot bash -c "apt-get clean || true"
+      - name: Cleanup and Compress
+        run: |
+          sudo chroot chroot bash -c "apt-get autoremove --purge -y || true; apt-get clean || true"
           sudo chroot chroot rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* /var/tmp/*
           sudo chroot chroot rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/*
-          sudo chroot chroot rm -rf /usr/share/locale/* || true
-          sudo chroot chroot bash -c "mkdir -p /usr/share/locale/en /usr/share/locale/ar /usr/share/locale/fr"
-          sudo chroot chroot find /usr/share/icons -type f -name "*.svg" -size +100k -delete 2>/dev/null || true
-          sudo chroot chroot find /usr/share/icons -type f -name "*.png" -size +500k -delete 2>/dev/null || true
-          sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg
-          sudo chroot chroot find /usr -name "*.pyc" -delete
-          sudo chroot chroot find /usr -name "*.pyo" -delete
-          sudo chroot chroot find /var/log -type f -delete
-          sudo chroot chroot rm -rf /root/.cache /home/*/.cache 2>/dev/null || true
-
-          # FIX 5: Umount قبل du باش مايموتش
           sudo umount chroot/dev/pts || true
           sudo umount chroot/dev || true
           sudo umount chroot/run || true
           sudo umount chroot/proc || true
           sudo umount chroot/sys || true
-
-          echo "=== SIZE BEFORE COMPRESSION ==="
-          sudo du -sh chroot || true
-          echo "=== CLEANUP DONE ==="
-
           if [ "${{ env.SQUASHFS_DIR }}" = "casper" ]; then
             sudo rm -f ext/casper/filesystem.squashfs
             sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 19 -b 1M -noappend -no-recovery
@@ -453,22 +264,19 @@ jobs:
             sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext/live/filesystem.size
           fi
 
+      - name: Build ISO
+        run: |
           sudo sed -i 's/Bodhi Linux/Gamma Linux v2.1-Royal - Guelma/g' ext/boot/grub/grub.cfg 2>/dev/null || true
           sudo sed -i 's/Bodhi Linux/Gamma Linux v2.1-Royal - Guelma/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
-          echo "menu title Gamma Linux ${{ matrix.name }} - LXQt 1.4 Royal | By Taki" | sudo tee -a ext/isolinux/isolinux.cfg
-
           cd ext
-          # FIX 6: نتأكدو من وجود ملفات البوت قبل xorriso
           ls -la isolinux/isolinux.bin || exit 1
           ls -la /usr/lib/ISOLINUX/isohdpfx.bin || exit 1
-
           EFI_ARGS=""
           if [ -f boot/grub/efi.img ]; then
             EFI_ARGS="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"
           fi
           sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "GAMMA_${{ matrix.name }}" -eltorito-boot isolinux/isolinux.bin -eltorito-catalog isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin $EFI_ARGS -output "../gamma-${{ matrix.name }}.iso".
           cd..
-          echo "=== FINAL ISO SIZE ==="
           ls -lh gamma-${{ matrix.name }}.iso
 
       - name: Upload ISO as Artifact
@@ -514,32 +322,9 @@ jobs:
             *Dedicated to my father Fateh* ♾️
 
             ### 3 Editions:
-
             **1. Gamma Legacy 32** ~700MB - For 512MB RAM PCs
             **2. Gamma Lite Ghost** ~770MB - For 1GB RAM
             **3. Gamma Fatih Pro** ~850MB - For 2GB+ RAM
-
-            ### Key Features:
-            **1. Real UI:** LXQt 1.4 + Gamma-Dark Theme
-            **2. Graphical Installer:** Zero Terminal Installation
-            **3. Gamma Store v3:** Universal App Store - 200,000+ packages
-            **4. Gamma Drivers Manager:** Hardware Support
-            **5. Ultra-Lite:** ZRAM + Preload + TLP enabled
-            **6. Auto-Login:** No password needed in Live mode
-
-            ### Real RAM Usage Idle:
-            - **Legacy 32**: ~60MB
-            - **Lite Ghost**: ~110MB
-            - **Fatih Pro**: ~180MB
-
-            ### Installation:
-            1. Boot from USB/DVD
-            2. Double-click "Install Gamma Linux" icon on Desktop
-            3. Follow wizard: Language → Timezone → Keyboard → Disk → User
-            4. Reboot and enjoy!
-
-            *Tested on:* Packard Bell TE11HC, Acer Aspire One D270
-            *Built from Algeria to all world with love*
           files: |
             release-files/*.iso
             release-files/SHA256SUMS.txt
