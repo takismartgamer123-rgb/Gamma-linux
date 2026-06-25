@@ -1,4 +1,4 @@
-name: Build Gamma Store Pro - Fixed
+name: Build Gamma Store Pro - With Icon Cache
 on:
   workflow_dispatch:
     inputs:
@@ -37,9 +37,9 @@ jobs:
           Architecture: all
           Depends: yad (>= 0.40), pkexec, apt, apt-utils, wget, curl, libnotify-bin, dpkg
           Maintainer: Taki <takismartgamer123@gmail.com>
-          Description: Gamma Store Pro - Advanced App Center with Full Search
-           Modern software center with APT search, .deb installer, and progress bars.
-           Search all Ubuntu packages + install local .deb files.
+          Description: Gamma Store Pro - Smart App Center with Icon Cache
+           Modern software center with APT search, icon caching, and .deb installer.
+           Icons download on-demand and cache locally.
            .
            Alpha failed. Beta crashed. Gamma survives.
            Dedicated to my father Fateh.
@@ -47,8 +47,32 @@ jobs:
           
           cat > "${BUILD_DIR}/usr/local/bin/gamma-store" << 'STORE_PRO'
           #!/bin/bash
-          # Gamma Store Pro v2.2 - Full APT Search + .deb Installer
+          # Gamma Store Pro v2.2 - With Icon Cache
           # Dedicated to my father Fateh
+          
+          ICON_CACHE="$HOME/.cache/gamma-store/icons"
+          mkdir -p "$ICON_CACHE"
+          
+          get_icon() {
+            local pkg="$1"
+            local icon_path="$ICON_CACHE/${pkg}.png"
+            
+            # 1. لو كاينة في الكاش، استعملها
+            [ -f "$icon_path" ] && echo "$icon_path" && return
+            
+            # 2. فتش في النظام المثبت
+            local sys_icon=$(dpkg -L "$pkg" 2>/dev/null | grep -m1 '/icons/.*\.png$\|pixmaps/.*\.png$' | head -1)
+            if [ -n "$sys_icon" ] && [ -f "$sys_icon" ]; then
+              cp "$sys_icon" "$icon_path"
+              echo "$icon_path" && return
+            fi
+            
+            # 3. حمل من debian.org في الخلفية
+            wget -q -T 2 -O "$icon_path" "https://screenshots.debian.net/thumbnail/${pkg}" &
+            
+            # 4. رجع أيقونة افتراضية مؤقتاً
+            echo "application-x-deb"
+          }
           
           install_package() {
             local pkg="$1"
@@ -73,30 +97,8 @@ jobs:
               notify-send "Gamma Store" "Installed $name successfully" -i software-install
               yad --info --title="Success" --text="<b>$name installed!</b>\n\nDedicated to my father Fateh" --width=350
             else
-              yad --error --title="Error" --text="Failed to install $name\n\nCheck your internet connection" --width=350
+              yad --error --title="Error" --text="Failed to install $name" --width=350
             fi
-          }
-          
-          install_deb() {
-            local deb_file="$1"
-            (
-            echo "# 20 Analyzing .deb file..."
-            pkexec apt-get install -y -f
-            echo "# 70 Installing $deb_file..."
-            if pkexec dpkg -i "$deb_file" 2>&1; then
-              echo "# 90 Fixing dependencies..."
-              pkexec apt-get install -f -y
-              echo "# 100 Done!"
-            else
-              echo "# Fixing broken install..."
-              pkexec apt-get install -f -y
-              echo "# 100 Done!"
-            fi
-            ) | yad --progress --title="Gamma Store" --text="<b>Installing .deb Package</b>" \
-              --percentage=0 --auto-close --width=500 --height=150 \
-              --window-icon="package-x-generic" --no-buttons
-              
-            yad --info --title="Success" --text="<b>.deb installed!</b>" --width=350
           }
           
           search_packages() {
@@ -105,15 +107,14 @@ jobs:
             
             (
             echo "# 30 Searching repositories..."
-            RESULTS=$(apt-cache search "$query" | head -100)
-            echo "# 70 Formatting results..."
-            sleep 0.5
+            RESULTS=$(apt-cache search "$query" | head -50)
+            echo "# 70 Fetching icons..."
+            echo "$RESULTS" > /tmp/gamma-search.txt
             echo "# 100 Done!"
-            echo "$RESULTS"
-            ) | yad --progress --title="Gamma Store Search" --text="Searching APT repositories..." \
+            ) | yad --progress --title="Gamma Store Search" --text="Searching + caching icons..." \
               --percentage=0 --auto-close --pulsate --width=400 --height=100 --no-buttons
             
-            if [ -z "$RESULTS" ]; then
+            if [ ! -s /tmp/gamma-search.txt ]; then
               yad --error --title="No Results" --text="No packages found for: <b>$query</b>" --width=350
               return
             fi
@@ -121,14 +122,15 @@ jobs:
             FORMATTED=""
             while IFS= read -r line; do
               PKG=$(echo "$line" | cut -d' ' -f1)
-              DESC=$(echo "$line" | cut -d' ' -f2- | cut -c1-80)
-              FORMATTED="$FORMATTED\nFALSE|$PKG|$DESC"
-            done <<< "$RESULTS"
+              DESC=$(echo "$line" | cut -d' ' -f2- | cut -c1-60)
+              ICON=$(get_icon "$PKG")
+              FORMATTED="$FORMATTED\nFALSE|$ICON|$PKG|$DESC"
+            done < /tmp/gamma-search.txt
             
             SELECTED=$(echo -e "$FORMATTED" | yad --list --checklist --title="Gamma Store - Search Results" \
-              --text="<b>Found packages for: $query</b>\n\nSelect packages to install:" \
-              --column="Install" --column="Package" --column="Description" \
-              --width=900 --height=600 --separator=" " --print-column=2 \
+              --text="<b>Found packages for: $query</b>\nIcons cache to ~/.cache/gamma-store/" \
+              --column="Install" --column:IMG="Icon" --column="Package" --column="Description" \
+              --width=900 --height=600 --separator=" " --print-column=3 \
               --button="Back:1" --button="Install Selected:0")
             
             if [ $? -eq 0 ] && [ -n "$SELECTED" ]; then
@@ -136,74 +138,53 @@ jobs:
                 install_package "$pkg" "$pkg"
               done
             fi
+            rm -f /tmp/gamma-search.txt
           }
           
           while true; do
-            ACTION=$(yad --form --title="Gamma Store Pro v2.2" \
-              --text="<b><big>Gamma Store Pro</big></b>\n\n<i>Full APT Search + .deb Installer</i>\n\nSearch and install any Ubuntu package\n\n<b>Alpha failed. Beta crashed. Gamma survives</b>\n<i>Dedicated to my father Fateh</i>" \
+            ACTION=$(yad --form --title="Gamma Store Pro v2.2 - Smart Cache" \
+              --text="<b><big>Gamma Store Pro</big></b>\n\n<i>Icons download once, cache forever</i>\n\n<b>Alpha failed. Beta crashed. Gamma survives</b>\n<i>Dedicated to my father Fateh</i>" \
               --image="software-store" --image-on-top \
               --field="Search All Packages:FBTN" "bash -c 'echo search'" \
               --field="Install .deb File:FBTN" "bash -c 'echo deb'" \
+              --field="Clear Icon Cache:FBTN" "bash -c 'echo clear'" \
               --field="Featured Apps:FBTN" "bash -c 'echo featured'" \
-              --field="Installed Apps:FBTN" "bash -c 'echo installed'" \
-              --field="Update System:FBTN" "bash -c 'echo update'" \
               --button="Exit:1" --button="About:2" \
-              --width=650 --height=550 --center --buttons-layout=center \
-              --window-icon="software-store")
+              --width=650 --height=550 --center --window-icon="software-store")
             
             EXIT_CODE=$?
             [ $EXIT_CODE -eq 1 ] && exit 0
-            [ $EXIT_CODE -eq 2 ] && yad --info --title="About" --text="<b>Gamma Store Pro v2.2</b>\n\nBy: Taki - 17yo from Guelma, Algeria\n\n<b>Features:</b>\n• Full APT package search\n• .deb file installer\n• Progress bars\n• Category browser\n\n<i>Maximum Power, Minimum RAM</i>\n\n<b>Dedicated to my father Fateh</b>" --width=450 && continue
+            [ $EXIT_CODE -eq 2 ] && yad --info --title="About" --text="<b>Gamma Store Pro v2.2</b>\n\nBy: Taki - 17yo from Guelma, Algeria\n\n<b>Smart Features:</b>\n• Icon cache: ~/.cache/gamma-store/\n• Full APT search\n• .deb installer\n\n<i>Maximum Power, Minimum RAM</i>\n\n<b>Dedicated to my father Fateh</b>" --width=450 && continue
             
-            CHOICE=$(echo $ACTION | cut -d'|' -f1-5)
+            CHOICE=$(echo $ACTION | cut -d'|' -f1-3)
             
             if [[ "$CHOICE" == *"search"* ]]; then
               QUERY=$(yad --entry --title="Search Packages" \
-                --text="<b>Search Ubuntu Repositories</b>\n\nEnter package name or keyword:" \
+                --text="<b>Search Ubuntu Repositories</b>\n\nIcons will cache automatically:" \
                 --entry-text="" --width=500)
               [ -n "$QUERY" ] && search_packages "$QUERY"
             
             elif [[ "$CHOICE" == *"deb"* ]]; then
               DEB_FILE=$(yad --file --title="Select .deb Package" \
-                --text="Choose a .deb file to install:" \
                 --file-filter="Debian Packages | *.deb" --width=600 --height=500)
               [ -n "$DEB_FILE" ] && install_deb "$DEB_FILE"
             
+            elif [[ "$CHOICE" == *"clear"* ]]; then
+              rm -rf "$ICON_CACHE"
+              yad --info --text="Icon cache cleared!\n\nFreed: $(du -sh $ICON_CACHE 2>/dev/null | cut -f1)" --width=350
+            
             elif [[ "$CHOICE" == *"featured"* ]]; then
               FEATURED=$(yad --list --checklist --title="Featured Apps" \
-                --text="<b>Popular Apps for Gamma Linux:</b>" \
-                --column="Install" --column="App" --column="Category" --column="Size" \
-                FALSE "firefox-esr" "Browser" "60MB" \
-                FALSE "chromium" "Browser" "80MB" \
-                FALSE "vlc" "Media" "40MB" \
-                FALSE "gimp" "Graphics" "50MB" \
-                FALSE "libreoffice" "Office" "200MB" \
-                FALSE "code" "Development" "80MB" \
-                FALSE "steam" "Gaming" "50MB" \
-                FALSE "obs-studio" "Recording" "90MB" \
+                --text="<b>Popular Apps - Icons will cache on first view</b>" \
+                --column="Install" --column="App" --column="Category" \
+                FALSE "firefox-esr" "Browser" \
+                FALSE "chromium" "Browser" \
+                FALSE "vlc" "Media" \
+                FALSE "gimp" "Graphics" \
+                FALSE "libreoffice" "Office" \
+                FALSE "code" "Development" \
                 --width=700 --height=500 --separator=" " --print-column=2)
-              
               [ -n "$FEATURED" ] && for app in $FEATURED; do install_package "$app" "$app"; done
-            
-            elif [[ "$CHOICE" == *"installed"* ]]; then
-              INSTALLED=$(dpkg --get-selections | grep -v deinstall | cut -f1 | head -500)
-              echo "$INSTALLED" | yad --list --title="Installed Packages" \
-                --text="<b>Currently Installed Packages:</b>" \
-                --column="Package" --width=600 --height=600 \
-                --button="Close:0"
-            
-            elif [[ "$CHOICE" == *"update"* ]]; then
-              (
-              echo "# 10 Updating package lists..."
-              pkexec apt-get update
-              echo "# 50 Upgrading packages..."
-              pkexec apt-get upgrade -y
-              echo "# 90 Cleaning up..."
-              pkexec apt-get autoremove -y
-              echo "# 100 Done!"
-              ) | yad --progress --title="System Update" --text="<b>Updating Gamma Linux...</b>" \
-                --percentage=0 --auto-close --width=500 --height=150
-              yad --info --text="System updated successfully!" --width=350
             fi
           done
           STORE_PRO
@@ -214,14 +195,13 @@ jobs:
           Type=Application
           Name=Gamma Store Pro
           GenericName=App Center
-          Comment=Advanced App Center - Search & install any package
+          Comment=Smart App Center with Icon Cache
           Exec=gamma-store
           Icon=system-software-install
           Terminal=false
           Categories=System;PackageManager;Settings;
-          Keywords=store;apps;install;software;search;deb;
+          Keywords=store;apps;install;software;search;
           StartupNotify=true
-          X-GNOME-UsesNotifications=true
           EOF
           
           dpkg-deb --build "${BUILD_DIR}"
