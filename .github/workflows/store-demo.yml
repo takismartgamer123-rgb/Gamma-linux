@@ -19,7 +19,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb ffmpeg openbox xterm xdotool \
-            fonts-noto-color-emoji wget software-properties-common
+            fonts-noto-color-emoji wget software-properties-common \
+            x11-xserver-utils imagemagick
           
       - name: Record Store Demo - 60 Seconds
         run: |
@@ -29,21 +30,26 @@ jobs:
           openbox &
           sleep 2
           
-          # خلفية سودة بسيطة
-          xsetroot -solid black
+          # خلفية سودة بدون xsetroot
+          convert -size 1280x720 xc:black /tmp/bg.png
+          display -window root /tmp/bg.png &
+          sleep 1
           
-          # ابدا التسجيل 60 ثانية برك
+          # ابدا التسجيل 60 ثانية
           ffmpeg -f x11grab -video_size 1280x720 -framerate 25 -i :99 \
             -c:v libx264 -preset ultrafast -t 60 gamma-store.mp4 &
           FFMPEG_PID=$!
           sleep 3
           
           # افتح ترمينال
-          xterm -geometry 120x35+0+0 -fa 'Monospace' -fs 16 -bg black -fg white &
+          xterm -geometry 120x35+0+0 -fa 'Monospace' -fs 16 -bg black -fg "#00ff88" &
           sleep 3
           
           # 1. عنوان
           xdotool type "echo '=== Gamma Store Pro v2.2 ==='"
+          xdotool key Return
+          sleep 2
+          xdotool type "echo 'Dedicated to my father Fateh'"
           xdotool key Return
           sleep 2
           
@@ -52,12 +58,12 @@ jobs:
           xdotool key Return
           sleep 15
           
-          # 3. ثبت الستور - هذا حقيقي 100%
+          # 3. ثبت الستور
           xdotool type "sudo apt-get install -y ./gamma-store_2.2.0_all.deb"
           xdotool key Return
           sleep 20
           
-          # 4. شغل الستور - هذا حقيقي 100%
+          # 4. شغل الستور
           xdotool type "clear && echo 'Launching Gamma Store...' && gamma-store"
           xdotool key Return
           sleep 15
