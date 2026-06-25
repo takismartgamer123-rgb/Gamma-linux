@@ -228,6 +228,7 @@ jobs:
       - name: Upload to Release ${{ github.event.inputs.release_tag }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.release_tag }}           files: gamma-store_${{ github.event.inputs.version }}_all.deb
+          tag_name: ${{ github.event.inputs.release_tag }}
+          files: gamma-store_${{ github.event.inputs.version }}_all.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
