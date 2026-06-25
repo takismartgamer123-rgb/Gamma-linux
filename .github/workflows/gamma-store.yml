@@ -1,4 +1,4 @@
-name: Build Gamma Store Pro - No Body
+name: Build Gamma Store Pro - Fixed
 on:
   workflow_dispatch:
     inputs:
@@ -21,23 +21,22 @@ jobs:
       - name: Create Gamma Store Pro .deb
         run: |
           PKG_NAME="gamma-store"
-          PKG_VERSION=" ${{ github.event.inputs.version }}"           ARCH="all"           BUILD_DIR="${PKG_NAME}_ ${PKG_VERSION}_${ARCH}"
+          PKG_VERSION="${{ github.event.inputs.version }}"
+          ARCH="all"
+          BUILD_DIR="${PKG_NAME}_${PKG_VERSION}_${ARCH}"
           
-          mkdir -p ${BUILD_DIR}/DEBIAN
-          mkdir -p ${BUILD_DIR}/usr/local/bin
-          mkdir -p ${BUILD_DIR}/usr/share/applications
-          mkdir -p ${BUILD_DIR}/usr/share/gamma-store
+          mkdir -p "${BUILD_DIR}/DEBIAN"
+          mkdir -p "${BUILD_DIR}/usr/local/bin"
+          mkdir -p "${BUILD_DIR}/usr/share/applications"
           
-          cat > ${BUILD_DIR}/DEBIAN/control << EOF
+          cat > "${BUILD_DIR}/DEBIAN/control" << EOF
           Package: gamma-store
           Version: ${PKG_VERSION}
           Section: admin
           Priority: optional
           Architecture: all
           Depends: yad (>= 0.40), pkexec, apt, apt-utils, wget, curl, libnotify-bin, dpkg
-          Recommends: software-properties-common
           Maintainer: Taki <takismartgamer123@gmail.com>
-          Homepage: https://github.com/takismartgamer123-rgb/Gamma-linux
           Description: Gamma Store Pro - Advanced App Center with Full Search
            Modern software center with APT search, .deb installer, and progress bars.
            Search all Ubuntu packages + install local .deb files.
@@ -46,7 +45,7 @@ jobs:
            Dedicated to my father Fateh.
           EOF
           
-          cat > ${BUILD_DIR}/usr/local/bin/gamma-store << 'STORE_PRO'
+          cat > "${BUILD_DIR}/usr/local/bin/gamma-store" << 'STORE_PRO'
           #!/bin/bash
           # Gamma Store Pro v2.2 - Full APT Search + .deb Installer
           # Dedicated to my father Fateh
@@ -82,8 +81,6 @@ jobs:
             local deb_file="$1"
             (
             echo "# 20 Analyzing .deb file..."
-            DEPS=$(dpkg -I "$deb_file" | grep Depends | cut -d: -f2)
-            echo "# 40 Installing dependencies..."
             pkexec apt-get install -y -f
             echo "# 70 Installing $deb_file..."
             if pkexec dpkg -i "$deb_file" 2>&1; then
@@ -123,7 +120,8 @@ jobs:
             
             FORMATTED=""
             while IFS= read -r line; do
-              PKG=$(echo " $line" | cut -d' ' -f1)               DESC=$(echo "$line" | cut -d' ' -f2- | cut -c1-80)
+              PKG=$(echo "$line" | cut -d' ' -f1)
+              DESC=$(echo "$line" | cut -d' ' -f2- | cut -c1-80)
               FORMATTED="$FORMATTED\nFALSE|$PKG|$DESC"
             done <<< "$RESULTS"
             
@@ -159,17 +157,20 @@ jobs:
             
             CHOICE=$(echo $ACTION | cut -d'|' -f1-5)
             
-            if [[ " $CHOICE" == _"search"_ ]]; then               QUERY=$(yad --entry --title="Search Packages" \
+            if [[ "$CHOICE" == *"search"* ]]; then
+              QUERY=$(yad --entry --title="Search Packages" \
                 --text="<b>Search Ubuntu Repositories</b>\n\nEnter package name or keyword:" \
                 --entry-text="" --width=500)
               [ -n "$QUERY" ] && search_packages "$QUERY"
             
-            elif [[ " $CHOICE" == _"deb"_ ]]; then               DEB_FILE=$(yad --file --title="Select .deb Package" \
+            elif [[ "$CHOICE" == *"deb"* ]]; then
+              DEB_FILE=$(yad --file --title="Select .deb Package" \
                 --text="Choose a .deb file to install:" \
-                --file-filter="Debian Packages | _.deb" --width=600 --height=500)
+                --file-filter="Debian Packages | *.deb" --width=600 --height=500)
               [ -n "$DEB_FILE" ] && install_deb "$DEB_FILE"
             
-            elif [[ " $CHOICE" == _"featured"_ ]]; then               FEATURED=$(yad --list --checklist --title="Featured Apps" \
+            elif [[ "$CHOICE" == *"featured"* ]]; then
+              FEATURED=$(yad --list --checklist --title="Featured Apps" \
                 --text="<b>Popular Apps for Gamma Linux:</b>" \
                 --column="Install" --column="App" --column="Category" --column="Size" \
                 FALSE "firefox-esr" "Browser" "60MB" \
@@ -184,13 +185,14 @@ jobs:
               
               [ -n "$FEATURED" ] && for app in $FEATURED; do install_package "$app" "$app"; done
             
-            elif [[ " $CHOICE" == _"installed"_ ]]; then               INSTALLED=$(dpkg --get-selections | grep -v deinstall | cut -f1 | head -500)
+            elif [[ "$CHOICE" == *"installed"* ]]; then
+              INSTALLED=$(dpkg --get-selections | grep -v deinstall | cut -f1 | head -500)
               echo "$INSTALLED" | yad --list --title="Installed Packages" \
                 --text="<b>Currently Installed Packages:</b>" \
                 --column="Package" --width=600 --height=600 \
                 --button="Close:0"
             
-            elif [[ "$CHOICE" == _"update"* ]]; then
+            elif [[ "$CHOICE" == *"update"* ]]; then
               (
               echo "# 10 Updating package lists..."
               pkexec apt-get update
@@ -205,9 +207,9 @@ jobs:
             fi
           done
           STORE_PRO
-          chmod +x ${BUILD_DIR}/usr/local/bin/gamma-store
+          chmod +x "${BUILD_DIR}/usr/local/bin/gamma-store"
           
-          cat > ${BUILD_DIR}/usr/share/applications/gamma-store.desktop << 'EOF'
+          cat > "${BUILD_DIR}/usr/share/applications/gamma-store.desktop" << 'EOF'
           [Desktop Entry]
           Type=Application
           Name=Gamma Store Pro
@@ -222,8 +224,8 @@ jobs:
           X-GNOME-UsesNotifications=true
           EOF
           
-          dpkg-deb --build ${BUILD_DIR}
-          ls -lh ${PKG_NAME}_${PKG_VERSION}_${ARCH}.deb
+          dpkg-deb --build "${BUILD_DIR}"
+          ls -lh "${PKG_NAME}_${PKG_VERSION}_${ARCH}.deb"
           
       - name: Upload to Release ${{ github.event.inputs.release_tag }}
         uses: softprops/action-gh-release@v2
