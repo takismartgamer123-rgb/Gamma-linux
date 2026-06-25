@@ -1,4 +1,4 @@
-name: Gamma Store Demo Only 🎥
+name: Gamma Store Demo - FINAL REAL 🎥♾️
 on:
   workflow_dispatch:
     inputs:
@@ -18,59 +18,76 @@ jobs:
       - name: Setup
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb ffmpeg openbox xterm xdotool \
-            fonts-noto-color-emoji wget software-properties-common \
-            x11-xserver-utils imagemagick
+          sudo apt-get install -y xvfb ffmpeg x11-utils xterm xdotool \
+            fonts-noto-color-emoji wget imagemagick fluxbox
           
-      - name: Record Store Demo - 60 Seconds
+      - name: Record Store Demo
         run: |
           export DISPLAY=:99
           Xvfb :99 -screen 0 1280x720x24 &
-          sleep 3
-          openbox &
-          sleep 2
+          sleep 5
+          fluxbox &
+          sleep 5
           
-          # خلفية سودة بدون xsetroot
-          convert -size 1280x720 xc:black /tmp/bg.png
+          # خلفية + xterm
+          convert -size 1280x720 xc:#0a0a0a /tmp/bg.png
           display -window root /tmp/bg.png &
-          sleep 1
+          sleep 2
+          xterm -geometry 120x35+50+50 -fa 'Monospace' -fs 16 -bg black -fg "#00ff88" -title "GammaTerminal" &
           
-          # ابدا التسجيل 60 ثانية
+          # استنى xterm يبان صح - هذا هو الحل تاع 0.1kbits
+          for i in {1..10}; do
+            if xdotool search --name "GammaTerminal" >/dev/null 2>&1; then
+              echo "xterm found, starting record"
+              break
+            fi
+            echo "Waiting for xterm... $i"
+            sleep 1
+          done
+          
+          # فحص أخير
+          import -window root /tmp/check.png
+          echo "Screenshot size: $(stat -c%s /tmp/check.png) bytes"
+          
+          # ضرك سجل - الشاشة فيها xterm مضمون
           ffmpeg -f x11grab -video_size 1280x720 -framerate 25 -i :99 \
-            -c:v libx264 -preset ultrafast -t 60 gamma-store.mp4 &
+            -c:v libx264 -preset ultrafast -pix_fmt yuv420p -t 75 gamma-store.mp4 &
           FFMPEG_PID=$!
           sleep 3
           
-          # افتح ترمينال
-          xterm -geometry 120x35+0+0 -fa 'Monospace' -fs 16 -bg black -fg "#00ff88" &
-          sleep 3
+          # focus على xterm
+          xdotool search --name "GammaTerminal" windowactivate
+          sleep 1
           
-          # 1. عنوان
+          # السيناريو
+          xdotool type "clear"
+          xdotool key Return
+          sleep 1
           xdotool type "echo '=== Gamma Store Pro v2.2 ==='"
           xdotool key Return
-          sleep 2
-          xdotool type "echo 'Dedicated to my father Fateh'"
+          sleep 1
+          xdotool type "echo 'Dedicated to my father Fateh ♾️'"
           xdotool key Return
           sleep 2
           
-          # 2. حمل الستور
           xdotool type "wget https://github.com/takismartgamer123-rgb/Gamma-linux/releases/download/${{ github.event.inputs.release_tag }}/gamma-store_2.2.0_all.deb"
           xdotool key Return
           sleep 15
           
-          # 3. ثبت الستور
           xdotool type "sudo apt-get install -y ./gamma-store_2.2.0_all.deb"
+          xdotool key Return
+          sleep 25
+          
+          xdotool type "clear && echo 'Launching Gamma Store...' && echo '' && gamma-store"
           xdotool key Return
           sleep 20
           
-          # 4. شغل الستور
-          xdotool type "clear && echo 'Launching Gamma Store...' && gamma-store"
+          xdotool type "echo '' && echo 'Alpha failed. Beta crashed. Gamma survives ♾️'"
           xdotool key Return
-          sleep 15
+          sleep 5
           
-          # النهاية
           kill $FFMPEG_PID
-          sleep 2
+          sleep 3
           ls -lh gamma-store.mp4
           
       - name: Upload to Release
@@ -78,15 +95,5 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.release_tag }}
           files: gamma-store.mp4
-          body: |
-            ## 🎥 Gamma Store Pro Demo
-            
-            **60-second install demo:**
-            1. Download with `wget`
-            2. Install with `apt` 
-            3. Launch `gamma-store`
-            
-            *Alpha failed. Beta crashed. Gamma survives* ♾️  
-            *Dedicated to my father Fateh*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
