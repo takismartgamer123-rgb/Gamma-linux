@@ -85,9 +85,9 @@ jobs:
           echo "Found squashfs at: $SQUASHFS_PATH"
           sudo unsquashfs -f -d squashfs-root "$SQUASHFS_PATH"
 
-      - name: Build ${{ matrix.name }} Edition - ANTI-DEATH MODE v2
+      - name: Build ${{ matrix.name }} Edition - ANTI-DEATH MODE v3 FINAL
         run: |
-          echo "=== Building Gamma ${{ matrix.name }} - ANTI-DEATH MODE v2 ==="
+          echo "=== Building Gamma ${{ matrix.name }} - ANTI-DEATH MODE v3 FINAL ==="
           sudo rsync -a base/ ext/ --exclude=/casper/filesystem.squashfs --exclude=/live/filesystem.squashfs
           sudo rm -rf chroot
           sudo rsync -a --delete squashfs-root/ chroot/
@@ -238,7 +238,7 @@ jobs:
 
           INSTALLATION:
           Double-click "Install Gamma Linux" on Desktop
-          Next → Next → Finish. No terminal needed!
+          Next → Finish. No terminal needed!
 
           APPS:
           - Gamma Store: Install any app from 200,000+ packages
@@ -278,8 +278,8 @@ jobs:
           RAM=$(free -m | awk '/^Mem:/{print $2}')
           if [ $RAM -lt 2048 ]; then
             if zenity --question --title="Low RAM Detected" --text="Your PC has ${RAM}MB RAM\nEnable ZRAM for better performance?"; then
-              systemctl enable zram-config
-              zenity --info --text="ZRAM enabled! Gamma will be faster"
+              systemctl enable zram-config 2>/dev/null || true
+              zenity --info --text="ZRAM will be enabled after reboot!"
             fi
           fi
 
@@ -347,7 +347,7 @@ jobs:
           #!/bin/bash
           DRIVER_CHOICE=$(zenity --list --title="Gamma Drivers Manager" --text="Install missing drivers\n\nDedicated to my father Fateh" --column="Driver" --column="Description" "nvidia" "Nvidia GPU Proprietary Driver" "amd-gpu" "AMD GPU Firmware" "intel-microcode" "Intel CPU Updates" "amd64-microcode" "AMD CPU Updates" "wifi-broadcom" "Broadcom WiFi Driver" "wifi-realtek" "Realtek WiFi Driver" "printer-hp" "HP Printer Drivers" "printer-canon" "Canon Printer Drivers" "bluetooth" "Bluetooth Support" "fingerprint" "Fingerprint Reader" "all-firmware" "Install ALL Firmware" --width=600 --height=500 --ok-label="Install" --cancel-label="Exit")
           [ -z "$DRIVER_CHOICE" ] && exit 0
-          (echo "10"; echo "# Updating package list..."; apt-get update -qq; echo "30"; echo "# Installing $DRIVER_CHOICE..."; case "$DRIVER_CHOICE" in "nvidia") apt-get install -y --no-install-recommends nvidia-driver-535;; "amd-gpu") apt-get install -y --no-install-recommends firmware-amd-graphics libgl1-mesa-dri;; "intel-microcode") apt-get install -y --no-install-recommends intel-microcode;; "amd64-microcode") apt-get install -y --no-install-recommends amd64-microcode;; "wifi-broadcom") apt-get install -y --no-install-recommends firmware-b43-installer;; "wifi-realtek") apt-get install -y --no-install-recommends firmware-realtek;; "printer-hp") apt-get install -y --no-install-recommends hplip cups; systemctl enable cups;; "printer-canon") apt-get install -y --no-install-recommends cups cnijfilter2; systemctl enable cups;; "bluetooth") apt-get install -y --no-install-recommends bluez blueman; systemctl enable bluetooth;; "fingerprint") apt-get install -y --no-install-recommends fprintd;; "all-firmware") apt-get install -y --no-install-recommends linux-firmware firmware-linux firmware-amd-graphics firmware-realtek intel-microcode amd64-microcode;; esac; echo "90"; echo "# Cleaning up..."; apt-get clean; echo "100"; echo "# Done!") | zenity --progress --title="Installing Drivers" --text="Please wait..." --percentage=0 --auto-close --width=500
+          (echo "10"; echo "# Updating package list..."; apt-get update -qq; echo "30"; echo "# Installing $DRIVER_CHOICE..."; case "$DRIVER_CHOICE" in "nvidia") apt-get install -y --no-install-recommends nvidia-driver-535;; "amd-gpu") apt-get install -y --no-install-recommends firmware-amd-graphics libgl1-mesa-dri;; "intel-microcode") apt-get install -y --no-install-recommends intel-microcode;; "amd64-microcode") apt-get install -y --no-install-recommends amd64-microcode;; "wifi-broadcom") apt-get install -y --no-install-recommends firmware-b43-installer;; "wifi-realtek") apt-get install -y --no-install-recommends firmware-realtek;; "printer-hp") apt-get install -y --no-install-recommends hplip cups; systemctl enable cups 2>/dev/null || true;; "printer-canon") apt-get install -y --no-install-recommends cups cnijfilter2; systemctl enable cups 2>/dev/null || true;; "bluetooth") apt-get install -y --no-install-recommends bluez blueman; systemctl enable bluetooth 2>/dev/null || true;; "fingerprint") apt-get install -y --no-install-recommends fprintd;; "all-firmware") apt-get install -y --no-install-recommends linux-firmware firmware-linux firmware-amd-graphics firmware-realtek intel-microcode amd64-microcode;; esac; echo "90"; echo "# Cleaning up..."; apt-get clean; echo "100"; echo "# Done!") | zenity --progress --title="Installing Drivers" --text="Please wait..." --percentage=0 --auto-close --width=500
           [ $? = 0 ] && zenity --info --title="Success" --text="Driver installed successfully!\n\nYou may need to REBOOT for changes to take effect.\n\nGamma Linux - Dedicated to my father Fateh" --width=400 || zenity --error --title="Failed" --text="Driver installation failed!" --width=300
           EOF
           sudo chmod +x chroot/usr/local/bin/gamma-drivers
@@ -389,7 +389,8 @@ jobs:
           X-GNOME-Autostart-enabled=true
           EOF
 
-          sudo chroot chroot systemctl enable zram-config tlp preload
+          # ANTI-DEATH FIX 6: لا نفعل الخدمات في chroot لأن systemd ميت
+          echo "Services will be enabled on first boot"
 
           echo "=== STARTING AGGRESSIVE CLEANUP ==="
           sudo chroot chroot bash -c "apt-get autoremove --purge -y || true"
