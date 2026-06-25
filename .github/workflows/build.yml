@@ -27,24 +27,27 @@ jobs:
             ui: "LXQt 1.4"
             base: "ubuntu"
             installer: "ubiquity"
+            ram: "1GB"
           - name: pro-maxmini
-            desc: "Gamma Fatih Pro - For 4GB+ RAM"
+            desc: "Gamma Fatih Pro - For 2GB-4GB RAM"
             base_url: https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso
             ui: "LXQt 1.4"
             base: "ubuntu"
             installer: "ubiquity"
+            ram: "2GB+"
           - name: legacy-32
             desc: "Gamma Legacy 32 - For Old PCs"
             base_url: https://downloads.sourceforge.net/project/bodhilinux/7.0.0-beta/bodhi-7.0.0-legacy-beta.iso
             ui: "LXQt 1.4"
             base: "debian"
             installer: "calamares"
+            ram: "512MB"
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Free Disk Space (Clean Workspace)
+      - name: Aggressive Free Disk Space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
           sudo rm -rf /usr/local/lib/android /usr/share/swift /usr/local/graalvm /usr/lib/jvm
@@ -85,9 +88,9 @@ jobs:
           echo "Found squashfs at: $SQUASHFS_PATH"
           sudo unsquashfs -f -d squashfs-root "$SQUASHFS_PATH"
 
-      - name: Build ${{ matrix.name }} Edition - ANTI-DEATH MODE v3 FINAL
+      - name: Build ${{ matrix.name }} Edition - ANTI-DEATH MODE v4.2 FINAL
         run: |
-          echo "=== Building Gamma ${{ matrix.name }} - ANTI-DEATH MODE v3 FINAL ==="
+          echo "=== Building Gamma ${{ matrix.name }} - ${{ matrix.desc }} ==="
           sudo rsync -a base/ ext/ --exclude=/casper/filesystem.squashfs --exclude=/live/filesystem.squashfs
           sudo rm -rf chroot
           sudo rsync -a --delete squashfs-root/ chroot/
@@ -99,7 +102,7 @@ jobs:
           sudo rm -f chroot/etc/resolv.conf
           echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
 
-          # ANTI-DEATH FIX 1: Kill all locks and fix dpkg before anything
+          # FIX 1: Kill locks
           sudo chroot chroot bash -c "
             killall apt apt-get dpkg 2>/dev/null || true
             rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* /var/lib/dpkg/lock-frontend
@@ -126,33 +129,34 @@ jobs:
 
           sudo chroot chroot apt-get update -y
 
-          # ANTI-DEATH FIX 2: Purge all problematic packages first
+          # FIX 2: SAFE PURGE - منمسحوش ملفات الـ config المشتركة
           sudo chroot chroot bash -c "
-            apt-get purge -y avahi-daemon avahi-utils cups-pk-helper cups-browsed cups-daemon cups-core-drivers || true
-            apt-get purge -y moksha* enlightenment* bodhi-* e17-* efl* || true
-            apt-get purge -y midori* netsurf* epad* leafpad* terminology* epiphany* || true
-            apt-get purge -y snapd* flatpak* || true
+            apt-get remove -y --purge moksha* e17* enlightenment* || true
+            apt-get remove -y --purge bodhi-artwork bodhi-theme-moksha || true
+            apt-get remove -y --purge avahi-daemon cups-pk-helper cups-browsed || true
+            apt-get remove -y --purge midori* netsurf* epad* leafpad* terminology* || true
+            apt-get remove -y --purge snapd* flatpak* || true
             apt-get autoremove --purge -y || true
           "
 
-          # ANTI-DEATH FIX 3: Install with --no-install-recommends to avoid bloat
+          # FIX 3: Install LXQt + Dependencies الكاملة باش مايطيحش Black Screen
           sudo chroot chroot apt-get install -y --no-install-recommends lxqt-core lxqt-themes openbox pcmanfm-qt
           sudo chroot chroot apt-get install -y --no-install-recommends materia-gtk-theme papirus-icon-theme fonts-noto-core fonts-noto-color-emoji
-          sudo chroot chroot apt-get install -y --no-install-recommends lightdm lightdm-gtk-greeter
+          sudo chroot chroot apt-get install -y --no-install-recommends lightdm lightdm-gtk-greeter lxqt-sudo
           sudo chroot chroot apt-get install -y --no-install-recommends zram-tools preload tlp zenity curl wget
+          sudo chroot chroot apt-get install -y --no-install-recommends adwaita-icon-theme hicolor-icon-theme
 
+          # FIX 4: Installers صحاح - ممنوع نحذف casper
           if [ "${{ matrix.installer }}" = "ubiquity" ]; then
             echo "Installing Ubiquity for Ubuntu base..."
-            sudo chroot chroot apt-get install -y --no-install-recommends ubiquity ubiquity-frontend-gtk ubiquity-slideshow-ubuntu ubiquity-casper
+            sudo chroot chroot apt-get install -y --no-install-recommends ubiquity ubiquity-frontend-gtk ubiquity-slideshow-ubuntu ubiquity-casper casper
           else
             echo "Installing Calamares for Debian base..."
             sudo chroot chroot apt-get install -y --no-install-recommends calamares calamares-settings-debian
           fi
 
-          # ANTI-DEATH FIX 4: Fix dpkg again after install
           sudo chroot chroot bash -c "dpkg --configure -a || true; apt-get install -f -y || true"
 
-          # ANTI-DEATH FIX 5: Create directories first or Bodhi dies
           sudo mkdir -p chroot/usr/share/backgrounds
           sudo mkdir -p chroot/usr/share/pixmaps
           sudo mkdir -p chroot/usr/share/icons/hicolor/256x256/apps
@@ -259,6 +263,7 @@ jobs:
           echo "Gamma Linux ${{ matrix.name }} - ${{ github.event.inputs.version || github.ref_name }}" | sudo tee chroot/etc/gamma-version
           echo "UI: LXQt 1.4 + Gamma-Dark Theme" | sudo tee -a chroot/etc/gamma-version
           echo "Installer: ${{ matrix.installer }}" | sudo tee -a chroot/etc/gamma-version
+          echo "RAM Target: ${{ matrix.ram }}" | sudo tee -a chroot/etc/gamma-version
           echo "Maximum Power, Minimum RAM" | sudo tee -a chroot/etc/gamma-version
           echo "Alpha failed. Beta crashed. Gamma survives" | sudo tee -a chroot/etc/gamma-version
           echo "Built from Guelma, Algeria by Taki" | sudo tee -a chroot/etc/gamma-version
@@ -314,7 +319,7 @@ jobs:
                 SEARCH=$(zenity --entry --title="Search All Packages" --text="Enter app name or keyword:\nExample: video, browser, editor, game" --width=400)
                 [ -z "$SEARCH" ] && continue
                 (echo "# Searching APT repositories..."; apt-cache search "$SEARCH" | head -200 > /tmp/gamma_search_results; echo "100") | zenity --progress --title="Searching..." --text="Searching all packages..." --pulsate --auto-close --width=300
-                if [ ! -s /tmp/gamma_search_results ]; then zenity --warning --text="No packages found for '$SEARCH'" --width=250; continue; fi
+                if [! -s /tmp/gamma_search_results ]; then zenity --warning --text="No packages found for '$SEARCH'" --width=250; continue; fi
                 SELECTED=$(cat /tmp/gamma_search_results | zenity --list --title="Search Results: $SEARCH" --text="Found $(wc -l < /tmp/gamma_search_results) packages. Select to install:" --column="Package" --column="Description" --separator=" - " --width=900 --height=600 --ok-label="Install" --cancel-label="Back")
                 [ -z "$SELECTED" ] && continue
                 PKG_NAME=$(echo "$SELECTED" | awk '{print $1}')
@@ -389,32 +394,35 @@ jobs:
           X-GNOME-Autostart-enabled=true
           EOF
 
-          # ANTI-DEATH FIX 6: لا نفعل الخدمات في chroot لأن systemd ميت
           echo "Services will be enabled on first boot"
 
-          echo "=== STARTING AGGRESSIVE CLEANUP ==="
+          echo "=== STARTING SAFE CLEANUP ==="
           sudo chroot chroot bash -c "apt-get autoremove --purge -y || true"
           sudo chroot chroot bash -c "apt-get clean || true"
           sudo chroot chroot rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* /var/tmp/*
           sudo chroot chroot rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/*
-          sudo chroot chroot rm -rf /usr/share/locale/*
+          # FIX 5: SAFE CLEANUP - منمسحوش كل الأيقونات
+          sudo chroot chroot rm -rf /usr/share/locale/* || true
           sudo chroot chroot bash -c "mkdir -p /usr/share/locale/en /usr/share/locale/ar /usr/share/locale/fr"
-          sudo chroot chroot rm -rf /usr/share/icons/*/256x256 /usr/share/icons/*/512x512 /usr/share/icons/*/1024x1024
-          sudo chroot chroot rm -rf /usr/share/backgrounds/* /usr/share/wallpapers/*
+          # نحافظو على الأيقونات الأساسية
+          sudo chroot chroot find /usr/share/icons -type f -name "*.svg" -size +100k -delete 2>/dev/null || true
+          sudo chroot chroot find /usr/share/icons -type f -name "*.png" -size +500k -delete 2>/dev/null || true
           sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg
           sudo chroot chroot find /usr -name "*.pyc" -delete
           sudo chroot chroot find /usr -name "*.pyo" -delete
           sudo chroot chroot find /var/log -type f -delete
           sudo chroot chroot rm -rf /root/.cache /home/*/.cache 2>/dev/null || true
-          echo "=== SIZE BEFORE COMPRESSION ==="
-          sudo chroot chroot du -sh /
-          echo "=== CLEANUP DONE ==="
 
+          # FIX 6: Umount قبل du باش مايموتش
           sudo umount chroot/dev/pts || true
           sudo umount chroot/dev || true
           sudo umount chroot/run || true
           sudo umount chroot/proc || true
           sudo umount chroot/sys || true
+
+          echo "=== SIZE BEFORE COMPRESSION ==="
+          sudo du -sh chroot || true
+          echo "=== CLEANUP DONE ==="
 
           if [ "${{ env.SQUASHFS_DIR }}" = "casper" ]; then
             sudo rm -f ext/casper/filesystem.squashfs
@@ -435,8 +443,8 @@ jobs:
           if [ -f boot/grub/efi.img ]; then
             EFI_ARGS="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"
           fi
-          sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "GAMMA_${{ matrix.name }}" -eltorito-boot isolinux/isolinux.bin -eltorito-catalog isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin $EFI_ARGS -output "../gamma-${{ matrix.name }}.iso" .
-          cd ..
+          sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "GAMMA_${{ matrix.name }}" -eltorito-boot isolinux/isolinux.bin -eltorito-catalog isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin $EFI_ARGS -output "../gamma-${{ matrix.name }}.iso".
+          cd..
           echo "=== FINAL ISO SIZE ==="
           ls -lh gamma-${{ matrix.name }}.iso
 
@@ -460,8 +468,8 @@ jobs:
       - name: Restructure and Generate SHA256
         run: |
           cd release-files
-          find . -name "*.iso" -exec mv {} . \;
-          find . -maxdepth 1 -type d -name "gamma-*" -exec rm -rf {} \;
+          find. -name "*.iso" -exec mv {}. \;
+          find. -maxdepth 1 -type d -name "gamma-*" -exec rm -rf {} \;
           sha256sum *.iso > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
@@ -482,59 +490,29 @@ jobs:
             *By: Taki - 17 Years Old from Guelma, Algeria*
             *Dedicated to my father Fateh* ♾️
 
+            ### 3 Editions:
+
+            **1. Gamma Legacy 32** ~700MB - For 512MB RAM PCs
+            **2. Gamma Lite Ghost** ~770MB - For 1GB RAM
+            **3. Gamma Fatih Pro** ~850MB - For 2GB+ RAM
+
             ### Key Features:
-
             **1. Real UI:** LXQt 1.4 + Gamma-Dark Theme
-            - Moksha completely removed. LXQt is 100MB lighter and 3x faster
-            - Gamma theme + Papirus-Dark icons + Gamma wallpaper
-            - Command `gamma-theme gamma/king/windows/mac` to change appearance
-
             **2. Graphical Installer:** Zero Terminal Installation
-            - Double-click "Install Gamma Linux" on Desktop
-            - Ubiquity/Calamares installer: Next → Next → Finish
-            - No terminal commands needed for installation
-            - Supports dual-boot with Windows
-
-            **3. Gamma Store v3:** Universal App Store
-            - Search 200,000+ packages from APT repositories
-            - Browse by category: Internet, Media, Office, Dev, Gaming
-            - Install, update, remove apps with GUI
-            - System cleanup tools included
-
+            **3. Gamma Store v3:** Universal App Store - 200,000+ packages
             **4. Gamma Drivers Manager:** Hardware Support
-            - Nvidia, AMD, Intel GPU drivers
-            - WiFi drivers: Broadcom, Realtek
-            - Printer drivers: HP, Canon
-            - Bluetooth, fingerprint support
-            - Install all firmware at once
+            **5. Ultra-Lite:** ZRAM + Preload + TLP enabled
 
-            **5. Real RAM Usage Idle:**
-            - **Gamma Legacy 32**: ~60MB on 512MB RAM
-            - **Gamma Lite Ghost**: ~110MB on 1GB RAM
-            - **Gamma Fatih Pro**: ~180MB on 2GB+ RAM
-
-            **6. Ultra-Lite Optimizations:**
-            - Aggressive bloat removal: -400MB vs Bodhi base
-            - ZRAM + Preload + TLP enabled by default
-            - zstd compression level 19 = 15% smaller ISO
-            - Only AR+EN+FR locales kept, 256px+ icons removed
-            - Snap, Flatpak, Telemetry, Moksha completely purged
-
-            ### Expected Sizes:
-            **1. Gamma Legacy 32**: ~700MB-770MB
-            **2. Gamma Lite Ghost**: ~770MB-840MB
-            **3. Gamma Fatih Pro**: ~850MB-920MB
+            ### Real RAM Usage Idle:
+            - **Legacy 32**: ~60MB
+            - **Lite Ghost**: ~110MB
+            - **Fatih Pro**: ~180MB
 
             ### Installation:
             1. Boot from USB/DVD
             2. Double-click "Install Gamma Linux" icon on Desktop
             3. Follow wizard: Language → Timezone → Keyboard → Disk → User
             4. Reboot and enjoy!
-
-            ### Note:
-            - This is Alpha. Bugs possible
-            - Disable Secure Boot in BIOS before installation
-            - Reboot after installing Nvidia drivers
 
             *Tested on:* Packard Bell TE11HC, Acer Aspire One D270
             *Built from Algeria to all world with love*
