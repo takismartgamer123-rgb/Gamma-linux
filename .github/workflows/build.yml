@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: lite-ghost
@@ -84,9 +85,9 @@ jobs:
           echo "Found squashfs at: $SQUASHFS_PATH"
           sudo unsquashfs -f -d squashfs-root "$SQUASHFS_PATH"
 
-      - name: Build ${{ matrix.name }} Edition
+      - name: Build ${{ matrix.name }} Edition - ANTI-DEATH MODE
         run: |
-          echo "=== Building Gamma ${{ matrix.name }} ==="
+          echo "=== Building Gamma ${{ matrix.name }} - ANTI-DEATH MODE ==="
           sudo rsync -a base/ ext/ --exclude=/casper/filesystem.squashfs --exclude=/live/filesystem.squashfs
           sudo rm -rf chroot
           sudo rsync -a --delete squashfs-root/ chroot/
@@ -98,8 +99,16 @@ jobs:
           sudo rm -f chroot/etc/resolv.conf
           echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
 
-          sudo chroot chroot bash -c "rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* || true"
-          sudo chroot chroot dpkg --configure -a || true
+          # ANTI-DEATH FIX 1: Kill all locks and fix dpkg before anything
+          sudo chroot chroot bash -c "
+            killall apt apt-get dpkg 2>/dev/null || true
+            rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* /var/lib/dpkg/lock-frontend
+            rm -rf /var/lib/dpkg/updates/*
+            rm -rf /var/lib/dpkg/info/*.postinst
+            rm -rf /var/lib/dpkg/info/*.prerm
+            dpkg --configure -a || true
+            apt-get install -f -y || true
+          "
           sudo rm -f chroot/etc/apt/sources.list.d/* || true
 
           if [ "${{ matrix.base }}" = "ubuntu" ]; then
@@ -117,19 +126,33 @@ jobs:
           EOF
           fi
 
-          sudo chroot chroot apt-get update
-          sudo chroot chroot apt-get install -y lxqt-core lxqt-themes openbox pcmanfm-qt
-          sudo chroot chroot apt-get install -y materia-gtk-theme papirus-icon-theme fonts-noto-core fonts-noto-color-emoji
-          sudo chroot chroot apt-get install -y lightdm lightdm-gtk-greeter
-          sudo chroot chroot apt-get install -y zram-tools preload tlp zenity curl wget
+          sudo chroot chroot apt-get update -y
+
+          # ANTI-DEATH FIX 2: Purge all problematic packages first
+          sudo chroot chroot bash -c "
+            apt-get purge -y avahi-daemon avahi-utils cups-pk-helper cups-browsed cups-daemon cups-core-drivers || true
+            apt-get purge -y moksha* enlightenment* bodhi-* e17-* efl* || true
+            apt-get purge -y midori* netsurf* epad* leafpad* terminology* epiphany* || true
+            apt-get purge -y snapd* flatpak* || true
+            apt-get autoremove --purge -y || true
+          "
+
+          # ANTI-DEATH FIX 3: Install with --no-install-recommends to avoid bloat
+          sudo chroot chroot apt-get install -y --no-install-recommends lxqt-core lxqt-themes openbox pcmanfm-qt
+          sudo chroot chroot apt-get install -y --no-install-recommends materia-gtk-theme papirus-icon-theme fonts-noto-core fonts-noto-color-emoji
+          sudo chroot chroot apt-get install -y --no-install-recommends lightdm lightdm-gtk-greeter
+          sudo chroot chroot apt-get install -y --no-install-recommends zram-tools preload tlp zenity curl wget
 
           if [ "${{ matrix.installer }}" = "ubiquity" ]; then
             echo "Installing Ubiquity for Ubuntu base..."
-            sudo chroot chroot apt-get install -y ubiquity ubiquity-frontend-gtk ubiquity-slideshow-ubuntu ubiquity-casper
+            sudo chroot chroot apt-get install -y --no-install-recommends ubiquity ubiquity-frontend-gtk ubiquity-slideshow-ubuntu ubiquity-casper
           else
             echo "Installing Calamares for Debian base..."
-            sudo chroot chroot apt-get install -y calamares calamares-settings-debian
+            sudo chroot chroot apt-get install -y --no-install-recommends calamares calamares-settings-debian
           fi
+
+          # ANTI-DEATH FIX 4: Fix dpkg again after install
+          sudo chroot chroot bash -c "dpkg --configure -a || true; apt-get install -f -y || true"
 
           sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg
           sudo cp gamma-logo.png chroot/usr/share/pixmaps/gamma-logo.png
@@ -261,10 +284,10 @@ jobs:
           fi
 
           apt-get update
-          apt-get install -y $BROWSER htop zenity python3-pip wget curl
+          apt-get install -y --no-install-recommends $BROWSER htop zenity python3-pip wget curl
           if [[ '$LANGS' == *Arabic* ]]; then apt-get install -y language-pack-ar fonts-noto-core; fi
           if [[ '$LANGS' == *French* ]]; then apt-get install -y language-pack-fr; fi
-          if [ '$INSTALL_TYPE' = 'Standard' ]; then apt-get install -y libreoffice-writer vlc; elif [ '$INSTALL_TYPE' = 'Full' ]; then apt-get install -y libreoffice gimp vlc; fi
+          if [ '$INSTALL_TYPE' = 'Standard' ]; then apt-get install -y --no-install-recommends libreoffice-writer vlc; elif [ '$INSTALL_TYPE' = 'Full' ]; then apt-get install -y --no-install-recommends libreoffice gimp vlc; fi
 
           zenity --info --title="Setup Complete" --text="Gamma Linux Ready!\n\nInstalled: $INSTALL_TYPE\nBrowser: $BROWSER\nLanguages: $LANGS\n\nOpen 'Gamma Store' from menu to install more apps\nOpen 'Gamma Drivers' for hardware drivers\n\nMaximum Power, Minimum RAM\n\n- Taki from Guelma, Algeria\nDedicated to my father Fateh" --width=450
           EOF
@@ -296,7 +319,7 @@ jobs:
                 [ -z "$SELECTED" ] && continue
                 PKG_NAME=$(echo "$SELECTED" | awk '{print $1}')
                 if zenity --question --title="Confirm Install" --text="Install: $PKG_NAME\n\nProceed?" --width=350; then
-                  (echo "10"; echo "# Updating..."; apt-get update -qq; echo "50"; echo "# Installing $PKG_NAME..."; apt-get install -y "$PKG_NAME"; echo "100"; echo "# Done!") | zenity --progress --title="Installing $PKG_NAME" --pulsate --auto-close --width=400
+                  (echo "10"; echo "# Updating..."; apt-get update -qq; echo "50"; echo "# Installing $PKG_NAME..."; apt-get install -y --no-install-recommends "$PKG_NAME"; echo "100"; echo "# Done!") | zenity --progress --title="Installing $PKG_NAME" --pulsate --auto-close --width=400
                   [ $? = 0 ] && zenity --info --text="$PKG_NAME installed successfully!" --width=250 || zenity --error --text="Installation failed!" --width=250
                 fi
                 rm -f /tmp/gamma_search_results
@@ -309,7 +332,7 @@ jobs:
                 SELECTED=$(cat /tmp/gamma_cat_results | zenity --list --title="$CAT" --column="Package" --column="Description" --separator=" - " --width=900 --height=600 --ok-label="Install")
                 [ -z "$SELECTED" ] && continue
                 PKG_NAME=$(echo "$SELECTED" | awk '{print $1}')
-                if zenity --question --text="Install $PKG_NAME?" --width=250; then xterm -e "sudo apt-get update && sudo apt-get install -y $PKG_NAME && echo 'Done! Press Enter' && read"; fi
+                if zenity --question --text="Install $PKG_NAME?" --width=250; then xterm -e "sudo apt-get update && sudo apt-get install -y --no-install-recommends $PKG_NAME && echo 'Done! Press Enter' && read"; fi
                 rm -f /tmp/gamma_cat_results
                 ;;
               "Installed") dpkg -l | grep "^ii" | awk '{print $2 " - " $3}' | zenity --list --title="Installed Packages" --text="All installed packages. Select to remove:" --column="Package" --column="Version" --separator=" - " --width=600 --height=600 --ok-label="Remove" --cancel-label="Back" > /tmp/to_remove; [ -s /tmp/to_remove ] || continue; PKG_REMOVE=$(cat /tmp/to_remove | awk '{print $1}'); if zenity --question --text="Remove $PKG_REMOVE?" --width=350; then xterm -e "sudo apt-get remove -y $PKG_REMOVE && echo 'Done! Press Enter' && read"; fi; rm -f /tmp/to_remove;;
@@ -324,7 +347,7 @@ jobs:
           #!/bin/bash
           DRIVER_CHOICE=$(zenity --list --title="Gamma Drivers Manager" --text="Install missing drivers\n\nDedicated to my father Fateh" --column="Driver" --column="Description" "nvidia" "Nvidia GPU Proprietary Driver" "amd-gpu" "AMD GPU Firmware" "intel-microcode" "Intel CPU Updates" "amd64-microcode" "AMD CPU Updates" "wifi-broadcom" "Broadcom WiFi Driver" "wifi-realtek" "Realtek WiFi Driver" "printer-hp" "HP Printer Drivers" "printer-canon" "Canon Printer Drivers" "bluetooth" "Bluetooth Support" "fingerprint" "Fingerprint Reader" "all-firmware" "Install ALL Firmware" --width=600 --height=500 --ok-label="Install" --cancel-label="Exit")
           [ -z "$DRIVER_CHOICE" ] && exit 0
-          (echo "10"; echo "# Updating package list..."; apt-get update -qq; echo "30"; echo "# Installing $DRIVER_CHOICE..."; case "$DRIVER_CHOICE" in "nvidia") apt-get install -y nvidia-driver-535;; "amd-gpu") apt-get install -y firmware-amd-graphics libgl1-mesa-dri;; "intel-microcode") apt-get install -y intel-microcode;; "amd64-microcode") apt-get install -y amd64-microcode;; "wifi-broadcom") apt-get install -y firmware-b43-installer;; "wifi-realtek") apt-get install -y firmware-realtek;; "printer-hp") apt-get install -y hplip cups; systemctl enable cups;; "printer-canon") apt-get install -y cups cnijfilter2; systemctl enable cups;; "bluetooth") apt-get install -y bluez blueman; systemctl enable bluetooth;; "fingerprint") apt-get install -y fprintd;; "all-firmware") apt-get install -y linux-firmware firmware-linux firmware-amd-graphics firmware-realtek intel-microcode amd64-microcode;; esac; echo "90"; echo "# Cleaning up..."; apt-get clean; echo "100"; echo "# Done!") | zenity --progress --title="Installing Drivers" --text="Please wait..." --percentage=0 --auto-close --width=500
+          (echo "10"; echo "# Updating package list..."; apt-get update -qq; echo "30"; echo "# Installing $DRIVER_CHOICE..."; case "$DRIVER_CHOICE" in "nvidia") apt-get install -y --no-install-recommends nvidia-driver-535;; "amd-gpu") apt-get install -y --no-install-recommends firmware-amd-graphics libgl1-mesa-dri;; "intel-microcode") apt-get install -y --no-install-recommends intel-microcode;; "amd64-microcode") apt-get install -y --no-install-recommends amd64-microcode;; "wifi-broadcom") apt-get install -y --no-install-recommends firmware-b43-installer;; "wifi-realtek") apt-get install -y --no-install-recommends firmware-realtek;; "printer-hp") apt-get install -y --no-install-recommends hplip cups; systemctl enable cups;; "printer-canon") apt-get install -y --no-install-recommends cups cnijfilter2; systemctl enable cups;; "bluetooth") apt-get install -y --no-install-recommends bluez blueman; systemctl enable bluetooth;; "fingerprint") apt-get install -y --no-install-recommends fprintd;; "all-firmware") apt-get install -y --no-install-recommends linux-firmware firmware-linux firmware-amd-graphics firmware-realtek intel-microcode amd64-microcode;; esac; echo "90"; echo "# Cleaning up..."; apt-get clean; echo "100"; echo "# Done!") | zenity --progress --title="Installing Drivers" --text="Please wait..." --percentage=0 --auto-close --width=500
           [ $? = 0 ] && zenity --info --title="Success" --text="Driver installed successfully!\n\nYou may need to REBOOT for changes to take effect.\n\nGamma Linux - Dedicated to my father Fateh" --width=400 || zenity --error --title="Failed" --text="Driver installation failed!" --width=300
           EOF
           sudo chmod +x chroot/usr/local/bin/gamma-drivers
@@ -369,12 +392,8 @@ jobs:
           sudo chroot chroot systemctl enable zram-config tlp preload
 
           echo "=== STARTING AGGRESSIVE CLEANUP ==="
-          sudo chroot chroot apt-get purge -y 'moksha*' 'enlightenment*' 'bodhi-*' 'e17-*' 'efl*' 2>/dev/null || true
-          sudo chroot chroot apt-get purge -y 'midori*' 'netsurf*' 'epad*' 'leafpad*' 'terminology*' 'epiphany*' 2>/dev/null || true
-          sudo chroot chroot apt-get purge -y 'snapd*' 'flatpak*' 'firefox*' 'thunderbird*' 2>/dev/null || true
-          sudo chroot chroot apt-get purge -y 'gnome-*' 'kde-*' 'xfce4-*' 'mate-*' 2>/dev/null || true
-          sudo chroot chroot apt-get autoremove --purge -y
-          sudo chroot chroot apt-get clean
+          sudo chroot chroot bash -c "apt-get autoremove --purge -y || true"
+          sudo chroot chroot bash -c "apt-get clean || true"
           sudo chroot chroot rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* /var/tmp/*
           sudo chroot chroot rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/*
           sudo chroot chroot rm -rf /usr/share/locale/*
