@@ -91,11 +91,12 @@ jobs:
         run: |
           sudo rsync -a base/ ext/ --exclude=/${{ env.SQUASHFS_DIR }}/filesystem.squashfs
 
-          # FIX v4.7: Force copy isolinux files to prevent Exit Code 5
+          # نسخ isolinux كامل للتأكيد
           sudo rm -rf ext/isolinux
           sudo mkdir -p ext/isolinux
           sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/isolinux/
           sudo cp /usr/lib/syslinux/modules/bios/*.c32 ext/isolinux/ || true
+          sudo chmod 644 ext/isolinux/isolinux.bin
 
           sudo rm -rf chroot
           sudo rsync -a --delete squashfs-root/ chroot/
@@ -270,14 +271,15 @@ jobs:
           sudo sed -i 's/Bodhi Linux/Gamma Linux v2.1-Royal - Guelma/g' ext/boot/grub/grub.cfg 2>/dev/null || true
           sudo sed -i 's/Bodhi Linux/Gamma Linux v2.1-Royal - Guelma/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
           cd ext
-          ls -la isolinux/isolinux.bin || exit 1
-          ls -la /usr/lib/ISOLINUX/isohdpfx.bin || exit 1
-          EFI_ARGS=""
-          if [ -f boot/grub/efi.img ]; then
-            EFI_ARGS="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"
-          fi
-          sudo xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "GAMMA_${{ matrix.name }}" -eltorito-boot isolinux/isolinux.bin -eltorito-catalog isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin $EFI_ARGS -output "../gamma-${{ matrix.name }}.iso".
+
+          # FIX v4.8: نستعمل genisoimage بدل xorriso - هذا يقتل Exit Code 5
+          sudo genisoimage -D -r -V "GAMMA_${{ matrix.name }}" -cache-inodes -J -l \
+            -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
+            -o../gamma-${{ matrix.name }}.iso.
+
           cd..
+          # نخليو الـ ISO قابل للإقلاع من USB
+          sudo isohybrid --uefi gamma-${{ matrix.name }}.iso || true
           ls -lh gamma-${{ matrix.name }}.iso
 
       - name: Upload ISO as Artifact
