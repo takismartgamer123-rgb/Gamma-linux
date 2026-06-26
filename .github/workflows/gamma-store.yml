@@ -1,265 +1,65 @@
-name: Build Gamma Store Pro - Play Store UI
+name: Upload to v2.1-Royal
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Store Version'
-        required: true
-        default: '2.4.0'
-      release_tag:
-        description: 'Attach to release tag'
-        required: true
-        default: 'v2.1-Royal'
-
-permissions:
-  contents: write
+  push:
+    tags:
+      - 'v2.1-Royal' # يخدم غير مع هذا التاغ
 
 jobs:
-  build-store-pro:
-    runs-on: ubuntu-22.04
+  build-and-upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
     steps:
-      - name: Create Gamma Store Pro .deb
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot
+
+      - name: Build DEB v2.1-Royal
         run: |
-          PKG_NAME="gamma-store"
-          PKG_VERSION="${{ github.event.inputs.version }}"
-          ARCH="all"
-          BUILD_DIR="${PKG_NAME}_${PKG_VERSION}_${ARCH}"
-          
-          mkdir -p "${BUILD_DIR}/DEBIAN"
-          mkdir -p "${BUILD_DIR}/usr/local/bin"
-          mkdir -p "${BUILD_DIR}/usr/share/applications"
-          mkdir -p "${BUILD_DIR}/usr/share/gamma-store"
-          
-          cat > "${BUILD_DIR}/DEBIAN/control" << EOF
-          Package: gamma-store
-          Version: ${PKG_VERSION}
-          Section: admin
+          VER="2.1-Royal"
+
+          mkdir -p gamma-store-pro_$VER/DEBIAN
+          mkdir -p gamma-store-pro_$VER/usr/bin
+          mkdir -p gamma-store-pro_$VER/usr/share/applications
+          mkdir -p gamma-store-pro_$VER/usr/share/pixmaps
+
+          cp gamma-store.sh gamma-store-pro_$VER/usr/bin/gamma-store
+          chmod 755 gamma-store-pro_$VER/usr/bin/gamma-store
+          cp assets/F-logo.png gamma-store-pro_$VER/usr/share/pixmaps/
+
+          cat > gamma-store-pro_$VER/usr/share/applications/gamma-store.desktop <<EOF
+          [Desktop Entry]
+          Name=Gamma Store Pro Royal
+          Exec=gamma-store
+          Icon=F-logo
+          Type=Application
+          Categories=Utility;
+          EOF
+
+          cat > gamma-store-pro_$VER/DEBIAN/control <<EOF
+          Package: gamma-store-pro
+          Version: 2.1-Royal
+          Section: utils
           Priority: optional
           Architecture: all
-          Depends: yad (>= 0.40), pkexec, apt, apt-utils, wget, curl, libnotify-bin, dpkg, jq
-          Maintainer: Taki <takismartgamer123@gmail.com>
-          Description: Gamma Store Pro - Play Store Style App Center
-           Modern software center with Play Store UI, auto hardware detection,
-           icon caching, filtered APT search, and self-updater.
-           Works on any Ubuntu/Debian system.
-           .
-           Alpha failed. Beta crashed. Gamma survives.
-           Dedicated to my father Fateh.
+          Depends: yad, termux-x11-nightly
+          Maintainer: Taki <taki@gammalinex.dev>
+          Description: Gamma Store Pro v2.1-Royal
+           Play Store Clone. Special Dedication to Fateh ∞
           EOF
-          
-          cat > "${BUILD_DIR}/usr/local/bin/gamma-store" << 'STORE_PRO'
-          #!/bin/bash
-          # Gamma Store Pro v2.4.0 - Play Store UI Edition
-          # Alpha failed. Beta crashed. Gamma survives. Dedicated to my father Fateh
-          
-          ICON_CACHE="$HOME/.cache/gamma-store/icons"
-          CONFIG_DIR="$HOME/.config/gamma-store"
-          STORE_VERSION="2.4.0"
-          GITHUB_REPO="takismartgamer123-rgb/Gamma-linux"
-          mkdir -p "$ICON_CACHE" "$CONFIG_DIR"
-          
-          detect_profile() {
-              RAM_MB=$(free -m | awk '/^Mem:/{print $2}')
-              ARCH=$(dpkg --print-architecture)
-              if [ "$ARCH" = "i386" ] || [ $RAM_MB -lt 768 ]; then echo "legacy"
-              elif [ $RAM_MB -lt 2048 ]; then echo "lite"
-              else echo "pro"; fi
-          }
-          
-          [ ! -f "$CONFIG_DIR/profile" ] && detect_profile > "$CONFIG_DIR/profile"
-          PROFILE=$(cat "$CONFIG_DIR/profile")
-          
-          get_icon() {
-              local pkg="$1"
-              local icon_path="$ICON_CACHE/${pkg}.png"
-              [ -f "$icon_path" ] && echo "$icon_path" && return
-              local sys_icon=$(dpkg -L "$pkg" 2>/dev/null | grep -m1 '/icons/.*\.png$\|pixmaps/.*\.png$' | head -1)
-              if [ -n "$sys_icon" ] && [ -f "$sys_icon" ]; then cp "$sys_icon" "$icon_path"; echo "$icon_path" && return; fi
-              wget -q -T 2 -O "$icon_path" "https://screenshots.debian.net/thumbnail/${pkg}" &
-              echo "application-x-deb"
-          }
-          
-          install_package() {
-              local pkg="$1" name="$2"
-              ( echo "# 10 Updating lists..."; pkexec apt-get update -qq
-              echo "# 30 Installing $name..."; pkexec apt-get install -y "$pkg"
-              echo "# 100 Done!") | yad --progress --title="Gamma Store" --text="<b>Installing $name</b>" \
-              --percentage=0 --auto-close --width=500 --height=150 --no-buttons --on-top
-              [ $? -eq 0 ] && notify-send "Gamma Store" "Installed $name successfully" -i software-install
-          }
-          
-          install_deb() {
-              local deb="$1"
-              pkexec apt-get install -y "$deb" | yad --progress --pulsate --auto-close \
-              --title="Installing .deb" --text="Installing $(basename "$deb")..." --no-buttons
-          }
-          
-          search_packages() {
-              local query="$1"
-              (echo "# Searching apps..."; sleep 1) | yad --progress --pulsate --auto-close --no-buttons --width=300 &
-              
-              RESULTS=$(apt-cache search "$query" | while read pkg desc; do
-                  if apt-cache show "$pkg" 2>/dev/null | grep -q "Section: " && \
-                     dpkg -L "$pkg" 2>/dev/null | grep -q '/usr/share/applications/.*\.desktop'; then
-                      if [ "$PROFILE" = "legacy" ]; then
-                          [[ "$pkg" =~ chromium|libreoffice|gimp|kdenlive|blender ]] && continue
-                      fi
-                      echo "$pkg|$desc"
-                  fi
-              done | grep -v "^lib" | head -30)
-              
-              killall yad 2>/dev/null
-              [ -z "$RESULTS" ] && yad --error --text="No apps found for: <b>$query</b>" --width=350 && return
-              
-              FORMATTED=""
-              while IFS='|' read -r PKG DESC; do
-                  ICON=$(get_icon "$PKG")
-                  INSTALLED=$(dpkg -l 2>/dev/null | grep -q "^ii  $PKG " && echo "Installed" || echo "Install")
-                  FORMATTED="$FORMATTED\n$ICON|$PKG\n$DESC|$INSTALLED|$PKG"
-              done <<< "$RESULTS"
-              
-              SELECTED=$(echo -e "$FORMATTED" | yad --list --title="Search: $query" \
-              --text="<b>Results for: $query</b>" \
-              --column="Icon":IMG --column="App Name" --column="Description" --column="Action" --column="Package":HD \
-              --width=1000 --height=650 --center --print-column=5 --separator=" " \
-              --button="Back:1" --button="Install Selected:0" \
-              --css="* { background-color: #121212; color: #ffffff; } button { background-color: #00c853; color: black; font-weight: bold; }")
-              
-              [ $? -eq 0 ] && [ -n "$SELECTED" ] && for pkg in $SELECTED; do install_package "$pkg" "$pkg"; done
-          }
-          
-          show_categories() {
-              CAT=$(yad --list --title="Categories" --text="<b>Browse by category</b>" \
-              --column="Category" --column="Icon":IMG \
-              "Internet" "web-browser" "Multimedia" "multimedia-video-player" \
-              "Office" "x-office-document" "Graphics" "applications-graphics" \
-              "Utilities" "applications-utilities" "Development" "applications-development" \
-              --width=500 --height=400 --print-column=1 --button="Back:1" --button="Open:0")
-              [ $? -ne 0 ] || [ -z "$CAT" ] && return
-              search_packages "$CAT"
-          }
-          
-          check_store_updates() {
-              (echo "# Checking GitHub..."; sleep 1) | yad --progress --pulsate --auto-close --no-buttons --width=300 &
-              LATEST_TAG=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | jq -r .tag_name)
-              killall yad 2>/dev/null
-              [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ] && yad --error --text="Cannot check updates." --width=350 && return
-              LATEST_DEB=$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/tags/$LATEST_TAG" | jq -r '.assets[] | select(.name | test("gamma-store_.*_all.deb")) | .browser_download_url' | head -1)
-              [ -z "$LATEST_DEB" ] || [ "$LATEST_DEB" = "null" ] && yad --info --text="<b>Gamma Store Pro v$STORE_VERSION</b>\n\nYou have the latest version!" --width=400 && return
-              yad --question --title="Update Available" --text="<b>New version available!</b>\n\nCurrent: v$STORE_VERSION\nLatest: $LATEST_TAG\n\nUpdate now?" --width=450 || return
-              TEMP_DEB="/tmp/gamma-store-update.deb"
-              wget -O "$TEMP_DEB" "$LATEST_DEB" | yad --progress --pulsate --auto-close --title="Downloading..." --text="Downloading update..." --no-buttons
-              pkexec apt-get install -y "$TEMP_DEB"
-              yad --info --text="<b>Updated!</b>\n\nRestart Gamma Store." --width=350
-              rm -f "$TEMP_DEB"
-          }
-          
-          show_about() {
-              RAM_H=$(free -h | awk '/^Mem:/{print $2}')
-              yad --info --title="About" --text="<b>Gamma Store Pro v$STORE_VERSION</b>\n\nProfile: $PROFILE\nRAM: $RAM_H\nBy: Taki - 17yo from Guelma\n\n<i>Maximum Power, Minimum RAM</i>\n\n<b>Dedicated to my father Fateh</b>" \
-              --width=500 --image="/usr/share/gamma-store/logo.png"
-          }
-          
-          # الواجهة الرئيسية - Play Store Style
-          show_main_ui() {
-              SYS_NAME=$(lsb_release -d 2>/dev/null | cut -f2- || echo "Gamma Linux")
-              RAM_H=$(free -h | awk '/^Mem:/{print $2}')
-              
-              FEATURED_FILE="/usr/share/gamma-store/featured-${PROFILE}.list"
-              FEATURED_CARDS=""
-              
-              while IFS='|' read -r pkg name desc cat; do
-                  ICON=$(get_icon "$pkg")
-                  INSTALLED=$(dpkg -l 2>/dev/null | grep -q "^ii $pkg " && echo "Installed" || echo "Install")
-                  FEATURED_CARDS="$FEATURED_CARDS\n$ICON|$name\n$desc|$cat|$INSTALLED|$pkg"
-              done < "$FEATURED_FILE"
-              
-              RESULT=$(echo -e "$FEATURED_CARDS" | yad --list \
-              --title="Gamma Store Pro" \
-              --text="<b><big>Welcome to Gamma Linux Store</big></b>\n<i>I see that your system is: $SYS_NAME - $RAM_H RAM</i>\n" \
-              --image="/usr/share/gamma-store/logo.png" --image-on-top \
-              --column="Icon":IMG --column="App Name" --column="Description" --column="Category" --column="Action" --column="Package":HD \
-              --width=1100 --height=750 --center \
-              --search-column=2 --entry-text="Search Apps & Games" \
-              --button="Categories:2" --button="Updates:3" --button="About:4" --button="Exit:1" --button="Install Selected:0" \
-              --print-column=6 --separator=" " --grid-lines=horizontal \
-              --css="* { background-color: #121212; color: #ffffff; } button { background-color: #00c853; color: black; font-weight: bold; } treeview { background-color: #1e1e1e; border-radius: 8px; }")
-              
-              EXIT_CODE=$?
-              [ $EXIT_CODE -eq 1 ] && exit 0
-              [ $EXIT_CODE -eq 2 ] && show_categories && return
-              [ $EXIT_CODE -eq 3 ] && check_store_updates && return
-              [ $EXIT_CODE -eq 4 ] && show_about && return
-              
-              SEARCH_TEXT=$(echo "$RESULT" | grep -v "^$")
-              if [[ -n "$SEARCH_TEXT" ]] && [[ ! "$SEARCH_TEXT" =~ ^(firefox|vlc|chromium|dillo|abiword) ]]; then
-                  search_packages "$SEARCH_TEXT"
-                  return
-              fi
-              
-              [ $EXIT_CODE -eq 0 ] && [ -n "$RESULT" ] && for pkg in $RESULT; do install_package "$pkg" "$pkg"; done
-          }
-          
-          while true; do show_main_ui; done
-          STORE_PRO
-          chmod +x "${BUILD_DIR}/usr/local/bin/gamma-store"
-          
-          # Featured lists
-          cat > "${BUILD_DIR}/usr/share/gamma-store/featured-legacy.list" << 'EOF'
-          dillo|Dillo Web Browser|Ultra light 1MB browser for old PCs|Internet
-          xmms|XMMS Music Player|Winamp 2 clone, 4MB RAM|Multimedia
-          abiword|AbiWord|MS Word compatible, 20MB RAM|Office
-          mtpaint|mtPaint|MS Paint alternative, 5MB|Graphics
-          leafpad|Leafpad|Instant notepad|Utilities
-          xarchiver|Xarchiver|Extract zip/rar|Utilities
-          EOF
-          
-          cat > "${BUILD_DIR}/usr/share/gamma-store/featured-lite.list" << 'EOF'
-          firefox-esr|Firefox ESR|Modern web browser, still light|Internet
-          vlc|VLC Media Player|Plays everything|Multimedia
-          audacious|Audacious|Winamp-style music player|Multimedia
-          libreoffice-writer|LibreOffice Writer|Word documents|Office
-          gimp|GIMP|Photoshop alternative|Graphics
-          transmission|Transmission|Torrent client 15MB|Internet
-          gnumeric|Gnumeric|Excel alternative|Office
-          EOF
-          
-          cat > "${BUILD_DIR}/usr/share/gamma-store/featured-pro.list" << 'EOF'
-          chromium|Chromium|Full Chrome experience|Internet
-          vlc|VLC Media Player|Hardware accelerated|Multimedia
-          libreoffice|LibreOffice|Full Office Suite|Office
-          gimp|GIMP Image Editor|Full features|Graphics
-          kdenlive|Kdenlive|Video editing|Multimedia
-          inkscape|Inkscape|Vector graphics|Graphics
-          code|Visual Studio Code|Code editor|Development
-          obs-studio|OBS Studio|Screen recording|Multimedia
-          EOF
-          
-          # حط اللوغو تاعك هنا - بدل الرابط
-          wget -q -O "${BUILD_DIR}/usr/share/gamma-store/logo.png" "https://raw.githubusercontent.com/takismartgamer123-rgb/Gamma-linux/main/assets/logo.png" || echo "Logo not found, using default"
-          
-          cat > "${BUILD_DIR}/usr/share/applications/gamma-store.desktop" << 'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=Gamma Store Pro
-          GenericName=App Center
-          Comment=Play Store Style App Center for Gamma Linux
-          Exec=gamma-store
-          Icon=system-software-install
-          Terminal=false
-          Categories=System;PackageManager;Settings;
-          Keywords=store;apps;install;software;search;update;
-          StartupNotify=true
-          EOF
-          
-          dpkg-deb --build "${BUILD_DIR}"
-          ls -lh "${PKG_NAME}_${PKG_VERSION}_${ARCH}.deb"
-          
-      - name: Upload to Release ${{ github.event.inputs.release_tag }}
+
+          dpkg-deb --build gamma-store-pro_$VER
+          mv gamma-store-pro_$VER.deb gamma-store-pro_2.1-Royal_all.deb
+
+      - name: Upload to v2.1-Royal Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.release_tag }}
-          files: gamma-store_${{ github.event.inputs.version }}_all.deb
+          tag_name: v2.1-Royal # يلحق هنا بالضبط
+          files: gamma-store-pro_2.1-Royal_all.deb
+          overwrite: true 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
