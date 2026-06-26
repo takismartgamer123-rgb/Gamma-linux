@@ -1,18 +1,15 @@
-name: Build and Upload to v2.1-Royal
-
+name: Build and Upload to v2.2-Royal
 on:
   workflow_dispatch:
-
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+        
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot
 
@@ -20,99 +17,71 @@ jobs:
         run: |
           cat > gamma-store.sh <<'EOF'
           #!/bin/bash
-          # Gamma Store Pro v4.0 - Premium Live Play Store Edition
+          # Gamma Store Pro v4.1 - Royal Market Fixed Edition
           # By Taki - 17yo from Guelma | Dedicated to Fateh ♾️
-
           export GTK_THEME=Adwaita:dark
-          export DISPLAY=:0
-
-          # كود الـ CSS لجعل الواجهة سوداء بالكامل (AMOLED Black) مثل Play Store
-          CSS="* { background-color: #000000; color: #ffffff; font-family: 'Ubuntu', sans-serif; }
-               view, treeview, text { background-color: #0d0d0d; color: #e0e0e0; border: 1px solid #222; border-radius: 8px; }
-               entry { background-color: #1a1a1a; color: #fff; border: 1px solid #00c853; border-radius: 20px; padding: 10px; font-size: 14px; }
-               button { background-color: #00c853; color: #000000; font-weight: bold; border-radius: 25px; padding: 8px; }
-               button:hover { background-color: #00e676; }
-               notebook tab { background-color: #0a0a0a; color: #888; }
-               notebook tab:checked { background-color: #000; color: #00c853; font-weight: bold; }"
-
-          # إنشاء ملف مؤقت لتخزين قائمة التطبيقات المعروضة
-          KEY=$RANDOM
-          PIPE_SEARCH=$(mktemp -u)
-          mkfifo "$PIPE_SEARCH"
-          exec 3<> "$PIPE_SEARCH"
-
-          # دالة البحث المباشر في ريبوهات دبيان/أوبونتو الرسمية بدون قاعدة بيانات
-          search_packages() {
-              local query="$1"
-              if [ -z "$query" ] || [ ${#query} -lt 3 ]; then
-                  # تطبيقات مقترحة افتراضياً تظهر في الواجهة عند فتح الستور لأول مرة (مثل Play Store Homepage)
-                  echo -e "firefox-esr\nSafe and optimized modern web browser\nvlc\nUltimate open-source multimedia player\nlibreoffice\nComplete productive office suite\ngimp\nProfessional image manipulation program" >&3
-              else
-                  # جلب حقيقي وحي لـ 15 حزمة ووصفها من مستودعات النظام الرسمية
-                  apt-cache search "$query" | head -n 15 | awk '{print $1; $1=""; print substr($0,2)}' >&3
-              fi
-          }
-
-          # تشغيل التابع المساعد في الخلفية لإدارة البحث والتثبيت
-          (
-              # تحميل التطبيقات الافتراضية عند الإقلاع
-              search_packages ""
-              
-              while read -r line; do
-                  if [[ "$line" == "SEARCH:"* ]]; then
-                      local_query="${line#SEARCH:}"
-                      search_packages "$local_query"
-                  elif [[ "$line" == "INSTALL:"* ]]; then
-                      pkg="${line#INSTALL:}"
-                      if [ ! -z "$pkg" ]; then
-                          # نافذة تقدم الشغل أثناء التثبيت الحقيقي
-                          yad --title="Gamma Installer" --text="Downloading and installing $pkg from official repositories..." \
-                              --progress --pulsate --auto-close --width=350 --center &
-                          Y_PID=$!
-                          
-                          sudo apt-get update && sudo apt-get install -y "$pkg"
-                          kill $Y_PID 2>/dev/null
-                          
-                          yad --info --title="Done" --text="👑 $pkg has been successfully installed!" --button="Awesome:0" --center
-                      fi
-                  fi
-              done
-          ) < <(yad --paned --key=$KEY --orient=horizontal --split=30 \
-              --title="Gamma Store Pro v4.0 - Royal Market" --width=850 --height=550 --center --css="$CSS" &
-              
-              # التبويب الأول (الجانبي - Sidebar): يمثل أقسام الستور والبحث
-              yad --plug=$KEY --tabnum=1 --form --columns=1 \
-                  --text="<span foreground='#00c853' size='large'><b>👑 Gamma Market</b></span>" \
-                  --field="🔍 Search Apps (Apt Repo):ENTRY" "" \
-                  --field="💡 Tip: Type app name and hit Enter to search directly from official Debian/Ubuntu mirrors!:LBL" \
-                  --button="Search:2" --button="Exit:1" >&3 &
-
-              # التبويب الثاني (الرئيسي): يعرض نتائج البحث والقوائم بشكل Play Store
-              yad --plug=$KEY --tabnum=2 --list \
-                  --column="📦 Package Name" --column="📝 Application Description" \
-                  --listen <&3 --button="Install Selected Application:0" --center)
           
-          # تنظيف الملفات المؤقتة عند الإغلاق
-          rm -f "$PIPE_SEARCH"
+          CSS="* { background-color: #000; color: #ffffff; font-family: 'Ubuntu', sans-serif; } view, treeview, text { background-color: #0d0d0d; color: #e0e0e0; border: 1px solid #222; border-radius: 8px; } entry { background-color: #1a1a1a; color: #fff; border: 1px solid #00c853; border-radius: 20px; padding: 10px; font-size: 14px; } button { background-color: #00c853; color: #000; font-weight: bold; border-radius: 25px; padding: 8px; } button:hover { background-color: #00e676; } notebook tab { background-color: #0a0a0a; color: #888; } notebook tab:checked { background-color: #000; color: #00c853; font-weight: bold; }"
+          
+          KEY=$RANDOM 
+          PIPE_SEARCH=$(mktemp -u) 
+          mkfifo "$PIPE_SEARCH" 
+          exec 3<> "$PIPE_SEARCH" 
+          
+          search_packages() { 
+            local query="$1" 
+            if [ -z "$query" ] || [ ${#query} -lt 3 ]; then 
+              echo -e "firefox-esr\nSafe and optimized modern web browser\nvlc\nUltimate open-source multimedia player\nlibreoffice\nComplete productive office suite\ngimp\nProfessional image manipulation program" >&3 
+            else 
+              apt-cache search "$query" | head -n 15 | awk '{print $1; $1=""; print substr($0,2)}' >&3 
+            fi 
+          } 
+          
+          # تحديث مرة وحدة برك عند الفتح
+          sudo apt-get update -qq &
+          
+          search_packages "" 
+          while read -r line; do 
+            if [[ "$line" == "SEARCH:"* ]]; then 
+              local_query="${line#SEARCH:}" 
+              search_packages "$local_query" 
+            elif [[ "$line" == "INSTALL:"* ]]; then 
+              pkg="${line#INSTALL:}" 
+              if [ ! -z "$pkg" ]; then 
+                yad --title="Gamma Installer" --text="Downloading and installing $pkg from official repositories..." \ 
+                --progress --pulsate --auto-close --width=350 --center & Y_PID=$! 
+                # FIX: pkexec بدل sudo باش ما يعلقش
+                pkexec apt-get install -y "$pkg" --no-update 
+                kill $Y_PID 2>/dev/null 
+                yad --info --title="Done" --text="👑 $pkg has been successfully installed!" --button="Awesome:0" --center 
+              fi 
+            fi 
+          done ) <(yad --paned --key=$KEY --orient=horizontal --split=30 \
+            --title="Gamma Store Pro v4.1 - Royal Market" --width=850 --height=550 --center --css="$CSS" & 
+            yad --plug=$KEY --tabnum=1 --form --columns=1 \
+            --text="<span foreground='#00c853' size='large'><b>👑 Gamma Market</b></span>" \
+            --field="🔍 Search Apps (Apt Repo):ENTRY" "" \
+            --field="💡 Tip: Type app name and hit Enter to search directly from official Debian/Ubuntu mirrors!:LBL" \
+            --button="Search:2" --button="Exit:1" >&3 & 
+            yad --plug=$KEY --tabnum=2 --list \
+            --column="📦 Package Name" --column="📝 Application Description" \
+            --listen <&3 --button="Install Selected Application:0" --center)
+          
+          rm -f "$PIPE_SEARCH" 
           EOF
           chmod +x gamma-store.sh
-
-      - name: Build DEB v2.1-Royal
+          
+      - name: Build DEB v2.2-Royal
         run: |
-          VER="2.1-Royal"
+          VER="2.2-Royal"
           mkdir -p gamma-store-pro_$VER/DEBIAN
           mkdir -p gamma-store-pro_$VER/usr/bin
           mkdir -p gamma-store-pro_$VER/usr/share/applications
           mkdir -p gamma-store-pro_$VER/usr/share/pixmaps
-
           cp gamma-store.sh gamma-store-pro_$VER/usr/bin/gamma-store
-          
-          if [ -f "assets/logo.png" ]; then
-            cp assets/logo.png gamma-store-pro_$VER/usr/share/pixmaps/logo.png
-          else
-            touch gamma-store-pro_$VER/usr/share/pixmaps/logo.png
+          if [ -f "assets/logo.png" ]; then cp assets/logo.png gamma-store-pro_$VER/usr/share/pixmaps/logo.png
+          else touch gamma-store-pro_$VER/usr/share/pixmaps/logo.png
           fi
-
           cat > gamma-store-pro_$VER/usr/share/applications/gamma-store.desktop <<EOF
           [Desktop Entry]
           Name=Gamma Store Pro Royal
@@ -121,24 +90,23 @@ jobs:
           Type=Application
           Categories=Utility;
           EOF
-
+          # FIX: زيدنا policykit-1 باش pkexec يخدم
           echo "Package: gamma-store-pro
-          Version: 2.1-Royal
+          Version: 2.2-Royal
           Architecture: all
-          Depends: yad
+          Depends: yad, apt, policykit-1
           Maintainer: Taki
-          Description: Gamma Store Pro v4.0 Dark Play Store Edition
+          Description: Gamma Store Pro v4.1 Dark Play Store Edition
            Fetches packages live from official Debian/Ubuntu repositories.
            Special Dedication to Fateh ∞" > gamma-store-pro_$VER/DEBIAN/control
-
           dpkg-deb --build gamma-store-pro_$VER
-          mv gamma-store-pro_$VER.deb gamma-store-pro_2.1-Royal_all.deb
-
-      - name: Upload to v2.1-Royal Release
+          mv gamma-store-pro_$VER.deb gamma-store-pro_2.2-Royal_all.deb
+          
+      - name: Upload to v2.2-Royal Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v2.1-Royal
-          files: gamma-store-pro_2.1-Royal_all.deb
-          overwrite: true 
+          files: gamma-store-pro_2.2-Royal_all.deb
+          overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
