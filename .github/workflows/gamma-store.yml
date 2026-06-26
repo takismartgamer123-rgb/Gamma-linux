@@ -1,9 +1,7 @@
-name: Upload to v2.1-Royal
+name: Build and Upload to v2.1-Royal
 
 on:
-  push:
-    tags:
-      - 'v2.1-Royal' # يخدم غير مع هذا التاغ
+  workflow_dispatch: # زر يدوي من GitHub
 
 jobs:
   build-and-upload:
@@ -49,7 +47,7 @@ jobs:
           Depends: yad, termux-x11-nightly
           Maintainer: Taki <taki@gammalinex.dev>
           Description: Gamma Store Pro v2.1-Royal
-           Play Store Clone. Special Dedication to Fateh ∞
+           Special Dedication to Fateh ∞
           EOF
 
           dpkg-deb --build gamma-store-pro_$VER
@@ -58,7 +56,7 @@ jobs:
       - name: Upload to v2.1-Royal Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.1-Royal # يلحق هنا بالضبط
+          tag_name: v2.1-Royal
           files: gamma-store-pro_2.1-Royal_all.deb
           overwrite: true 
         env:
