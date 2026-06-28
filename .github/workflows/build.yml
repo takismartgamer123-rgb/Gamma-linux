@@ -47,7 +47,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Aggressive Free Disk Space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
@@ -55,23 +54,19 @@ jobs:
           sudo docker image prune --all --force
           sudo apt-get clean
           df -h
-
       - name: Install Build Tools - HYBRID FIX
         run: |
           sudo apt-get update
           sudo apt-get install -y squashfs-tools xorriso wget rsync zstd isolinux syslinux-utils syslinux-common shim-signed grub-efi-amd64-signed mtools dosfstools
-
       - name: Download Gamma Assets
         run: |
           wget -O gamma-wallpaper.jpg "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1920&auto=format&fit=crop" || true
           wget -O gamma-logo.png "https://raw.githubusercontent.com/takismartgamer123-rgb/Gamma-linux/main/assets/logo.png" || true
-
       - name: Download Base ISO
         run: |
           wget --tries=5 --timeout=30 --waitretry=10 -O base.iso "${{ matrix.base_url }}"
           mkdir -p base
           sudo mount -o loop base.iso base
-
       - name: Extract Base System
         run: |
           if [ -f base/casper/filesystem.squashfs ]; then
@@ -87,12 +82,11 @@ jobs:
           fi
           echo "SQUASHFS_DIR=$SQUASHFS_DIR" >> $GITHUB_ENV
           sudo unsquashfs -f -d squashfs-root "$SQUASHFS_PATH"
-
       - name: Prepare Chroot Environment
         run: |
           sudo rsync -a base/ ext/ --exclude=/${{ env.SQUASHFS_DIR }}/filesystem.squashfs
           sudo rm -rf ext/isolinux ext/boot/isolinux
-          sudo mkdir -p ext/boot/isolinux # FIX 1: مجلد واحد لكامل ملفات BIOS
+          sudo mkdir -p ext/boot/isolinux
           sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/boot/isolinux/
           sudo chmod 644 ext/boot/isolinux/isolinux.bin
           sudo rm -rf chroot
@@ -104,7 +98,6 @@ jobs:
           sudo mount -t devpts none chroot/dev/pts
           sudo rm -f chroot/etc/resolv.conf
           echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
-
       - name: Fix APT and Sources
         run: |
           sudo chroot chroot bash -c "killall apt-get dpkg 2>/dev/null || true; rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* /var/lib/dpkg/lock-frontend; rm -rf /var/lib/dpkg/updates/*; dpkg --configure -a || true; apt-get install -f -y || true"
@@ -124,7 +117,6 @@ jobs:
           EOF
           fi
           sudo chroot chroot apt-get update -y
-
       - name: Install Gamma Core Packages - ROYAL UI
         run: |
           sudo chroot chroot apt-get remove -y --purge moksha* e17* enlightenment* bodhi-artwork bodhi-theme-moksha avahi-daemon cups-pk-helper cups-browsed midori* netsurf* epad* leafpad* terminology* snapd* flatpak* || true
@@ -136,7 +128,6 @@ jobs:
             sudo chroot chroot apt-get install -y --no-install-recommends calamares calamares-settings-debian
           fi
           sudo chroot chroot bash -c "dpkg --configure -a || true; apt-get install -f -y || true"
-
       - name: Configure Gamma System
         run: |
           sudo chroot chroot bash -c "mkdir -p /etc/lightdm/lightdm.conf.d; echo -e '[Seat:*]\nuser-session=lxqt\nautologin-user=gamma\nautologin-user-timeout=0' > /etc/lightdm/lightdm.conf.d/50-gamma-autologin.conf; useradd -m -s /bin/bash gamma || true; usermod -aG sudo gamma || true; echo 'gamma:gamma' | chpasswd"
@@ -172,7 +163,6 @@ jobs:
           EOF
           fi
           sudo chmod +x chroot/etc/skel/Desktop/install-gamma.desktop
-
       - name: Create Gamma Tools
         run: |
           sudo tee chroot/usr/local/bin/gamma-theme << 'EOF'
@@ -207,7 +197,6 @@ jobs:
           Exec=gamma-setup
           X-GNOME-Autostart-enabled=true
           EOF
-
       - name: Cleanup and Compress
         run: |
           sudo chroot chroot bash -c "apt-get autoremove --purge -y || true; apt-get clean || true"
@@ -222,35 +211,26 @@ jobs:
             sudo mksquashfs chroot ext/live/filesystem.squashfs -comp zstd -Xcompression-level 19 -b 1M -noappend -no-recovery
             sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext/live/filesystem.size
           fi
-
-      - name: Prepare Syslinux + UEFI SMART - FINAL FIX
+      - name: Prepare Syslinux + UEFI SMART - FINAL
         run: |
-          # FIX 1: BIOS = isolinux.bin + c32 كامل في نفس المجلد
           sudo cp /usr/lib/syslinux/modules/bios/*.c32 ext/boot/isolinux/
-          ls -l ext/boot/isolinux/
-
-          # FIX 2: EFI = efiboot.img داخل مجلد ext/ مشي برا
           cd ext
           dd if=/dev/zero of=efiboot.img bs=1M count=10
           mkfs.vfat efiboot.img
           mmd -i efiboot.img ::/EFI ::/EFI/BOOT
           mcopy -i efiboot.img /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ::/EFI/BOOT/BOOTX64.EFI
           cd..
-          ls -l ext/efiboot.img
-
-      - name: Build ISO HYBRID BIOS+UEFI - FINAL
+      - name: Build ISO HYBRID BIOS+UEFI - GOLD
         run: |
           sudo sed -i 's/Bodhi Linux/Gamma Linux v2.3.0-FINAL - Guelma/g' ext/boot/isolinux/isolinux.cfg 2>/dev/null || true
           sudo xorriso -as mkisofs \
             -iso-level 3 -r -V "GAMMA_${{ matrix.name }}" -J -joliet-long \
             -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
-            -eltorito-alt-boot -e boot/efiboot.img -no-emul-boot \ # FIX: boot/efiboot.img داخل ext
+            -eltorito-alt-boot -e efiboot.img -no-emul-boot \
             -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
             -o "../gamma-${{ matrix.name }}.iso" \
             ext/
-          echo "ISO Built Successfully: gamma-${{ matrix.name }}.iso"
           ls -lh../gamma-${{ matrix.name }}.iso
-
       - name: Upload ISO as Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -270,12 +250,10 @@ jobs:
           path: artifacts
       - name: Merge ISOs to ROOT + SHA256
         run: |
-          find artifacts -name "*.iso"
           mkdir -p release-files
           mv artifacts/*/*.iso release-files/
           cd release-files
           sha256sum *.iso > SHA256SUMS.txt
-          cat SHA256SUMS.txt
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
