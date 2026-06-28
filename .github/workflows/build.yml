@@ -283,7 +283,7 @@ jobs:
             -o "../gamma-${{ matrix.name }}.iso" \
             ext/
 
-          echo "ISO Built Successfully: gamma-${{ matrix.name }}.iso" # <--- مسحنا ls
+          echo "ISO Built Successfully: gamma-${{ matrix.name }}.iso"
 
       - name: Upload ISO as Artifact
         uses: actions/upload-artifact@v4
@@ -297,17 +297,20 @@ jobs:
     runs-on: ubuntu-latest
     if: success()
     steps:
-      - name: Download all ISOs
+      - name: Download all ISOs - MERGED
         uses: actions/download-artifact@v4
         with:
+          merge-multiple: true # <--- السر كامل هنا
           path: release-files
-      - name: Restructure and Generate SHA256
+
+      - name: List and Generate SHA256
         run: |
+          echo "=== Files in release-files ==="
+          ls -lh release-files/
           cd release-files
-          find. -name "*.iso" -exec mv {}. \;
-          find. -maxdepth 1 -type d -name "gamma-*" -exec rm -rf {} \;
           sha256sum *.iso > SHA256SUMS.txt
           cat SHA256SUMS.txt
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -320,7 +323,7 @@ jobs:
             **Because no PC deserves to die - FINAL Boot**
             *By: Taki - 17 Years Old from Guelma, Algeria*
             *Dedicated to my father Fateh* ♾️
-            ### FINAL: No more ls errors = 100% Success
+            ### FINAL: merge-multiple: true = All ISOs in 1 folder
             ### 3 Editions:
             **1. Gamma Legacy 32** ~700MB - For 512MB RAM PCs
             **2. Gamma Lite Ghost** ~770MB - For 1GB RAM
