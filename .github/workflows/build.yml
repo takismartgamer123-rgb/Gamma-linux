@@ -297,17 +297,15 @@ jobs:
     runs-on: ubuntu-latest
     if: success()
     steps:
-      - name: Download all ISOs - MERGED
+      - name: Download all ISOs - MERGED TO ROOT
         uses: actions/download-artifact@v4
         with:
-          merge-multiple: true # <--- السر كامل هنا
-          path: release-files
+          merge-multiple: true # <--- يحطهم في. مباشرة
 
       - name: List and Generate SHA256
         run: |
-          echo "=== Files in release-files ==="
-          ls -lh release-files/
-          cd release-files
+          echo "=== Files in ROOT ==="
+          ls -lh *.iso
           sha256sum *.iso > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
@@ -323,14 +321,15 @@ jobs:
             **Because no PC deserves to die - FINAL Boot**
             *By: Taki - 17 Years Old from Guelma, Algeria*
             *Dedicated to my father Fateh* ♾️
-            ### FINAL: merge-multiple: true = All ISOs in 1 folder
+            ### FINAL FIX: merge-multiple: true to ROOT
             ### 3 Editions:
-            **1. Gamma Legacy 32** ~700MB - For 512MB RAM PCs
-            **2. Gamma Lite Ghost** ~770MB - For 1GB RAM
-            **3. Gamma Fatih Pro** ~850MB - For 2GB+ RAM
+            **1. Gamma Legacy 32** ~700MB - For 512MB RAM PCs - 280MB RAM Boot
+            **2. Gamma Lite Ghost** ~770MB - For 1GB RAM - 320MB RAM Boot
+            **3. Gamma Fatih Pro** ~850MB - For 2GB+ RAM - 450MB RAM Boot
+            All 3 have zram-tools auto enabled.
           files: |
-            release-files/*.iso
-            release-files/SHA256SUMS.txt
+            *.iso
+            SHA256SUMS.txt
           draft: false
           prerelease: false
         env:
