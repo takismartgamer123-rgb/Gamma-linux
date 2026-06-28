@@ -15,9 +15,10 @@ jobs:
   build-release:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
-    strategy: fail-fast: false
+    strategy: 
+    fail-fast: false
     matrix:
-      include:
+     include:
         - name: pro-maxmini
           desc: "Gamma Fatih Pro - For 2GB-4GB RAM"
           base_url: https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso
