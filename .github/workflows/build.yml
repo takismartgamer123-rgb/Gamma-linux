@@ -88,7 +88,8 @@ jobs:
       - name: Prepare Chroot Environment
         run: |
           sudo rsync -a base/ ext/ --exclude=/${{ env.SQUASHFS_DIR }}/filesystem.squashfs
-          sudo rm -rf ext/isolinux sudo mkdir -p ext/isolinux
+          sudo rm -rf ext/isolinux
+          sudo mkdir -p ext/isolinux
           sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/isolinux/
           sudo chmod 644 ext/isolinux/isolinux.bin
           sudo rm -rf chroot
