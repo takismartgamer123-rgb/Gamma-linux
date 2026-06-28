@@ -1,4 +1,5 @@
 name: Build Gamma Linux v2.3.0-FINAL ♾️🇩🇿 HYBRID BOOT
+
 on:
   workflow_dispatch:
     inputs:
@@ -7,30 +8,42 @@ on:
         required: true
         default: 'v2.3.0-FINAL'
   push:
-    tags: 
+    tags:
       - 'v*'
+
 permissions:
   contents: write
+
 jobs:
   build-release:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
-    strategy: 
-     fail-fast: false
-     matrix:
+    strategy:
+      fail-fast: false
+    matrix:
       include:
         - name: pro-maxmini
           desc: "Gamma Fatih Pro - For 2GB-4GB RAM"
           base_url: https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso
-          ui: "LXQt 1.4" base: "ubuntu" installer: "ubiquity" ram: "2GB+"
+          ui: "LXQt 1.4"
+          base: "ubuntu"
+          installer: "ubiquity"
+          ram: "2GB+"
         - name: lite-ghost
           desc: "Gamma Lite Ghost - For 1GB RAM"
           base_url: https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso
-          ui: "LXQt 1.4" base: "ubuntu" installer: "ubiquity" ram: "1GB"
+          ui: "LXQt 1.4"
+          base: "ubuntu"
+          installer: "ubiquity"
+          ram: "1GB"
         - name: legacy-32
           desc: "Gamma Legacy 32 - For Old PCs"
           base_url: https://downloads.sourceforge.net/project/bodhilinux/7.0.0-beta/bodhi-7.0.0-legacy-beta.iso
-          ui: "LXQt 1.4" base: "debian" installer: "calamares" ram: "512MB"
+          ui: "LXQt 1.4"
+          base: "debian"
+          installer: "calamares"
+          ram: "512MB"
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -47,12 +60,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y squashfs-tools xorriso wget rsync zstd isolinux syslinux-utils syslinux-common shim-signed grub-efi-amd64-signed
-          # syslinux-common = سر البوت تاع BIOS. بلا بيه = ISO ميت
 
       - name: Download Gamma Assets
         run: |
-          wget -O gamma-wallpaper.jpg "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1920&auto=format&fit=crop"
-          wget -O gamma-logo.png "https://raw.githubusercontent.com/takismartgamer123-rgb/Gamma-linux/main/assets/logo.png"
+          wget -O gamma-wallpaper.jpg "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1920&auto=format&fit=crop" || true
+          wget -O gamma-logo.png "https://raw.githubusercontent.com/takismartgamer123-rgb/Gamma-linux/main/assets/logo.png" || true
 
       - name: Download Base ISO
         run: |
@@ -95,21 +107,21 @@ jobs:
 
       - name: Fix APT and Sources
         run: |
-          sudo chroot chroot bash -c "killall apt-get dpkg 2>/dev/null || true; rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* /var/lib/dpkg/lock-frontend rm -rf /var/lib/dpkg/updates/*; dpkg --configure -a || true; apt-get install -f -y || true"
+          sudo chroot chroot bash -c "killall apt-get dpkg 2>/dev/null || true; rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* /var/lib/dpkg/lock-frontend; rm -rf /var/lib/dpkg/updates/*; dpkg --configure -a || true; apt-get install -f -y || true"
           sudo rm -f chroot/etc/apt/sources.list.d/* || true
           if [ "${{ matrix.base }}" = "ubuntu" ]; then
             sudo tee chroot/etc/apt/sources.list << 'EOF'
-deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
-deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
-deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
-deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
-EOF
+          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
+          EOF
           else
             sudo tee chroot/etc/apt/sources.list << 'EOF'
-deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
-deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
-deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
-EOF
+          deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+          deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+          deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
+          EOF
           fi
           sudo chroot chroot apt-get update -y
 
@@ -129,63 +141,72 @@ EOF
         run: |
           sudo chroot chroot bash -c "mkdir -p /etc/lightdm/lightdm.conf.d; echo -e '[Seat:*]\nuser-session=lxqt\nautologin-user=gamma\nautologin-user-timeout=0' > /etc/lightdm/lightdm.conf.d/50-gamma-autologin.conf; useradd -m -s /bin/bash gamma || true; usermod -aG sudo gamma || true; echo 'gamma:gamma' | chpasswd"
           sudo mkdir -p chroot/usr/share/backgrounds chroot/usr/share/pixmaps chroot/usr/share/icons/hicolor/256x256/apps chroot/usr/share/icons/hicolor/48x48/apps
-          sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg
-          sudo cp gamma-logo.png chroot/usr/share/pixmaps/gamma-logo.png
-          sudo cp gamma-logo.png chroot/usr/share/icons/hicolor/256x256/apps/gamma-logo.png
-          sudo cp gamma-logo.png chroot/usr/share/icons/hicolor/48x48/apps/gamma-logo.png
+          sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg || true
+          sudo cp gamma-logo.png chroot/usr/share/pixmaps/gamma-logo.png || true
+          sudo cp gamma-logo.png chroot/usr/share/icons/hicolor/256x256/apps/gamma-logo.png || true
+          sudo cp gamma-logo.png chroot/usr/share/icons/hicolor/48x48/apps/gamma-logo.png || true
           sudo mkdir -p chroot/etc/skel/.config/lxqt
           sudo tee chroot/etc/skel/.config/lxqt/lxqt.conf << 'EOF'
-[General]
-icon_theme=Papirus-Dark
-theme=Gamma-Dark
-[Qt]
-style=Fusion
-EOF
+          [General]
+          icon_theme=Papirus-Dark
+          theme=Gamma-Dark
+          [Qt]
+          style=Fusion
+          EOF
           sudo mkdir -p chroot/etc/skel/Desktop
           if [ "${{ matrix.installer }}" = "ubiquity" ]; then
             sudo tee chroot/etc/skel/Desktop/install-gamma.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=Install Gamma Linux
-Exec=pkexec ubiquity gtk_ui
-Icon=gamma-logo
-EOF
+          [Desktop Entry]
+          Type=Application
+          Name=Install Gamma Linux
+          Exec=pkexec ubiquity gtk_ui
+          Icon=gamma-logo
+          EOF
           else
             sudo tee chroot/etc/skel/Desktop/install-gamma.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=Install Gamma Linux
-Exec=pkexec calamares
-Icon=gamma-logo
-EOF
+          [Desktop Entry]
+          Type=Application
+          Name=Install Gamma Linux
+          Exec=pkexec calamares
+          Icon=gamma-logo
+          EOF
           fi
           sudo chmod +x chroot/etc/skel/Desktop/install-gamma.desktop
 
       - name: Create Gamma Tools
         run: |
           sudo tee chroot/usr/local/bin/gamma-theme << 'EOF'
-#!/bin/bash
-THEME=$1
-if [ "$THEME" = "gamma" ]; then pcmanfm-qt --set-wallpaper=/usr/share/backgrounds/gamma-wallpaper.jpg; sed -i 's/theme=.*/theme=Gamma-Dark/' ~/.config/lxqt/lxqt.conf; sed -i 's/icon_theme=.*/icon_theme=Papirus-Dark/' ~/.config/lxqt/lxqt.conf; notify-send "Gamma Linux" "Gamma Theme Activated - Maximum Power";
-elif [ "$THEME" = "king" ]; then pcmanfm-qt --set-wallpaper=/usr/share/backgrounds/gamma-wallpaper.jpg; sed -i 's/theme=.*/theme=Materia-Dark/' ~/.config/lxqt/lxqt.conf; sed -i 's/icon_theme=.*/icon_theme=Papirus-Dark/' ~/.config/lxqt/lxqt.conf; notify-send "Gamma Linux" "Royal Theme Activated"; fi
-EOF
+          #!/bin/bash
+          THEME=$1
+          if [ "$THEME" = "gamma" ]; then
+            pcmanfm-qt --set-wallpaper=/usr/share/backgrounds/gamma-wallpaper.jpg;
+            sed -i 's/theme=.*/theme=Gamma-Dark/' ~/.config/lxqt/lxqt.conf;
+            sed -i 's/icon_theme=.*/icon_theme=Papirus-Dark/' ~/.config/lxqt/lxqt.conf;
+            notify-send "Gamma Linux" "Gamma Theme Activated - Maximum Power";
+          elif [ "$THEME" = "king" ]; then
+            pcmanfm-qt --set-wallpaper=/usr/share/backgrounds/gamma-wallpaper.jpg;
+            sed -i 's/theme=.*/theme=Materia-Dark/' ~/.config/lxqt/lxqt.conf;
+            sed -i 's/icon_theme=.*/icon_theme=Papirus-Dark/' ~/.config/lxqt/lxqt.conf;
+            notify-send "Gamma Linux" "Royal Theme Activated";
+          fi
+          EOF
           sudo chmod +x chroot/usr/local/bin/gamma-theme
           sudo tee chroot/usr/local/bin/gamma-setup << 'EOF'
-#!/bin/bash
-zenity --info --title="Gamma Linux Setup" --text="Welcome to Gamma Linux\nUI: LXQt 1.4 Royal Edition\nMaximum Power, Minimum RAM\nAlpha failed. Beta crashed. Gamma survives\nDedicated to my father Fateh" --width=450 --height=300
-BROWSER=$(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" --column="Select" --column="Browser" TRUE "falkon" FALSE "firefox-esr" FALSE "chromium" --height=300)
-apt-get update && apt-get install -y --no-install-recommends $BROWSER htop zenity
-zenity --info --title="Setup Complete" --text="Gamma Linux Ready!\n\n- Taki from Guelma, Algeria\nDedicated to my father Fateh" --width=450
-EOF
+          #!/bin/bash
+          zenity --info --title="Gamma Linux Setup" --text="Welcome to Gamma Linux\nUI: LXQt 1.4 Royal Edition\nMaximum Power, Minimum RAM\nAlpha failed. Beta crashed. Gamma survives\nDedicated to my father Fateh" --width=450 --height=300
+          BROWSER=$(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" --column="Select" --column="Browser" TRUE "falkon" FALSE "firefox-esr" FALSE "chromium" --height=300)
+          apt-get update && apt-get install -y --no-install-recommends $BROWSER htop zenity
+          zenity --info --title="Setup Complete" --text="Gamma Linux Ready!\n\n- Taki from Guelma, Algeria\nDedicated to my father Fateh" --width=450
+          EOF
           sudo chmod +x chroot/usr/local/bin/gamma-setup
           sudo mkdir -p chroot/etc/skel/.config/autostart
           sudo tee chroot/etc/skel/.config/autostart/gamma-setup.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=Gamma Setup
-Exec=gamma-setup
-X-GNOME-Autostart-enabled=true
-EOF
+          [Desktop Entry]
+          Type=Application
+          Name=Gamma Setup
+          Exec=gamma-setup
+          X-GNOME-Autostart-enabled=true
+          EOF
 
       - name: Cleanup and Compress
         run: |
@@ -229,7 +250,7 @@ EOF
             -o "../gamma-${{ matrix.name }}.iso" \
             ext/
           echo "ISO Built Successfully: gamma-${{ matrix.name }}.iso"
-          ls -lh ../gamma-${{ matrix.name }}.iso # space مصلح
+          ls -lh../gamma-${{ matrix.name }}.iso
 
       - name: Upload ISO as Artifact
         uses: actions/upload-artifact@v4
@@ -265,7 +286,9 @@ EOF
             ## Gamma Linux ${{ github.event.inputs.version || 'v2.3.0-FINAL' }} - HYBRID EDITION
             **Maximum Power, Minimum RAM**
             **BIOS + UEFI Boot = 100% Compatibility**
+
             *Alpha failed. Beta crashed. Gamma survives*
+
             **By: Taki - 17 Years Old from Guelma, Algeria**
             **Dedicated to my father Fateh** ♾️
           files: release-files/*
