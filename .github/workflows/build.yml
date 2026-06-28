@@ -1,11 +1,11 @@
-name: Build Gamma Linux v2.3.0-22 ♾️🇩🇿
+name: Build Gamma Linux v2.3.0-22-FIX ♾️🇩🇿
 on:
   workflow_dispatch:
     inputs:
       version:
         description: 'Release Version e.g: v2.3.0'
         required: true
-        default: 'v2.3.0-22'
+        default: 'v2.3.0-22-FIX'
   push:
     tags:
       - 'v*'
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-release:
-    runs-on: ubuntu-22.04 # سريع... ما يستناش 10 دقايق
+    runs-on: ubuntu-22.04
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -271,21 +271,17 @@ jobs:
           echo "=== CHECK BIOS ===" && ls -l ext/boot/syslinux/
           echo "=== CHECK UEFI ===" && ls -l ext/EFI/BOOT/
 
-      - name: Build ISO 22.04 GUARANTEED with XORRISO NATIVE
+      - name: Build ISO 22.04 with XORRISO MKISOFS MODE - FINAL FIX
         run: |
           sudo sed -i 's/Bodhi Linux/Gamma Linux v2.3.0-22 - Guelma/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
 
-          sudo xorriso \
-            -outdev "../gamma-${{ matrix.name }}.iso" \
-            -volid "GAMMA_${{ matrix.name }}" \
-            -joliet on -joliet-long on -rockridge on \
-            -boot_image isolinux bin_path=isolinux/isolinux.bin \
-            -boot_image isolinux cat_path=isolinux/boot.cat \
-            -boot_image isolinux boot_info_table=on \
-            -boot_image any efi_path=EFI/BOOT/BOOTX64.EFI \
-            -boot_image any keep=on \
+          sudo xorriso -as mkisofs \
+            -iso-level 3 -r -V "GAMMA_${{ matrix.name }}" -J -joliet-long \
+            -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
+            -eltorito-alt-boot -e EFI/BOOT/BOOTX64.EFI -no-emul-boot \
             -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
-            -map ext/ /
+            -o "../gamma-${{ matrix.name }}.iso" \
+            ext/
 
           ls -lh../gamma-${{ matrix.name }}.iso
 
@@ -296,7 +292,7 @@ jobs:
           path: gamma-${{ matrix.name }}.iso
 
   publish-release:
-    name: Publish Release v2.3.0-22
+    name: Publish Release v2.3.0-22-FIX
     needs: build-release
     runs-on: ubuntu-latest
     if: success()
@@ -315,16 +311,16 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version || 'v2.3.0-22' }}
-          name: Gamma Linux ${{ github.event.inputs.version || 'v2.3.0-22' }} - 22 Edition
+          tag_name: ${{ github.event.inputs.version || 'v2.3.0-22-FIX' }}
+          name: Gamma Linux ${{ github.event.inputs.version || 'v2.3.0-22-FIX' }} - FIX Edition
           body: |
-            ## Gamma Linux ${{ github.event.inputs.version || 'v2.3.0-22' }} - 22 Edition
+            ## Gamma Linux ${{ github.event.inputs.version || 'v2.3.0-22-FIX' }} - FIX Edition
             **Maximum Power, Minimum RAM**
             *Alpha failed. Beta crashed. Gamma survives*
-            **Because no PC deserves to die - 22 Boot**
+            **Because no PC deserves to die - FIX Boot**
             *By: Taki - 17 Years Old from Guelma, Algeria*
             *Dedicated to my father Fateh* ♾️
-            ### 22 Feature: Ubuntu 22.04 + xorriso native = Fast Start
+            ### FIX: xorriso -as mkisofs = Official Ubuntu 22.04 Method
             ### 3 Editions:
             **1. Gamma Legacy 32** ~700MB - For 512MB RAM PCs
             **2. Gamma Lite Ghost** ~770MB - For 1GB RAM
