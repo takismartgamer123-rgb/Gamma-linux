@@ -88,12 +88,10 @@ jobs:
       - name: Prepare Chroot Environment
         run: |
           sudo rsync -a base/ ext/ --exclude=/${{ env.SQUASHFS_DIR }}/filesystem.squashfs
-
           sudo rm -rf ext/isolinux
           sudo mkdir -p ext/isolinux
           sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/isolinux/
           sudo chmod 644 ext/isolinux/isolinux.bin
-
           sudo rm -rf chroot
           sudo rsync -a --delete squashfs-root/ chroot/
           sudo mount --bind /dev chroot/dev
@@ -260,7 +258,6 @@ jobs:
       - name: Prepare Syslinux + UEFI SMART
         run: |
           sudo mkdir -p ext/boot/syslinux ext/EFI/BOOT
-          # BIOS Modules
           for file in ldlinux.c32 libutil.c32 libcom32.c32 menu.c32 reboot.c32 vesamenu.c32; do
             if [ -f /usr/lib/syslinux/modules/bios/$file ]; then
               sudo cp /usr/lib/syslinux/modules/bios/$file ext/boot/syslinux/
@@ -270,7 +267,6 @@ jobs:
               exit 1
             fi
           done
-          # UEFI Bootloader
           sudo cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ext/EFI/BOOT/BOOTX64.EFI
           echo "=== CHECK BIOS ===" && ls -l ext/boot/syslinux/
           echo "=== CHECK UEFI ===" && ls -l ext/EFI/BOOT/
@@ -278,13 +274,11 @@ jobs:
       - name: Build ISO SMART Hybrid
         run: |
           sudo sed -i 's/Bodhi Linux/Gamma Linux v2.3.0-SMART - Guelma/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
-
           sudo genisoimage -D -r -V "GAMMA_${{ matrix.name }}" -cache-inodes -J -l \
             -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
             -eltorito-alt-boot -e EFI/BOOT/BOOTX64.EFI -no-emul-boot \
             -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
             -o "../gamma-${{ matrix.name }}.iso" ext/
-
           sudo isohybrid --uefi../gamma-${{ matrix.name }}.iso
           echo "Hybrid ISO Created: BIOS+UEFI"
           ls -lh gamma-${{ matrix.name }}.iso
