@@ -88,10 +88,12 @@ jobs:
       - name: Prepare Chroot Environment
         run: |
           sudo rsync -a base/ ext/ --exclude=/${{ env.SQUASHFS_DIR }}/filesystem.squashfs
+
           sudo rm -rf ext/isolinux
           sudo mkdir -p ext/isolinux
           sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/isolinux/
           sudo chmod 644 ext/isolinux/isolinux.bin
+
           sudo rm -rf chroot
           sudo rsync -a --delete squashfs-root/ chroot/
           sudo mount --bind /dev chroot/dev
@@ -268,7 +270,7 @@ jobs:
               exit 1
             fi
           done
-          # UEFI Bootloader - السر كامل هنا
+          # UEFI Bootloader
           sudo cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ext/EFI/BOOT/BOOTX64.EFI
           echo "=== CHECK BIOS ===" && ls -l ext/boot/syslinux/
           echo "=== CHECK UEFI ===" && ls -l ext/EFI/BOOT/
