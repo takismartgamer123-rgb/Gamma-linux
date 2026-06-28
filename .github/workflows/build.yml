@@ -15,8 +15,9 @@ jobs:
   build-release:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
-    strategy: fail-fast: false
-    matrix:
+    strategy: 
+     fail-fast: false
+     matrix:
       include:
         - name: pro-maxmini
           desc: "Gamma Fatih Pro - For 2GB-4GB RAM"
