@@ -1,15 +1,14 @@
-name: Build Gamma Linux v2.1 Royal Edition Ultra-Lite ♾️🇩🇿
+name: Build Gamma Linux v2.3.0-SMART ♾️🇩🇿
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release Version e.g: v2.1'
+        description: 'Release Version e.g: v2.3.0'
         required: true
-        default: 'v2.1-Royal'
+        default: 'v2.3.0-SMART'
   push:
     tags:
       - 'v*'
-
 permissions:
   contents: write
 
@@ -19,29 +18,29 @@ jobs:
     timeout-minutes: 120
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: lite-ghost
-            desc: "Gamma Lite Ghost - For 1GB RAM"
-            base_url: https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso
-            ui: "LXQt 1.4"
-            base: "ubuntu"
-            installer: "ubiquity"
-            ram: "1GB"
-          - name: pro-maxmini
-            desc: "Gamma Fatih Pro - For 2GB-4GB RAM"
-            base_url: https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso
-            ui: "LXQt 1.4"
-            base: "ubuntu"
-            installer: "ubiquity"
-            ram: "2GB+"
-          - name: legacy-32
-            desc: "Gamma Legacy 32 - For Old PCs"
-            base_url: https://downloads.sourceforge.net/project/bodhilinux/7.0.0-beta/bodhi-7.0.0-legacy-beta.iso
-            ui: "LXQt 1.4"
-            base: "debian"
-            installer: "calamares"
-            ram: "512MB"
+    matrix:
+      include:
+        - name: pro-maxmini
+          desc: "Gamma Fatih Pro - For 2GB-4GB RAM"
+          base_url: https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso
+          ui: "LXQt 1.4"
+          base: "ubuntu"
+          installer: "ubiquity"
+          ram: "2GB+"
+        - name: lite-ghost
+          desc: "Gamma Lite Ghost - For 1GB RAM"
+          base_url: https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso
+          ui: "LXQt 1.4"
+          base: "ubuntu"
+          installer: "ubiquity"
+          ram: "1GB"
+        - name: legacy-32
+          desc: "Gamma Legacy 32 - For Old PCs"
+          base_url: https://downloads.sourceforge.net/project/bodhilinux/7.0.0-beta/bodhi-7.0.0-legacy-beta.iso
+          ui: "LXQt 1.4"
+          base: "debian"
+          installer: "calamares"
+          ram: "512MB"
 
     steps:
       - name: Checkout Code
@@ -58,7 +57,7 @@ jobs:
       - name: Install Build Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y squashfs-tools xorriso wget genisoimage rsync zstd isolinux syslinux-common syslinux-utils
+          sudo apt-get install -y squashfs-tools xorriso wget genisoimage rsync zstd isolinux syslinux-utils
 
       - name: Download Gamma Assets
         run: |
@@ -90,13 +89,10 @@ jobs:
       - name: Prepare Chroot Environment
         run: |
           sudo rsync -a base/ ext/ --exclude=/${{ env.SQUASHFS_DIR }}/filesystem.squashfs
-
           sudo rm -rf ext/isolinux
           sudo mkdir -p ext/isolinux
           sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/isolinux/
-          sudo cp /usr/lib/syslinux/modules/bios/*.c32 ext/isolinux/ || true
           sudo chmod 644 ext/isolinux/isolinux.bin
-
           sudo rm -rf chroot
           sudo rsync -a --delete squashfs-root/ chroot/
           sudo mount --bind /dev chroot/dev
@@ -110,7 +106,7 @@ jobs:
       - name: Fix APT and Sources
         run: |
           sudo chroot chroot bash -c "
-            killall apt apt-get dpkg 2>/dev/null || true
+            killall apt-get dpkg 2>/dev/null || true
             rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* /var/lib/dpkg/lock-frontend
             rm -rf /var/lib/dpkg/updates/*
             dpkg --configure -a || true
@@ -135,14 +131,12 @@ jobs:
 
       - name: Install Gamma Core Packages
         run: |
-          sudo chroot chroot bash -c "
-            apt-get remove -y --purge moksha* e17* enlightenment* || true
-            apt-get remove -y --purge bodhi-artwork bodhi-theme-moksha || true
-            apt-get remove -y --purge avahi-daemon cups-pk-helper cups-browsed || true
-            apt-get remove -y --purge midori* netsurf* epad* leafpad* terminology* || true
-            apt-get remove -y --purge snapd* flatpak* || true
-            apt-get autoremove --purge -y || true
-          "
+          sudo chroot chroot apt-get remove -y --purge moksha* e17* enlightenment* || true
+          sudo chroot chroot apt-get remove -y --purge bodhi-artwork bodhi-theme-moksha || true
+          sudo chroot chroot apt-get remove -y --purge avahi-daemon cups-pk-helper cups-browsed || true
+          sudo chroot chroot apt-get remove -y --purge midori* netsurf* epad* leafpad* terminology* || true
+          sudo chroot chroot apt-get remove -y --purge snapd* flatpak* || true
+          sudo chroot chroot apt-get autoremove --purge -y || true
           sudo chroot chroot apt-get install -y --no-install-recommends lxqt-core lxqt-themes openbox pcmanfm-qt
           sudo chroot chroot apt-get install -y --no-install-recommends materia-gtk-theme papirus-icon-theme fonts-noto-core fonts-noto-color-emoji
           sudo chroot chroot apt-get install -y --no-install-recommends lightdm lightdm-gtk-greeter lxqt-sudo
@@ -229,7 +223,7 @@ jobs:
           sudo chmod +x chroot/usr/local/bin/gamma-theme
           sudo tee chroot/usr/local/bin/gamma-setup << 'EOF'
           #!/bin/bash
-          zenity --info --title="Gamma Linux Setup" --text="Welcome to Gamma Linux\nUI: LXQt 1.4 Royal Edition\nMaximum Power, Minimum RAM\n\nAlpha failed. Beta crashed. Gamma survives\n\nBecause no PC deserves to die\n\nDedicated to my father Fateh" --width=450 --height=300
+          zenity --info --title="Gamma Linux Setup" --text="Welcome to Gamma Linux\nUI: LXQt 1.4 Royal Edition\nMaximum Power, Minimum RAM\nAlpha failed. Beta crashed. Gamma survives\nBecause no PC deserves to die\nDedicated to my father Fateh" --width=450 --height=300
           BROWSER=$(zenity --list --radiolist --title="Choose Browser" --text="Pick your browser:" --column="Select" --column="Browser" TRUE "falkon" FALSE "firefox-esr" FALSE "chromium" --height=300)
           apt-get update
           apt-get install -y --no-install-recommends $BROWSER htop zenity
@@ -265,24 +259,62 @@ jobs:
             sudo du -sx --block-size=1 chroot | cut -f1 | sudo tee ext/live/filesystem.size
           fi
 
-      - name: Build ISO
+      - name: Prepare Syslinux SMART
         run: |
-          sudo sed -i 's/Bodhi Linux/Gamma Linux v2.1-Royal - Guelma/g' ext/boot/grub/grub.cfg 2>/dev/null || true
-          sudo sed -i 's/Bodhi Linux/Gamma Linux v2.1-Royal - Guelma/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
+          sudo mkdir -p ext/boot/syslinux
+          # === يدور على الملفات واحد بواحد ===
+          for file in ldlinux.c32 libutil.c32 libcom32.c32 menu.c32 reboot.c32 vesamenu.c32; do
+            if [ -f /usr/lib/syslinux/modules/bios/$file ]; then
+              sudo cp /usr/lib/syslinux/modules/bios/$file ext/boot/syslinux/
+              echo "Copied $file"
+            else
+              echo "FATAL: $file not found. Install syslinux-utils"
+              exit 1
+            fi
+          done
+
+      - name: Build ISO SMART Hybrid
+        run: |
+          # ما نلمسوش grub.cfg خاطر يكسر UEFI
+          sudo sed -i 's/Bodhi Linux/Gamma Linux v2.3.0-SMART - Guelma/g' ext/isolinux/isolinux.cfg 2>/dev/null || true
           cd ext
 
-          EFI_ARGS=""
-          if [ -f boot/grub/efi.img ]; then
-            EFI_ARGS="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot"
+          # === يدور على البوت لودرز وحدو ===
+          BIOS_BOOT=""
+          EFI_BOOT=""
+
+          if [ -f isolinux/isolinux.bin ]; then
+            BIOS_BOOT="-b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table"
+            echo "BIOS Found: isolinux.bin"
+          fi
+
+          if [ -f EFI/BOOT/BOOTX64.EFI ]; then
+            EFI_BOOT="-eltorito-alt-boot -e EFI/BOOT/BOOTX64.EFI -no-emul-boot"
+            echo "UEFI Found: BOOTX64.EFI"
+          elif [ -f boot/grub/efi.img ]; then
+            EFI_BOOT="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot"
+            echo "UEFI Found: efi.img"
+          fi
+
+          if [ -z "$BIOS_BOOT" ] && [ -z "$EFI_BOOT" ]; then
+            echo "FATAL: No bootloader found"
+            exit 1
           fi
 
           sudo genisoimage -D -r -V "GAMMA_${{ matrix.name }}" -cache-inodes -J -l \
-            -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
-            $EFI_ARGS \
-            -o "../gamma-${{ matrix.name }}.iso" .
+            $BIOS_BOOT \
+            $EFI_BOOT \
+            -o "../gamma-${{ matrix.name }}.iso".
+          cd..
 
-          cd ..
-          sudo isohybrid --uefi gamma-${{ matrix.name }}.iso || true
+          if [ -n "$BIOS_BOOT" ] && [ -n "$EFI_BOOT" ]; then
+            sudo isohybrid --uefi --mbr gamma-${{ matrix.name }}.iso
+            echo "Hybrid ISO Created: BIOS+UEFI"
+          elif [ -n "$BIOS_BOOT" ]; then
+            sudo isohybrid gamma-${{ matrix.name }}.iso
+            echo "BIOS Only ISO Created"
+          fi
+
           ls -lh gamma-${{ matrix.name }}.iso
 
       - name: Upload ISO as Artifact
@@ -292,7 +324,7 @@ jobs:
           path: gamma-${{ matrix.name }}.iso
 
   publish-release:
-    name: Publish Release v2.1-Royal
+    name: Publish Release v2.3.0-SMART
     needs: build-release
     runs-on: ubuntu-latest
     if: success()
@@ -301,32 +333,26 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-files
-
       - name: Restructure and Generate SHA256
         run: |
           cd release-files
-          find . -name "*.iso" -exec mv {} . \;
-          find . -maxdepth 1 -type d -name "gamma-*" -exec rm -rf {} \;
+          find. -name "*.iso" -exec mv {}. \;
+          find. -maxdepth 1 -type d -name "gamma-*" -exec rm -rf {} \;
           sha256sum *.iso > SHA256SUMS.txt
           cat SHA256SUMS.txt
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version || 'v2.1-Royal' }}
-          name: Gamma Linux ${{ github.event.inputs.version || 'v2.1-Royal' }} - Royal Edition
+          tag_name: ${{ github.event.inputs.version || 'v2.3.0-SMART' }}
+          name: Gamma Linux ${{ github.event.inputs.version || 'v2.3.0-SMART' }} - SMART Edition
           body: |
-            ## Gamma Linux ${{ github.event.inputs.version || 'v2.1-Royal' }} - Royal Edition Ultra-Lite
-
+            ## Gamma Linux ${{ github.event.inputs.version || 'v2.3.0-SMART' }} - SMART Edition
             **Maximum Power, Minimum RAM**
-
             *Alpha failed. Beta crashed. Gamma survives*
-
-            **Because no PC deserves to die**
-
+            **Because no PC deserves to die - SMART Boot**
             *By: Taki - 17 Years Old from Guelma, Algeria*
             *Dedicated to my father Fateh* ♾️
-
+            ### SMART Feature: Auto-Detects BIOS+UEFI Files
             ### 3 Editions:
             **1. Gamma Legacy 32** ~700MB - For 512MB RAM PCs
             **2. Gamma Lite Ghost** ~770MB - For 1GB RAM
@@ -336,5 +362,5 @@ jobs:
             release-files/SHA256SUMS.txt
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
