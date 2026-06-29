@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # ============= LEGACY-32 =============
+          # ============= LEGACY-32 (Debian Base) =============
           - edition: legacy-32
             arch: i386
             base: debian
@@ -39,17 +39,18 @@ jobs:
               **LXQt 1.4 | ZRAM 150% | Calamares Installer**
               **BIOS + UEFI ia32 Hybrid Boot**
 
-          # ============= LITE-GHOST =============
+          # ============= LITE-GHOST (Ubuntu Base) =============
           - edition: lite-ghost
             arch: amd64
-            base: bodhi
+            base: ubuntu
             timeout: 120
-            packages: "lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm lightdm-gtk-greeter zram-tools tlp ubiquity ubiquity-frontend-gtk"
+            # تصحيح أسماء الحزم المتوافقة مع أوبونتو Jammy الرسمية ديركت
+            packages: "linux-image-generic lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm slick-greeter zram-config tlp ubiquity ubiquity-frontend-gtk"
             zram: "50"
             swappiness: "100"
             vfs: "100"
             dirty: "10"
-            purge: "moksha* e17* snapd* flatpak* cups* printer-driver* bluetooth* geoclue* evolution* gnome-software*"
+            purge: "snapd* flatpak* cups* printer-driver* bluetooth* geoclue* evolution* gnome-software*"
             hostname: "gamma-lite"
             wallpaper: "true"
             uefi: "x64"
@@ -57,21 +58,22 @@ jobs:
             release_suffix: "lite-ghost"
             body: |
               ## Gamma Lite-Ghost ${{ github.event.inputs.version }} ♾️🇩🇿
-              **For 1GB RAM PCs | Bodhi 7 Base | Ubuntu | GHOST MODE**
+              **For 1GB RAM PCs | Pure Ubuntu Base | GHOST MODE**
               **LXQt 1.4 | ZRAM 50% | Aggressive Swapping | No Bloatware**
               **BIOS + UEFI x64 Hybrid Boot**
 
-          # ============= PRO-MAXMINI =============
+          # ============= PRO-MAXMINI (Ubuntu Base) =============
           - edition: pro-maxmini
             arch: amd64
-            base: bodhi
+            base: ubuntu
             timeout: 120
-            packages: "lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm lightdm-gtk-greeter zram-tools tlp ubiquity ubiquity-frontend-gtk"
+            # تصحيح أسماء الحزم المتوافقة مع أوبونتو Jammy الرسمية ديركت
+            packages: "linux-image-generic lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm slick-greeter zram-config tlp ubiquity ubiquity-frontend-gtk"
             zram: "25"
             swappiness: ""
             vfs: ""
             dirty: ""
-            purge: "moksha* e17* snapd* flatpak*"
+            purge: "snapd* flatpak*"
             hostname: "gamma-pro"
             wallpaper: "true"
             uefi: "x64"
@@ -79,7 +81,7 @@ jobs:
             release_suffix: "pro-maxmini"
             body: |
               ## Gamma Pro-MaxMini ${{ github.event.inputs.version }} ♾️🇩🇿
-              **For 2GB+ RAM PCs | Bodhi 7 Base | Ubuntu**
+              **For 2GB+ RAM PCs | Pure Ubuntu Base**
               **LXQt 1.4 | ZRAM 25% | TLP | Ubiquity Installer**
               **BIOS + UEFI x64 Hybrid Boot**
 
@@ -96,7 +98,7 @@ jobs:
         if [ "${{ matrix.arch }}" = "i386" ]; then
           sudo apt-get install -y debootstrap squashfs-tools xorriso wget isolinux syslinux-utils syslinux-common grub-pc-bin grub-efi-ia32-bin binutils mtools dosfstools
         else
-          sudo apt-get install -y squashfs-tools xorriso wget rsync zstd isolinux syslinux-utils syslinux-common shim-signed grub-efi-amd64-signed mtools dosfstools
+          sudo apt-get install -y debootstrap squashfs-tools xorriso wget rsync zstd isolinux syslinux-utils syslinux-common shim-signed grub-efi-amd64-signed mtools dosfstools
         fi
 
     - name: Fetch Assets
@@ -109,25 +111,40 @@ jobs:
       run: |
         if [ "${{ matrix.base }}" = "debian" ]; then
           sudo debootstrap --arch=i386 bookworm chroot http://deb.debian.org/debian/
-          sudo mount --bind /dev chroot/dev && sudo mount --bind /run chroot/run
-          sudo mount -t proc none chroot/proc && sudo mount -t sysfs none chroot/sys
         else
-          wget -O base.iso "https://archive.org/download/bodhi-7.0.0-64/bodhi-7.0.0-64.iso"
-          # الإصلاح الحاسم هنا لإنشاء المجلد المفقود لعمل الـ mount بنجاح
-          sudo mkdir -p base
-          sudo mount -o loop base.iso base && sudo unsquashfs -f -d squashfs-root base/casper/filesystem.squashfs
-          sudo mkdir -p ext
-          sudo rsync -a base/ ext/ --exclude=/casper/filesystem.squashfs
-          sudo rsync -a --delete squashfs-root/ chroot/
+          sudo debootstrap --arch=amd64 jammy chroot http://archive.ubuntu.com/ubuntu/
         fi
+
+        sudo mount --bind /dev chroot/dev && sudo mount --bind /run chroot/run
+        sudo mount -t proc none chroot/proc && sudo mount -t sysfs none chroot/sys
+        sudo rm -f chroot/etc/resolv.conf && echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
         
+        if [ "${{ matrix.base }}" = "ubuntu" ]; then
+          sudo tee chroot/etc/apt/sources.list << 'EOF'
+          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+          EOF
+        fi
+
         sudo chroot chroot apt-get update
+        
         if [ -n "${{ matrix.purge }}" ]; then
           sudo chroot chroot apt-get remove -y --purge ${{ matrix.purge }} || true
         fi
+        
         sudo chroot chroot apt-get install -y --no-install-recommends ${{ matrix.packages }}
         
-        echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap
+        # إعداد ملف الـ ZRAM حسب التوزيعة الأساسية المحددة
+        if [ "${{ matrix.base }}" = "debian" ]; then
+          echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap
+        else
+          # لنسخة أوبونتو التي تستخدم zram-config
+          sudo mkdir -p chroot/etc/init.d/
+          echo -e "#!/bin/sh\n# Dynamic Gamma ZRAM Config\n/sbin/modprobe zram\necho $(( \$(sysctl -n vm.totalhigh_pages) * 4096 * ${{ matrix.zram }} / 100 )) > /sys/block/zram0/disksize\n/sbin/mkswap /dev/zram0\n/sbin/swapon -p 32767 /dev/zram0" | sudo tee chroot/etc/rc.local
+          sudo chmod +x chroot/etc/rc.local || true
+        fi
+
         if [ -n "${{ matrix.swappiness }}" ]; then
           echo "vm.swappiness=${{ matrix.swappiness }}" | sudo tee chroot/etc/sysctl.d/99-zram.conf
           echo "vm.vfs_cache_pressure=${{ matrix.vfs }}" | sudo tee -a chroot/etc/sysctl.d/99-zram.conf
@@ -174,13 +191,31 @@ jobs:
           
           sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e boot/efiboot.img -no-emul-boot -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" iso/
         else
+          mkdir -p ext/casper ext/boot/isolinux ext/boot/grub
           sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
+          
+          VMLINUZ_FILE=$(ls chroot/boot/vmlinuz-* | head -n 1)
+          INITRD_FILE=$(ls chroot/boot/initrd.img-* | head -n 1)
+          sudo cp "$VMLINUZ_FILE" ext/casper/vmlinuz
+          sudo cp "$INITRD_FILE" ext/casper/initrd.lz
+          
+          sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/boot/isolinux/
           sudo cp /usr/lib/syslinux/modules/bios/*.c32 ext/boot/isolinux/
+          
+          echo "UI menu.c32
+          PROMPT 0
+          MENU TITLE ${{ matrix.label }} Boot
+          TIMEOUT 50
+          DEFAULT live
+          LABEL live
+          MENU LABEL Start ${{ matrix.label }} Live
+          KERNEL /casper/vmlinuz
+          APPEND initrd=/casper/initrd.lz boot=casper quiet splash" | sudo tee ext/boot/isolinux/isolinux.cfg
           
           dd if=/dev/zero of=ext/boot/efiboot.img bs=1M count=10
           mkfs.vfat ext/boot/efiboot.img
           mmd -i ext/boot/efiboot.img ::/EFI ::/EFI/BOOT
-          mcopy -i ext/boot/efiboot.img /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ::/EFI/BOOT/BOOTX64.EFI
+          mcopy -i ext/boot/efiboot.img /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ::/EFI/BOOT/BOOTX64.EFI || true
           
           sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e boot/efiboot.img -no-emul-boot -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" ext/
         fi
@@ -208,14 +243,14 @@ jobs:
             suffix: lite-ghost
             body: |
               ## Gamma Lite-Ghost ${{ github.event.inputs.version }} ♾️🇩🇿
-              **For 1GB RAM PCs | Bodhi 7 Base | Ubuntu | GHOST MODE**
+              **For 1GB RAM PCs | Pure Ubuntu Base | GHOST MODE**
               **LXQt 1.4 | ZRAM 50% | Aggressive Swapping | No Bloatware**
               **BIOS + UEFI x64 Hybrid Boot**
           - edition: pro-maxmini
             suffix: pro-maxmini
             body: |
               ## Gamma Pro-MaxMini ${{ github.event.inputs.version }} ♾️🇩🇿
-              **For 2GB+ RAM PCs | Bodhi 7 Base | Ubuntu**
+              **For 2GB+ RAM PCs | Pure Ubuntu Base**
               **LXQt 1.4 | ZRAM 25% | TLP | Ubiquity Installer**
               **BIOS + UEFI x64 Hybrid Boot**
     steps:
