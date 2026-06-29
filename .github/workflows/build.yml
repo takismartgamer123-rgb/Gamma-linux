@@ -46,7 +46,7 @@ jobs:
             arch: amd64
             base: ubuntu
             timeout: 120
-            packages: "linux-image-generic lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm slick-greeter zram-config tlp ubiquity ubiquity-frontend-gtk"
+            packages: "linux-image-generic initramfs-tools lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm slick-greeter zram-config tlp ubiquity ubiquity-frontend-gtk"
             zram: "50"
             swappiness: "100"
             vfs: "100"
@@ -70,7 +70,7 @@ jobs:
             arch: amd64
             base: ubuntu
             timeout: 120
-            packages: "linux-image-generic lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm slick-greeter zram-config tlp ubiquity ubiquity-frontend-gtk"
+            packages: "linux-image-generic initramfs-tools lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm slick-greeter zram-config tlp ubiquity ubiquity-frontend-gtk"
             zram: "25"
             swappiness: ""
             vfs: ""
@@ -137,8 +137,14 @@ jobs:
         
         sudo chroot chroot apt-get install -y --no-install-recommends ${{ matrix.packages }}
         
-        # إجبار النظام على بناء الـ initramfs لضمان وجود ملفات الإقلاع
-        sudo chroot chroot update-initramfs -c -k all || true
+        # استخراج إصدار الكرنال الحقيقي وبناء الـ initramfs بشكل صارم دون تخطّي
+        KERNEL_VERSION=$(ls chroot/lib/modules/ | head -n 1)
+        if [ -n "$KERNEL_VERSION" ]; then
+          echo "🚀 Forcing initramfs generation for kernel: $KERNEL_VERSION"
+          sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION"
+        else
+          echo "🚨 CRITICAL: No kernel found in /lib/modules!" && exit 1
+        fi
         
         if [ "${{ matrix.base }}" = "debian" ]; then
           echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap
@@ -161,14 +167,13 @@ jobs:
           sudo mkdir -p chroot/usr/share/backgrounds && sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg || true
         fi
         
-        # التقاط ذكي وبصلاحيات الروت لتفادي المشاكل الأمنية لـ GitHub Actions
+        # التقاط المسارات الحقيقية للملفات بعد البناء الصحيح
         VMLINUZ_FILE=$(sudo sh -c 'ls chroot/boot/vmlinuz-* chroot/vmlinuz 2>/dev/null | head -n 1')
         INITRD_FILE=$(sudo sh -c 'ls chroot/boot/initrd.img-* chroot/boot/initrd-* chroot/initrd.img 2>/dev/null | head -n 1')
         
         echo "Found Kernel: $VMLINUZ_FILE"
         echo "Found Initrd: $INITRD_FILE"
         
-        # نظام حماية للتأكد من عدم بقاء المسارات فارغة
         if [ -z "$VMLINUZ_FILE" ] || [ -z "$INITRD_FILE" ]; then
           echo "🚨 CRITICAL ERROR: Kernel or Initrd not found!"
           echo "=== Contents of chroot /boot ==="
