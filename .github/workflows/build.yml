@@ -238,4 +238,4 @@ jobs:
           - gamma-${{ matrix.edition }}.iso
           - SHA256SUMS.txt
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN Dedicatedicated
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
