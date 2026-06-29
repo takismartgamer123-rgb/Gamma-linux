@@ -123,7 +123,6 @@ jobs:
         sudo mount -t proc none chroot/proc && sudo mount -t sysfs none chroot/sys
         sudo rm -f chroot/etc/resolv.conf && echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
         
-        # كتابة المستودعات بطريقة تمنع تعارض الـ EOF تماماً
         if [ "${{ matrix.base }}" = "ubuntu" ]; then
           echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee chroot/etc/apt/sources.list
           echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
@@ -138,7 +137,6 @@ jobs:
         
         sudo chroot chroot apt-get install -y --no-install-recommends ${{ matrix.packages }}
         
-        # ضبط الـ ZRAM حسب التوزيعة الأساسية
         if [ "${{ matrix.base }}" = "debian" ]; then
           echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap
         else
@@ -162,13 +160,14 @@ jobs:
         
         sudo umount chroot/dev chroot/run chroot/proc chroot/sys || true
         
-        # بناء الـ ISO وضبط الـ Boot Menu الاحترافي بـ 3 خيارات
+        # كود ذكي وحاسم لجلب وإيجاد ملفات الإقلاع دون أي فشل
+        VMLINUZ_FILE=$(find chroot/boot/ -name "vmlinuz-*" | head -n 1)
+        INITRD_FILE=$(find chroot/boot/ \( -name "initrd.img-*" -o -name "initrd-*" \) | head -n 1)
+
         if [ "${{ matrix.base }}" = "debian" ]; then
           mkdir -p iso/live iso/boot/isolinux iso/boot/grub
           sudo mksquashfs chroot iso/live/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
           
-          VMLINUZ_FILE=$(ls chroot/boot/vmlinuz-* | head -n 1)
-          INITRD_FILE=$(ls chroot/boot/initrd.img-* | head -n 1)
           sudo cp "$VMLINUZ_FILE" iso/live/vmlinuz
           sudo cp "$INITRD_FILE" iso/live/initrd.img
           
@@ -208,8 +207,6 @@ jobs:
           mkdir -p ext/casper ext/boot/isolinux ext/boot/grub
           sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
           
-          VMLINUZ_FILE=$(ls chroot/boot/vmlinuz-* | head -n 1)
-          INITRD_FILE=$(ls chroot/boot/initrd.img-* | head -n 1)
           sudo cp "$VMLINUZ_FILE" ext/casper/vmlinuz
           sudo cp "$INITRD_FILE" ext/casper/initrd.lz
           
@@ -295,7 +292,7 @@ jobs:
           **By: Taki - 17 Years Old from Guelma, Algeria**
           **Dedicated to my father Fateh**
         files: |
-          - gamma-${{ matrix.edition }}.iso
-          - SHA256SUMS.txt
+          gamma-${{ matrix.edition }}.iso
+          SHA256SUMS.txt
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
