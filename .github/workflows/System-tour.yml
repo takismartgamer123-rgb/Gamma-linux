@@ -26,14 +26,13 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 xvfb scrot fluxbox
+          sudo apt-get install -y qemu-system-x86 xvfb scrot
 
       - name: Start Virtual Display
         run: |
-          # إنشاء الشاشة الوهمية بدقة HD خفيفة ومستقرة
+          # تشغيل الشاشة الوهمية نقية بدون مدير نوافذ لتفادي التجميد
           Xvfb :99 -screen 0 1280x720x24 &
           sleep 2
-          DISPLAY=:99 fluxbox & # مدير نوافذ خفيف جداً لمنع الشاشة السوداء
           echo "DISPLAY=:99" >> $GITHUB_ENV
 
       - name: Download ISO
@@ -49,7 +48,7 @@ jobs:
         env:
           DISPLAY: :99
         run: |
-          echo "Booting Gamma Linux ${{ matrix.display_name }} using KVM..."
+          echo "Booting Gamma Linux ${{ matrix.display_name }}..."
           
           # تعطيل الجسور والميزات التي قد تسبب تجميد الواجهة الرسومية في السيرفر
           export NO_AT_BRIDGE=1
@@ -58,16 +57,16 @@ jobs:
           # فتح صلاحيات الـ KVM لتسريع المحاكي واستغلال قوة معالج السيرفر
           sudo chmod 666 /dev/kvm || true
           
-          # تشغيل المحاكي مع تفعيل KVM، رامات 2G، ملء الشاشة، وإلغاء الصوت تماماً
+          # استبدال -vga std بـ -vga virtio لحل مشكلة تجميد واجهة الـ Xorg/Wayland داخل السيرفر
           if [ "${{ matrix.edition }}" = "legacy32" ]; then
-            qemu-system-i386 -enable-kvm -m 2G -cpu host -cdrom current_gamma.iso -vga std -fullscreen -audiodev none,id=snd0 -no-reboot &
+            qemu-system-i386 -enable-kvm -m 2G -cpu host -cdrom current_gamma.iso -vga virtio -audiodev none,id=snd0 -no-reboot &
           else
-            qemu-system-x86_64 -enable-kvm -m 2G -cpu host -cdrom current_gamma.iso -vga std -fullscreen -audiodev none,id=snd0 -no-reboot &
+            qemu-system-x86_64 -enable-kvm -m 2G -cpu host -cdrom current_gamma.iso -vga virtio -audiodev none,id=snd0 -no-reboot &
           fi
           
-          # بما أن KVM شغال، 50 ثانية كافية جداً لضمان استقرار إقلاع النواة ووصول الواجهة بالكامل
-          echo "Waiting 50 seconds for Gamma Linux to boot into Desktop..."
-          sleep 180 
+          # 90 ثانية كافية جداً مع كرت شاشة virtio ليدخل للـ Desktop مرتاح
+          echo "Waiting 90 seconds for Gamma Linux to boot completely..."
+          sleep 90 
 
           # التقاط لقطة الشاشة وحفظها بنقاء كامل باسم النسخة الحالية
           scrot -q 100 "gamma_${{ matrix.edition }}_boot.png"
