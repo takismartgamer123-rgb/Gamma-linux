@@ -1,24 +1,24 @@
 name: Capture All Gamma Linux v2.3.0 Editions
 
 on:
-  workflow_dispatch: # يتيح لك التشغيل اليدوي بضغطة زر واحدة
+  workflow_dispatch: # تشغيل يدوي بضغطة زر
 
 jobs:
   screenshot-matrix:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false # لو نسخة فشلت، الباقي يكمل بدون مشاكل
+      fail-fast: false
       matrix:
         edition: [legacy32, lite-ghost, pro-maxmini]
         include:
           - edition: legacy32 
-            iso_url: "https://github.com"
+            iso_url: "https://github.com/YOUR_USER/YOUR_REPO/releases/download/v2.3.0-FINAL/gamma-legacy32.iso" # ضع الرابط الحقيقي هنا
             display_name: "Legacy 32-bit"
           - edition: lite-ghost 
-            iso_url: "https://github.com"
+            iso_url: "https://github.com/YOUR_USER/YOUR_REPO/releases/download/v2.3.0-FINAL/gamma-lite-ghost.iso" # ضع الرابط الحقيقي هنا
             display_name: "Lite Ghost"
           - edition: pro-maxmini 
-            iso_url: "https://github.com"
+            iso_url: "https://github.com/YOUR_USER/YOUR_REPO/releases/download/v2.3.0-FINAL/gamma-pro-maxmini.iso" # ضع الرابط الحقيقي هنا
             display_name: "Pro MaxMini"
 
     name: Capture ${{ matrix.display_name }} Edition
@@ -26,21 +26,19 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 xvfb scrot
+          sudo apt-get install -y qemu-system-x86 xvfb scrot fluxbox
 
       - name: Start Virtual Display
         run: |
-          # إنشاء الشاشة الوهمية بدقة HD خفيفة ومستقرة
           Xvfb :99 -screen 0 1280x720x24 &
+          sleep 2
+          DISPLAY=:99 fluxbox & # مدير نوافذ خفيف جداً لمنع الشاشة السوداء
           echo "DISPLAY=:99" >> $GITHUB_ENV
 
       - name: Download ISO
         run: |
           echo "Downloading Gamma Linux ${{ matrix.display_name }}..."
-          # تحميل نظيف يتبع الروابط الفعليّة لغيت هاب
           curl -fSL -o current_gamma.iso "${{ matrix.iso_url }}"
-          
-          # طباعة الحجم للتأكد الفوري في الـ Logs
           ls -lh current_gamma.iso
 
       - name: Boot and Capture
@@ -48,23 +46,21 @@ jobs:
           DISPLAY: :99
         run: |
           echo "Booting Gamma Linux ${{ matrix.display_name }}..."
-          
-          # تعطيل الجسور والميزات التي قد تسبب تجميد الواجهة الرسومية في السيرفر
           export NO_AT_BRIDGE=1
           export QT_ACCESSIBILITY=0
           
-          # تشغيل المحاكي مع رام 2G، وتحديد معالج متوافق لحل الـ Kernel Panic، وإلغاء الصوت تماماً
+          # أضفنا خيار -fullscreen ليمسح الواجهة كاملة وتلتقطها scrot بنقاء
           if [ "${{ matrix.edition }}" = "legacy32" ]; then
-            qemu-system-i386 -m 2G -cpu pentium3 -cdrom current_gamma.iso -vga std -audiodev none,id=snd0 -device intel-hda -device hda-output,audiodev=snd0 -no-reboot &
+            qemu-system-i386 -m 2G -cpu pentium3 -cdrom current_gamma.iso -vga std -fullscreen -audiodev none,id=snd0 -no-reboot &
           else
-            qemu-system-x86_64 -m 2G -cpu max -cdrom current_gamma.iso -vga std -audiodev none,id=snd0 -device intel-hda -device hda-output,audiodev=snd0 -no-reboot &
+            qemu-system-x86_64 -m 2G -cpu max -cdrom current_gamma.iso -vga std -fullscreen -audiodev none,id=snd0 -no-reboot &
           fi
           
-          # تمديد وقت الانتظار إلى 75 ثانية لضمان استقرار إقلاع النواة ووصول الواجهة بالكامل
-          echo "Waiting 75 seconds for Gamma Linux to boot into Desktop..."
-          sleep 75 
+          # انتظر 85 ثانية لأن الإقلاع داخل المحاكي بدون KVM في السيرفر يأخذ وقت أطول
+          echo "Waiting 85 seconds for Desktop stability..."
+          sleep 85 
 
-          # التقاط لقطة الشاشة وحفظها باسم النسخة الحالية
+          # التقاط الشاشة بدقة 100%
           scrot -q 100 "gamma_${{ matrix.edition }}_boot.png"
 
       - name: Upload Screenshot for ${{ matrix.display_name }}
