@@ -1,24 +1,24 @@
 name: Capture All Gamma Linux v2.3.0 Editions
 
 on:
-  workflow_dispatch: # تشغيل يدوي بضغطة زر
+  workflow_dispatch: # تشغيل يدوي بضغطة زر واحدة
 
 jobs:
   screenshot-matrix:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: false # لو نسخة فشلت، الباقي يكمل بدون مشاكل
       matrix:
         edition: [legacy32, lite-ghost, pro-maxmini]
         include:
           - edition: legacy32 
-            iso_url: "https://github.com/takismartgamer123-rgb/Gamma-linux/releases/download/v2.3.0-FINAL/gamma-legacy32.iso" # ضع الرابط الحقيقي هنا
+            iso_url: "https://github.com/takismartgamer123-rgb/Gamma-linux/releases/download/v2.3.0-FINAL-legacy32/gamma-legacy-32.iso"
             display_name: "Legacy 32-bit"
           - edition: lite-ghost 
-            iso_url: "https://github.com/takismartgamer123-rgb/Gamma-linux/releases/download/v2.3.0-FINAL/gamma-lite-ghost.iso" # ضع الرابط الحقيقي هنا
+            iso_url: "https://github.com/takismartgamer123-rgb/Gamma-linux/releases/download/v2.3.0-FINAL-lite-ghost/gamma-lite-ghost.iso"
             display_name: "Lite Ghost"
           - edition: pro-maxmini 
-            iso_url: "https://github.com/takismartgamer123-rgb/Gamma-linux/releases/download/v2.3.0-FINAL/gamma-pro-maxmini.iso" # ضع الرابط الحقيقي هنا
+            iso_url: "https://github.com/takismartgamer123-rgb/Gamma-linux/releases/download/v2.3.0-FINAL-pro-maxmini/gamma-pro-maxmini.iso"
             display_name: "Pro MaxMini"
 
     name: Capture ${{ matrix.display_name }} Edition
@@ -30,6 +30,7 @@ jobs:
 
       - name: Start Virtual Display
         run: |
+          # إنشاء الشاشة الوهمية بدقة HD خفيفة ومستقرة
           Xvfb :99 -screen 0 1280x720x24 &
           sleep 2
           DISPLAY=:99 fluxbox & # مدير نوافذ خفيف جداً لمنع الشاشة السوداء
@@ -38,29 +39,37 @@ jobs:
       - name: Download ISO
         run: |
           echo "Downloading Gamma Linux ${{ matrix.display_name }}..."
+          # تحميل نظيف يتبع الروابط الفعليّة لغيت هاب
           curl -fSL -o current_gamma.iso "${{ matrix.iso_url }}"
+          
+          # طباعة الحجم للتأكد الفوري في الـ Logs
           ls -lh current_gamma.iso
 
-      - name: Boot and Capture
+      - name: Boot and Capture with KVM
         env:
           DISPLAY: :99
         run: |
-          echo "Booting Gamma Linux ${{ matrix.display_name }}..."
+          echo "Booting Gamma Linux ${{ matrix.display_name }} using KVM..."
+          
+          # تعطيل الجسور والميزات التي قد تسبب تجميد الواجهة الرسومية في السيرفر
           export NO_AT_BRIDGE=1
           export QT_ACCESSIBILITY=0
           
-          # أضفنا خيار -fullscreen ليمسح الواجهة كاملة وتلتقطها scrot بنقاء
+          # فتح صلاحيات الـ KVM لتسريع المحاكي واستغلال قوة معالج السيرفر
+          sudo chmod 666 /dev/kvm || true
+          
+          # تشغيل المحاكي مع تفعيل KVM، رامات 2G، ملء الشاشة، وإلغاء الصوت تماماً
           if [ "${{ matrix.edition }}" = "legacy32" ]; then
-            qemu-system-i386 -m 2G -cpu pentium3 -cdrom current_gamma.iso -vga std -fullscreen -audiodev none,id=snd0 -no-reboot &
+            qemu-system-i386 -enable-kvm -m 2G -cpu host -cdrom current_gamma.iso -vga std -fullscreen -audiodev none,id=snd0 -no-reboot &
           else
-            qemu-system-x86_64 -m 2G -cpu max -cdrom current_gamma.iso -vga std -fullscreen -audiodev none,id=snd0 -no-reboot &
+            qemu-system-x86_64 -enable-kvm -m 2G -cpu host -cdrom current_gamma.iso -vga std -fullscreen -audiodev none,id=snd0 -no-reboot &
           fi
           
-          # انتظر 85 ثانية لأن الإقلاع داخل المحاكي بدون KVM في السيرفر يأخذ وقت أطول
-          echo "Waiting 85 seconds for Desktop stability..."
-          sleep 85 
+          # بما أن KVM شغال، 50 ثانية كافية جداً لضمان استقرار إقلاع النواة ووصول الواجهة بالكامل
+          echo "Waiting 50 seconds for Gamma Linux to boot into Desktop..."
+          sleep 50 
 
-          # التقاط الشاشة بدقة 100%
+          # التقاط لقطة الشاشة وحفظها بنقاء كامل باسم النسخة الحالية
           scrot -q 100 "gamma_${{ matrix.edition }}_boot.png"
 
       - name: Upload Screenshot for ${{ matrix.display_name }}
