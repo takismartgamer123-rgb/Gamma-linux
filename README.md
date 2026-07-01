@@ -85,7 +85,9 @@ Command: sha256sum -c SHA256SUMS.txt
 
  **7. CONTACT & COMMUNITY**
 
-Telegram Group: t.me/GammaLinuxDZ <- Main Support & Chat
+**Telegram Group**: https://t.me/GammaLinuxDZ <- Main Support & Chat
+**Messenger Group**(recommend)
+https://m.me/j/AbahTOn_gqLy8R3k/?send_source=gc%3Acopy_invite_link_t
 GitHub: https://github.com/takismartgamer123-rgb/Gamma-linux
 See CONTRIBUTE.txt for how to help.
 
