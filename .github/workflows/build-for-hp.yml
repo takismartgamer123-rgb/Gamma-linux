@@ -1,0 +1,181 @@
+name: Build Gamma v2.3.1-HP-Universal-Fix ♾️🇩🇿
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version'
+        required: true
+        default: 'v2.3.1-HP-Universal-Fix'
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        # ============= LEGACY-32 UNIVERSAL HP FIX =============
+        - edition: legacy-32-hp-universal
+          arch: i386
+          base: debian
+          timeout: 150
+          packages: "linux-image-686-pae lxqt-core lightdm calamares zram-tools tlp zenity"
+          zram: "150"
+          hostname: "gamma-legacy-hp"
+          uefi: "ia32"
+          label: "Gamma Legacy-32 HP-Universal-Fix"
+          release_suffix: "legacy32-hp-universal"
+          boot_opts: "boot=live nomodeset intel_idle.max_cstate=1 nouveau.modeset=0 radeon.modeset=0 i915.enable_psr=0 acpi_osi=! acpi_osi=Windows 2015 quiet splash"
+          inst_opts: "boot=live nomodeset intel_idle.max_cstate=1 nouveau.modeset=0 radeon.modeset=0 i915.enable_psr=0 acpi_osi=! acpi_osi=Windows 2015 quiet splash autostart=calamares"
+          body: |
+            ## Gamma Legacy-32 HP-Universal-Fix ${{ github.event.inputs.version }} ♾️🇩🇿
+            **⚠️ FOR: ALL 32-bit HP Laptops 2010-2015 with ANY Kernel Panic ⚠️**
+            **Fixes:** Intel C-State + ACPI BIOS Bug + 800x600 Safe Mode
+            **AFTER INSTALL:** Double-click "⚠️ FIX YOUR GPU NOW" on Desktop
+
+        # ============= LITE-GHOST UNIVERSAL HP FIX =============
+        - edition: lite-ghost-hp-universal
+          arch: amd64
+          base: ubuntu
+          timeout: 120
+          packages: "linux-image-generic-hwe-22.04 initramfs-tools lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm slick-greeter zram-config tlp ubiquity ubiquity-frontend-gtk zenity"
+          zram: "50"
+          swappiness: "100"
+          hostname: "gamma-lite-hp"
+          wallpaper: "true"
+          uefi: "x64"
+          label: "Gamma Lite-Ghost HP-Universal-Fix"
+          release_suffix: "lite-ghost-hp-universal"
+          boot_opts: "boot=casper nomodeset intel_idle.max_cstate=1 nouveau.modeset=0 radeon.modeset=0 i915.enable_psr=0 acpi_osi=! acpi_osi=Windows 2015 quiet splash"
+          inst_opts: "boot=casper only-ubiquity nomodeset intel_idle.max_cstate=1 nouveau.modeset=0 radeon.modeset=0 i915.enable_psr=0 acpi_osi=! acpi_osi=Windows 2015 quiet splash"
+          body: |
+            ## Gamma Lite-Ghost HP-Universal-Fix ${{ github.event.inputs.version }} ♾️🇩🇿
+            **⚠️ FOR: ALL HP Laptops 2012-2017 Intel/AMD/Nvidia with Kernel Panic ⚠️**
+            **Examples:** HP ProBook | Pavilion | EliteBook | Omen 
+            **Fixes:** ALL GPU Bugs + ACPI Bug
+            **AFTER INSTALL:** Double-click "⚠️ FIX YOUR GPU NOW" on Desktop
+
+        # ============= PRO-MAXMINI UNIVERSAL HP FIX =============
+        - edition: pro-maxmini-hp-universal
+          arch: amd64
+          base: ubuntu
+          timeout: 120
+          packages: "linux-image-generic-hwe-22.04 initramfs-tools lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm slick-greeter zram-config tlp ubiquity ubiquity-frontend-gtk zenity"
+          zram: "25"
+          hostname: "gamma-pro-hp"
+          wallpaper: "true"
+          uefi: "x64"
+          label: "Gamma Pro-MaxMini HP-Universal-Fix"
+          release_suffix: "pro-maxmini-hp-universal"
+          boot_opts: "boot=casper nomodeset intel_idle.max_cstate=1 nouveau.modeset=0 radeon.modeset=0 i915.enable_psr=0 acpi_osi=! acpi_osi=Windows 2015 quiet splash"
+          inst_opts: "boot=casper only-ubiquity nomodeset intel_idle.max_cstate=1 nouveau.modeset=0 radeon.modeset=0 i915.enable_psr=0 acpi_osi=! acpi_osi=Windows 2015 quiet splash"
+          body: |
+            ## Gamma Pro-MaxMini HP-Universal-Fix ${{ github.event.inputs.version }} ♾️🇩🇿
+            **⚠️ FOR: ALL HP 2012-2017 2GB-4GB RAM with Kernel Panic ⚠️**
+            **Fixes:** ALL GPU Bugs + ACPI Bug + ZRAM 25%
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Tools
+      run: |
+        sudo apt-get update
+        if [ "${{ matrix.arch }}" = "i386" ]; then
+          sudo apt-get install -y debootstrap squashfs-tools xorriso wget isolinux syslinux-utils syslinux-common grub-pc-bin grub-efi-ia32-bin binutils mtools dosfstools
+        else
+          sudo apt-get install -y debootstrap squashfs-tools xorriso wget rsync zstd isolinux syslinux-utils syslinux-common shim-signed grub-efi-amd64-signed mtools dosfstools
+        fi
+    - name: Build ISO
+      run: |
+        if [ "${{ matrix.base }}" = "debian" ]; then
+          sudo debootstrap --arch=i386 bookworm chroot http://deb.debian.org/debian/
+        else
+          sudo debootstrap --arch=amd64 jammy chroot http://archive.ubuntu.com/ubuntu/
+        fi
+        sudo mount --bind /dev chroot/dev && sudo mount --bind /run chroot/run
+        sudo mount -t proc none chroot/proc && sudo mount -t sysfs none chroot/sys
+        sudo rm -f chroot/etc/resolv.conf && echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
+        if [ "${{ matrix.base }}" = "ubuntu" ]; then
+          echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee chroot/etc/apt/sources.list
+          echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
+          echo "deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
+        fi
+        sudo chroot chroot apt-get update
+        sudo chroot chroot apt-get install -y --no-install-recommends ${{ matrix.packages }}
+        # Force Kernel LTS
+        KERNEL_VERSION=$(ls chroot/lib/modules/ | head -n 1)
+        sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION"
+        # GPU FIX DESKTOP ICON
+        sudo mkdir -p chroot/usr/share/applications chroot/usr/local/bin
+        echo '#!/bin/bash
+        GPU=$(zenity --list --title="Gamma HP GPU Fix" --text="Select your GPU:" --column="GPU" Intel AMD Nvidia --width=300 --height=250)
+        if [ "$GPU" = "Intel" ]; then sudo apt install -y xserver-xorg-video-intel;
+        elif [ "$GPU" = "AMD" ]; then sudo apt install -y xserver-xorg-video-amdgpu;
+        elif [ "$GPU" = "Nvidia" ]; then sudo apt install -y nvidia-driver-470;
+        fi
+        zenity --info --text="Reboot now for full resolution!"' | sudo tee chroot/usr/local/bin/gamma-gpu-fix.sh
+        sudo chmod +x chroot/usr/local/bin/gamma-gpu-fix.sh
+        echo '[Desktop Entry]
+        Name=⚠️ FIX YOUR GPU NOW
+        Comment=Fix 800x600 resolution on HP
+        Exec=pkexec /usr/local/bin/gamma-gpu-fix.sh
+        Icon=dialog-warning
+        Terminal=false
+        Type=Application' | sudo tee chroot/usr/share/applications/gamma-gpu-fix.desktop
+        # WARNING
+        echo '[Desktop Entry]
+        Name=⚠️ HP UNIVERSAL FIX ONLY
+        Exec=zenity --warning --text="HP-Universal-Fix: For HP 2010-2017 only!"' | sudo tee chroot/usr/share/applications/hp-warning.desktop
+        sudo chroot chroot systemctl disable NetworkManager-wait-online.service || true
+        sudo chroot chroot bash -c "useradd -m -s /bin/bash gamma || true; echo 'gamma:gamma' | chpasswd; hostnamectl set-hostname ${{ matrix.hostname }} 2>/dev/null || echo ${{ matrix.hostname }} > /etc/hostname"
+        VMLINUZ_FILE=$(sudo sh -c 'ls chroot/boot/vmlinuz-* chroot/vmlinuz 2>/dev/null | head -n 1')
+        INITRD_FILE=$(sudo sh -c 'ls chroot/boot/initrd.img-* chroot/boot/initrd-* chroot/initrd.img 2>/dev/null | head -n 1')
+        if [ -z "$VMLINUZ_FILE" ] || [ -z "$INITRD_FILE" ]; then echo "🚨 CRITICAL ERROR: Kernel or Initrd not found!" && exit 1; fi
+        sudo umount chroot/dev chroot/run chroot/proc chroot/sys || true
+        if [ "${{ matrix.base }}" = "debian" ]; then
+          mkdir -p iso/live iso/boot/isolinux iso/boot/grub
+          sudo mksquashfs chroot iso/live/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
+          sudo cp "$VMLINUZ_FILE" iso/live/vmlinuz && sudo cp "$INITRD_FILE" iso/live/initrd.img
+          echo "UI menu.c32 PROMPT 0 MENU TITLE ${{ matrix.label }} TIMEOUT 100 DEFAULT live LABEL live MENU LABEL Start ${{ matrix.label }} KERNEL /live/vmlinuz APPEND initrd=/live/initrd.img ${{ matrix.boot_opts }}" | sudo tee iso/boot/isolinux/isolinux.cfg
+          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e boot/efiboot.img -no-emul-boot -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" iso/
+        else
+          mkdir -p ext/casper ext/boot/isolinux ext/boot/grub
+          sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
+          sudo cp "$VMLINUZ_FILE" ext/casper/vmlinuz && sudo cp "$INITRD_FILE" ext/casper/initrd.lz
+          echo "UI menu.c32 PROMPT 0 MENU TITLE ${{ matrix.label }} TIMEOUT 100 DEFAULT live LABEL live MENU LABEL Start ${{ matrix.label }} KERNEL /casper/vmlinuz APPEND initrd=/casper/initrd.lz ${{ matrix.boot_opts }}" | sudo tee ext/boot/isolinux/isolinux.cfg
+          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e boot/efiboot.img -no-emul-boot -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" ext/
+        fi
+    - uses: actions/upload-artifact@v4
+      with:
+        name: gamma-${{ matrix.edition }}
+        path: gamma-${{ matrix.edition }}.iso
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        edition: [legacy-32-hp-universal, lite-ghost-hp-universal, pro-maxmini-hp-universal]
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: gamma-${{ matrix.edition }}
+    - name: Generate SHA256
+      run: sha256sum gamma-${{ matrix.edition }}.iso > SHA256SUMS.txt
+    - uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event.inputs.version }}-${{ matrix.edition }}
+        name: ${{ matrix.edition }} ${{ github.event.inputs.version }} ♾️🇩🇿
+        body: |
+          ${{ matrix.body }}
+          **DO NOT DOWNLOAD if:** HP 2018+, Dell, Lenovo, ASUS
+          **Use normal v2.3.0 instead**
+          ✅ **Verify with SHA256SUMS.txt**
+          *Alpha failed. Beta crashed. Gamma survives*
+          **By: Taki - 17 Years Old from Guelma, Algeria**
+          **Dedicated to my father Fateh**
+        files: |
+          gamma-${{ matrix.edition }}.iso
+          SHA256SUMS.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
