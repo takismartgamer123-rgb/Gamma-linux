@@ -102,9 +102,11 @@ jobs:
         fi
         sudo chroot chroot apt-get update
         sudo chroot chroot apt-get install -y --no-install-recommends ${{ matrix.packages }}
+        
         # Force Kernel LTS
         KERNEL_VERSION=$(ls chroot/lib/modules/ | head -n 1)
         sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION"
+        
         # GPU FIX DESKTOP ICON
         sudo mkdir -p chroot/usr/share/applications chroot/usr/local/bin
         echo '#!/bin/bash
@@ -122,6 +124,7 @@ jobs:
         Icon=dialog-warning
         Terminal=false
         Type=Application' | sudo tee chroot/usr/share/applications/gamma-gpu-fix.desktop
+        
         # WARNING
         echo '[Desktop Entry]
         Name=⚠️ HP UNIVERSAL FIX ONLY
@@ -132,18 +135,44 @@ jobs:
         INITRD_FILE=$(sudo sh -c 'ls chroot/boot/initrd.img-* chroot/boot/initrd-* chroot/initrd.img 2>/dev/null | head -n 1')
         if [ -z "$VMLINUZ_FILE" ] || [ -z "$INITRD_FILE" ]; then echo "🚨 CRITICAL ERROR: Kernel or Initrd not found!" && exit 1; fi
         sudo umount chroot/dev chroot/run chroot/proc chroot/sys || true
+        
+        # Build System Directory Layout Configuration
         if [ "${{ matrix.base }}" = "debian" ]; then
-          mkdir -p iso/live iso/boot/isolinux iso/boot/grub
+          # 1. صنع المجلدات بالصيغتين (كبيرة وصغيرة) للتوافقية الكاملة مع UEFI
+          mkdir -p iso/live iso/boot/isolinux iso/boot/grub iso/EFI/BOOT iso/efi/boot
           sudo mksquashfs chroot iso/live/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
           sudo cp "$VMLINUZ_FILE" iso/live/vmlinuz && sudo cp "$INITRD_FILE" iso/live/initrd.img
           echo "UI menu.c32 PROMPT 0 MENU TITLE ${{ matrix.label }} TIMEOUT 100 DEFAULT live LABEL live MENU LABEL Start ${{ matrix.label }} KERNEL /live/vmlinuz APPEND initrd=/live/initrd.img ${{ matrix.boot_opts }}" | sudo tee iso/boot/isolinux/isolinux.cfg
-          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e boot/efiboot.img -no-emul-boot -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" iso/
+          
+          # 2. توليد منيو الـ GRUB وتوزيعه بالصيغتين للحروف
+          echo "set timeout=5
+          menuentry 'Start ${{ matrix.label }}' {
+              linux /live/vmlinuz ${{ matrix.boot_opts }}
+              initrd /live/initrd.img
+          }" | sudo tee iso/boot/grub/grub.cfg
+          sudo cp iso/boot/grub/grub.cfg iso/EFI/BOOT/GRUB.CFG
+          sudo cp iso/boot/grub/grub.cfg iso/efi/boot/grub.cfg
+          
+          sudo cp /usr/lib/ISOLINUX/isolinux.bin iso/boot/isolinux/ || true
+          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" iso/
         else
-          mkdir -p ext/casper ext/boot/isolinux ext/boot/grub
+          # 1. صنع المجلدات بالصيغتين (كبيرة وصغيرة) للتوافقية الكاملة مع UEFI
+          mkdir -p ext/casper ext/boot/isolinux ext/boot/grub ext/EFI/BOOT ext/efi/boot
           sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
           sudo cp "$VMLINUZ_FILE" ext/casper/vmlinuz && sudo cp "$INITRD_FILE" ext/casper/initrd.lz
           echo "UI menu.c32 PROMPT 0 MENU TITLE ${{ matrix.label }} TIMEOUT 100 DEFAULT live LABEL live MENU LABEL Start ${{ matrix.label }} KERNEL /casper/vmlinuz APPEND initrd=/casper/initrd.lz ${{ matrix.boot_opts }}" | sudo tee ext/boot/isolinux/isolinux.cfg
-          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e boot/efiboot.img -no-emul-boot -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" ext/
+          
+          # 2. توليد منيو الـ GRUB وتوزيعه بالصيغتين للحروف لإلغاء بق grub> قاع
+          echo "set timeout=5
+          menuentry 'Start ${{ matrix.label }}' {
+              linux /casper/vmlinuz ${{ matrix.boot_opts }}
+              initrd /casper/initrd.lz
+          }" | sudo tee ext/boot/grub/grub.cfg
+          sudo cp ext/boot/grub/grub.cfg ext/EFI/BOOT/GRUB.CFG
+          sudo cp ext/boot/grub/grub.cfg ext/efi/boot/grub.cfg
+          
+          sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/boot/isolinux/ || true
+          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" ext/
         fi
     - uses: actions/upload-artifact@v4
       with:
