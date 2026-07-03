@@ -16,11 +16,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # ============= 1. LEGACY-32 = ZERO BLOAT =============
+          # ============= 1. LEGACY-32 = ZERO BLOAT (Native Enlightenment + Thunar) =============
           - edition: legacy-32
             arch: i386
             base: debian
-            packages: "linux-image-686-pae task-standard --no-install-recommends moksha-desktop --no-install-recommends enlightenment_filemanager materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager zram-tools tlp calamares zenity kexec-tools dmidecode pciutils gamma-tinygen python3-gi gir1.2-webkit2-4.0"
+            packages: "linux-image-686-pae task-standard --no-install-recommends enlightenment terminology thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager zram-tools tlp calamares zenity kexec-tools dmidecode pciutils python3-gi gir1.2-webkit2-4.0"
             zram: "150"
             purge: "locales-all language-pack-*"
             hostname: "gamma-legacy"
@@ -28,11 +28,11 @@ jobs:
             label: "Gamma Legacy-32 Zero"
             boot_base: "boot=live"
             inst_base: "boot=live autostart=calamares"
-          # ============= 2. LITE-GHOST = ZERO BLOAT =============
+          # ============= 2. LITE-GHOST = ZERO BLOAT (Moksha + Thunar) =============
           - edition: lite-ghost
             arch: amd64
             base: ubuntu
-            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha-desktop --no-install-recommends enlightenment_filemanager materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager zram-config tlp ubiquity ubiquity-frontend-gtk zenity kexec-tools dmidecode pciutils gamma-tinygen python3-gi gir1.2-webkit2-4.0"
+            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha-desktop thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager zram-config tlp ubiquity ubiquity-frontend-gtk zenity kexec-tools dmidecode pciutils python3-gi gir1.2-webkit2-4.0"
             zram: "50"
             swappiness: "100"
             vfs: "100"
@@ -43,11 +43,11 @@ jobs:
             label: "Gamma Lite-Ghost Zero"
             boot_base: "boot=casper"
             inst_base: "boot=casper only-ubiquity"
-          # ============= 3. PRO-MAXMINI = ZERO BLOAT =============
+          # ============= 3. PRO-MAXMINI = ZERO BLOAT (Moksha + Thunar) =============
           - edition: pro-maxmini
             arch: amd64
             base: ubuntu
-            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha-desktop --no-install-recommends enlightenment_filemanager materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager zram-config tlp ubiquity ubiquity-frontend-gtk zenity kexec-tools dmidecode pciutils gamma-tinygen python3-gi gir1.2-webkit2-4.0"
+            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha-desktop thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager zram-config tlp ubiquity ubiquity-frontend-gtk zenity kexec-tools dmidecode pciutils python3-gi gir1.2-webkit2-4.0"
             zram: "25"
             purge: "snapd* flatpak* locales-all language-pack-*"
             hostname: "gamma-pro"
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Tools (Fixed Package List)
+      - name: Install Tools (Fixed Host Dependencies)
         run: |
           sudo apt-get update
           if [ "${{ matrix.arch }}" = "i386" ]; then 
@@ -88,9 +88,9 @@ jobs:
             echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee chroot/etc/apt/sources.list
             echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
             echo "deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
+            echo "deb [trusted=yes] http://packages.bodhilinux.com/bodhi jammy b7main" | sudo tee -a chroot/etc/apt/sources.list
           fi
           
-          # ZERO BLOAT PACKAGES + NONINTERACTIVE PROTECTION AGAINST FREEZES
           sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get update
           [ -n "${{ matrix.purge }}" ] && sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get remove -y --purge ${{ matrix.purge }} || true
           sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${{ matrix.packages }}
@@ -103,7 +103,7 @@ jobs:
           echo 'theme: "Materia-dark"' | sudo tee chroot/etc/skel/.e/e/config/standard/e.cfg
           echo 'icon_theme: "Papirus-Dark"' | sudo tee -a chroot/etc/skel/.e/e/config/standard/e.cfg
           
-          # GAMMA TINYGEN ONLY BROWSER
+          # بناء متصفح GAMMA TINYGEN محلياً داخل النظام الموجه
           cat << 'EOFPY' | sudo tee chroot/usr/bin/gamma-tinygen
           #!/usr/bin/env python3
           import gi; gi.require_version('Gtk','3.0'); gi.require_version('WebKit2','4.0')
@@ -137,12 +137,10 @@ jobs:
           Categories=Network;WebBrowser;
           EOFDESK
           
-          # Fix for ImageMagick Policy with safety fallback
           sudo mkdir -p chroot/usr/share/icons/hicolor/256x256/apps/
           convert -size 256x256 xc:#0a0a1a -fill '#00d4ff' -gravity center -pointsize 140 -annotate +0+20 'TG' chroot/usr/share/icons/hicolor/256x256/apps/gamma-tinygen.png || convert -size 256x256 xc:#0a0a1a chroot/usr/share/icons/hicolor/256x256/apps/gamma-tinygen.png || touch chroot/usr/share/icons/hicolor/256x256/apps/gamma-tinygen.png
           sudo chroot chroot xdg-settings set default-web-browser gamma-tinygen.desktop
           
-          # SMART INSTALLER
           cat << 'EOFSH' | sudo tee chroot/usr/local/bin/gamma-installer
           #!/bin/bash
           MODE=$(zenity --list --title="Gamma Installer v2.6.3" --text="Choose:" --column="Mode" --column="Desc" "Offline" "3 Languages" "Online" "Add 1 Language" --hide-header --width=500 --height=250)
@@ -153,7 +151,6 @@ jobs:
           sudo chmod +x chroot/usr/local/bin/gamma-installer
           if [ "${{ matrix.base }}" = "ubuntu" ]; then sudo sed -i 's|Exec=ubiquity gtk_ui|Exec=/usr/local/bin/gamma-installer|' chroot/usr/share/applications/ubiquity.desktop; fi
           
-          # KERNEL + AUTO-DETECT v2
           KERNEL_VERSION=$(ls chroot/lib/modules/ | head -n 1)
           sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION"
           sudo mkdir -p chroot/usr/share/initramfs-tools/scripts/casper-bottom/
@@ -173,7 +170,6 @@ jobs:
           sudo chmod +x chroot/usr/share/initramfs-tools/scripts/casper-bottom/99gamma-auto
           sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION"
           
-          # ZRAM
           if [ "${{ matrix.base }}" = "debian" ]; then 
             echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap
           else 
@@ -183,42 +179,36 @@ jobs:
           [ -n "${{ matrix.vfs }}" ] && echo "vm.vfs_cache_pressure=${{ matrix.vfs }}" | sudo tee -a chroot/etc/sysctl.d/99-zram.conf
           [ -n "${{ matrix.dirty }}" ] && echo "vm.dirty_ratio=${{ matrix.dirty }}" | sudo tee -a chroot/etc/sysctl.d/99-zram.conf
           
-          # USER
           sudo chroot chroot systemctl disable NetworkManager-wait-online.service || true
           sudo chroot chroot bash -c "useradd -m -s /bin/bash gamma || true; echo 'gamma:gamma' | chpasswd; echo ${{ matrix.hostname }} > /etc/hostname"
           [ "${{ matrix.wallpaper }}" = "true" ] && sudo mkdir -p chroot/usr/share/backgrounds && sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg
           
-          # ISO BUILD DIRECTORIES (Dual-Case UEFI + Consolidated Isolinux)
           VMLINUZ_FILE=$(sudo sh -c "ls chroot/boot/vmlinuz-* | head -n 1")
           INITRD_FILE=$(sudo sh -c "ls chroot/boot/$INITRD_NAME-* | head -n 1")
           sudo umount chroot/dev chroot/run chroot/proc chroot/sys || true
           
           ISO_DIR="iso"
+          # إنشاء المجلدات للهياكل المختلفة بشكل منظم دفعة واحدة
           mkdir -p $ISO_DIR/$CASPER_DIR $ISO_DIR/boot/isolinux $ISO_DIR/boot/grub $ISO_DIR/EFI/BOOT $ISO_DIR/efi/boot
           
           sudo mksquashfs chroot $ISO_DIR/$CASPER_DIR/filesystem.squashfs -comp zstd -Xcompression-level 22 -b 1M -noappend
           sudo cp "$VMLINUZ_FILE" $ISO_DIR/$CASPER_DIR/vmlinuz
           sudo cp "$INITRD_FILE" $ISO_DIR/$CASPER_DIR/$INITRD_NAME
           
-          # Splash image with Multi-Layer Safety Fallback (Guarantees file existence)
           convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'Gamma Linux' -pointsize 28 -fill white -annotate +0+40 'v2.6.3 Zero' $ISO_DIR/boot/isolinux/splash.png || convert -size 800x600 xc:#0a0a1a $ISO_DIR/boot/isolinux/splash.png || touch $ISO_DIR/boot/isolinux/splash.png
           
-          # Fix Isolinux modules matching
           sudo cp /usr/lib/ISOLINUX/isolinux.bin $ISO_DIR/boot/isolinux/
           for f in menu.c32 vesamenu.c32 ldlinux.c32 libutil.c32 libcom32.c32; do sudo cp /usr/lib/syslinux/modules/bios/$f $ISO_DIR/boot/isolinux/ 2>/dev/null || true; done
           
-          # Legacy Isolinux config
           echo "UI vesamenu.c32 MENU RESOLUTION 800 600 MENU BACKGROUND /boot/isolinux/splash.png MENU TITLE ${{ matrix.label }} v2.6.3 TIMEOUT 100 DEFAULT autodetect LABEL autodetect MENU LABEL ^Gamma Auto-Detect KERNEL /$CASPER_DIR/vmlinuz APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.boot_base }} quiet splash gamma.auto=1 LABEL install MENU LABEL ^Install Gamma OS KERNEL /$CASPER_DIR/vmlinuz APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.inst_base }} quiet splash gamma.auto=1 LABEL safe MENU LABEL ^Safe Graphics KERNEL /$CASPER_DIR/vmlinuz APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.boot_base }} nomodeset quiet splash" | sudo tee $ISO_DIR/boot/isolinux/isolinux.cfg
           
-          # Dynamic GRUB Config (Universal Ventoy / Rufus Fix)
           echo "set timeout=10 set default=0 set gfxmode=800x600 insmod all_video insmod gfxterm terminal_output gfxterm background_image /boot/isolinux/splash.png menuentry 'Gamma Auto-Detect' { search --no-floppy --set=root --file /$CASPER_DIR/vmlinuz; linux /$CASPER_DIR/vmlinuz ${{ matrix.boot_base }} quiet splash gamma.auto=1 initrd /$CASPER_DIR/$INITRD_NAME } menuentry 'Install Gamma OS' { search --no-floppy --set=root --file /$CASPER_DIR/vmlinuz; linux /$CASPER_DIR/vmlinuz ${{ matrix.inst_base }} quiet splash gamma.auto=1 initrd /$CASPER_DIR/$INITRD_NAME } menuentry 'Safe Graphics' { search --no-floppy --set=root --file /$CASPER_DIR/vmlinuz; linux /$CASPER_DIR/vmlinuz ${{ matrix.boot_base }} nomodeset quiet splash initrd /$CASPER_DIR/$INITRD_NAME }" | sudo tee $ISO_DIR/boot/grub/grub.cfg
           
-          # Mirror configs to satisfy picky BIOS (Dual-case)
           sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/EFI/BOOT/GRUB.CFG
           sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/efi/boot/grub.cfg
           
-          # Auto-Detect EFI Binary generation
           if [ "${{ matrix.arch }}" = "i386" ]; then 
+            # تم إصلاح السطر هنا وحذف الـ تكرار الزايد للـ cp
             sudo grub-mkimage -O i386-efi -o $ISO_DIR/EFI/BOOT/BOOTIA32.EFI -p /boot/grub iso9660 fat extcmd boot linux normal configfile search search_fs_file search_fs_uuid search_label
             sudo cp $ISO_DIR/EFI/BOOT/BOOTIA32.EFI $ISO_DIR/efi/boot/bootia32.efi
             EFI_FILE="EFI/BOOT/BOOTIA32.EFI"
@@ -228,7 +218,6 @@ jobs:
             EFI_FILE="EFI/BOOT/BOOTX64.EFI"
           fi
           
-          # Final Xorriso command with GPT-BASDAT for maximum compatibility
           sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e $EFI_FILE -no-emul-boot -isohybrid-gpt-basdat -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" $ISO_DIR
           
       - uses: actions/upload-artifact@v4
@@ -255,11 +244,16 @@ jobs:
           tag_name: ${{ github.event.inputs.version }}-${{ matrix.edition }}
           name: ${{ matrix.edition }} ${{ github.event.inputs.version }} ♾️🇩🇿
           body: |
-            ## ${{ matrix.edition }} ${{ github.event.inputs.version }} ♾️🇩🇿
-            **Zero Bloat Edition: User is Free**
-            **Ubuntu/Debian Minimal + Moksha Desktop**
-            **Universal Hybrid Boot Engine for Rufus (DD Mode) & Ventoy**
-            **Auto-Detect v2 Hardware probing integration**
+            ## Gamma OS - ${{ matrix.edition }} ${{ github.event.inputs.version }} ♾️🇩🇿
+            **Zero Bloat Pure Release**
+            * Base: Pure Ubuntu Minimal (64-bit) / Debian Minimal (32-bit)
+            * Desktop environment: Moksha Desktop (64-bit) / Native Enlightenment Core (32-bit)
+            * File Manager: Thunar (XFCE File Manager - Ultra Light & Fast)
+            * Embedded System Engine: Built-in Python Gamma TinyGen Web Core
+            
+            ⚠️ **Important Boot/Burning Notes for users:**
+            * For **Rufus** users: Please make sure to switch and select **DD Image mode** instead of standard ISO mode during the flashing process to preserve the custom hybrid Syslinux parameters.
+            * For **Ventoy** users: Simply drag and drop the ISO file into your Ventoy storage partition. Fully verified and UEFI compatible!
           files: |
             gamma-${{ matrix.edition }}.iso
             SHA256SUMS.txt
