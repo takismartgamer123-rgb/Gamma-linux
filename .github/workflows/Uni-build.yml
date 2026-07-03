@@ -20,7 +20,7 @@ jobs:
           - edition: legacy-32
             arch: i386
             base: debian
-            packages: "linux-image-686-pae task-standard --no-install-recommends enlightenment terminology thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager zram-to[...]
+            packages: "linux-image-686-pae task-standard --no-install-recommends enlightenment terminology thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager zram-tools"
             zram: "200"
             swappiness: "100"
             vfs: "150"
@@ -35,7 +35,7 @@ jobs:
           - edition: lite-ghost
             arch: amd64
             base: ubuntu
-            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha packagekit bodhi-desktop-e17 thunar materia-gtk-theme papirus-icon-theme lightdm [...]
+            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha packagekit bodhi-desktop-e17 thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager"
             zram: "75"
             swappiness: "100"
             vfs: "100"
@@ -50,7 +50,7 @@ jobs:
           - edition: pro-maxmini
             arch: amd64
             base: ubuntu
-            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha packagekit bodhi-desktop-e17 thunar materia-gtk-theme papirus-icon-theme lightdm [...]
+            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha packagekit bodhi-desktop-e17 thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager"
             zram: "40"
             swappiness: "80"
             vfs: "50"
@@ -77,7 +77,6 @@ jobs:
       - name: Install Build Tools
         run: |
           sudo apt-get update
-          # dpkg-scanpackages is provided by dpkg-dev; do not list the utility name itself as a package.
           sudo apt-get install -y \
             debootstrap \
             squashfs-tools \
@@ -109,41 +108,40 @@ jobs:
         run: |
           set -e
           if [ "${{ matrix.base }}" = "debian" ]; then
-            sudo debootstrap --arch=i386 bookworm chroot http://deb.debian.org/debian/ ; CASPER_DIR="live"; INITRD_NAME="initrd.img"
+            sudo debootstrap --arch=i386 bookworm chroot http://deb.debian.org/debian/
+            CASPER_DIR="live"
+            INITRD_NAME="initrd.img"
           else
-            sudo debootstrap --arch=amd64 jammy chroot http://archive.ubuntu.com/ubuntu/ ; CASPER_DIR="casper"; INITRD_NAME="initrd.lz"
+            sudo debootstrap --arch=amd64 jammy chroot http://archive.ubuntu.com/ubuntu/
+            CASPER_DIR="casper"
+            INITRD_NAME="initrd.lz"
           fi
+          
           sudo mount --bind /dev chroot/dev && sudo mount --bind /run chroot/run
           sudo mount -t proc none chroot/proc && sudo mount -t sysfs none chroot/sys
           echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
           
-          # إعداد مستودعات النظام ومستودع Bodhi Linux الرسمي لحزمة Moksha
           if [ "${{ matrix.base }}" = "ubuntu" ]; then
             echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee chroot/etc/apt/sources.list
             echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
             echo "deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
-            
-            # إضافة مستودع Bodhi Linux
             echo "deb [trusted=yes] http://packages.bodhilinux.com/bodhi jammy b5main" | sudo tee chroot/etc/apt/sources.list.d/bodhi.list
           fi
           
           sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get update
           
-          # الحذف والتثبيت
           [ -n "${{ matrix.purge }}" ] && sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get remove -y --purge ${{ matrix.purge }} || true
           sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${{ matrix.packages }} || (sudo chroot chroot apt-get install -fy && sudo chroot chroot apt-get install -y --no-install-recommends ${{ matrix.packages }})
           
-          # إعدادات سطح المكتب الافتراضية للـ Skel
           sudo mkdir -p chroot/etc/skel/.e/e/config/standard
           echo 'theme: "Materia-dark"' | sudo tee chroot/etc/skel/.e/e/config/standard/e.cfg
           echo 'icon_theme: "Papirus-Dark"' | sudo tee -a chroot/etc/skel/.e/e/config/standard/e.cfg
           echo 'composite: "0"' | sudo tee -a chroot/etc/skel/.e/e/config/standard/e.cfg
 
-          # سكربت التخصيص التلقائي (Auto-Detect) لتهيئة العتاد أثناء الإقلاع
           KERNEL_VERSION=$(ls chroot/lib/modules/ | head -n 1)
           sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION"
           sudo mkdir -p chroot/usr/share/initramfs-tools/scripts/casper-bottom/
-          cat << 'EOF' | sed "s/CASPER_DIR/$CASPER_DIR/g" | sed "s/INITRD_NAME/$INITRD_NAME/g" | sudo tee chroot/usr/share/initramfs-tools/scripts/casper-bottom/99gamma-auto
+          cat << 'EOFSCRIPT' | sed "s|CASPER_DIR|$CASPER_DIR|g" | sed "s|INITRD_NAME|$INITRD_NAME|g" | sudo tee chroot/usr/share/initramfs-tools/scripts/casper-bottom/99gamma-auto
           #!/bin/sh
           if [ "$gamma_auto" = "1" ]; then
             CMDLINE="quiet splash zswap.enabled=1 zswap.compressor=lz4 zswap.zpool=zsmalloc"
@@ -152,9 +150,9 @@ jobs:
             lspci -nn | grep -q "1002:" && CMDLINE="radeon.modeset=0 $CMDLINE"
             lspci -nn | grep -q "10de:" && CMDLINE="nouveau.modeset=0 $CMDLINE"
             [ ! -f /sys/firmware/efi ] && CMDLINE="acpi_osi=Linux $CMDLINE"
-            command -v kexec >/dev/null && [ "$CMDLINE" != "quiet splash" ] && kexec -l /CASPER_DIR/vmlinuz --initrd=/CASPER_DIR/INITRD_NAME --append="gamma.auto=0 $CMDLINE" 2>/dev/null && kexec [...]
+            command -v kexec >/dev/null && [ "$CMDLINE" != "quiet splash" ] && kexec -l /CASPER_DIR/vmlinuz --initrd=/CASPER_DIR/INITRD_NAME --append="gamma.auto=0 $CMDLINE" 2>/dev/null && kexec -e
           fi
-          EOF
+          EOFSCRIPT
           sudo chmod +x chroot/usr/share/initramfs-tools/scripts/casper-bottom/99gamma-auto
           
           if [ "${{ matrix.edition }}" = "pro-maxmini" ]; then
@@ -166,19 +164,30 @@ jobs:
           if [ "${{ matrix.base }}" = "debian" ]; then
             echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap
           else
-            echo -e '#!/bin/sh\n/sbin/modprobe zram\necho $(($(sysctl -n vm.totalhigh_pages) * 4096 * '${{ matrix.zram }}' / 100)) > /sys/block/zram0/disksize\n/sbin/mkswap /dev/zram0\n/sbin/swap[...]
+            cat << 'EOFZRAM' | sudo tee chroot/etc/init.d/zramswap
+          #!/bin/sh
+          /sbin/modprobe zram
+          echo $(($(sysctl -n vm.totalhigh_pages) * 4096 * ${{ matrix.zram }} / 100)) > /sys/block/zram0/disksize
+          /sbin/mkswap /dev/zram0
+          /sbin/swapon /dev/zram0
+          EOFZRAM
             sudo chmod +x chroot/etc/init.d/zramswap
           fi
-          echo -e "vm.swappiness=${{ matrix.swappiness }}\nvm.vfs_cache_pressure=${{ matrix.vfs }}\nvm.dirty_ratio=${{ matrix.dirty }}\nvm.overcommit_memory=1" | sudo tee chroot/etc/sysctl.d/99-z[...]
+          
+          cat << 'EOFSYSCTL' | sudo tee chroot/etc/sysctl.d/99-gamma.conf
+          vm.swappiness=${{ matrix.swappiness }}
+          vm.vfs_cache_pressure=${{ matrix.vfs }}
+          vm.dirty_ratio=${{ matrix.dirty }}
+          vm.overcommit_memory=1
+          EOFSYSCTL
+          
           sudo chroot chroot systemctl disable NetworkManager-wait-online.service || true
           sudo chroot chroot bash -c "useradd -m -s /bin/bash gamma || true; echo 'gamma:gamma' | chpasswd; echo ${{ matrix.hostname }} > /etc/hostname"
           [ "${{ matrix.wallpaper }}" = "true" ] && sudo mkdir -p chroot/usr/share/backgrounds && sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg
 
-          # تنظيف البيئة
           sudo rm -f chroot/etc/apt/sources.list.d/bodhi.list
           sudo chroot chroot apt-get clean
 
-          # فك الارتباط واستخراج الملفات الأساسية للأيزو
           VMLINUZ_FILE=$(sudo sh -c "ls chroot/boot/vmlinuz-* | head -n 1")
           INITRD_FILE=$(sudo sh -c "ls chroot/boot/$INITRD_NAME-* | head -n 1")
           sudo umount chroot/dev chroot/run chroot/proc chroot/sys || true
@@ -189,23 +198,46 @@ jobs:
           sudo cp "$VMLINUZ_FILE" $ISO_DIR/$CASPER_DIR/vmlinuz
           sudo cp "$INITRD_FILE" $ISO_DIR/$CASPER_DIR/$INITRD_NAME
           
-          # توليد صورة الخلفية لقائمة الإقلاع
-          convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'GAMMA OS' -pointsize 28 -fill white -annotate +0+40 'v2.6.5 Tank' [...]
+          convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'GAMMA OS' -pointsize 28 -fill white -annotate +0+40 'v2.6.5 Tank' $ISO_DIR/boot/isolinux/splash.png
           
           sudo cp /usr/lib/ISOLINUX/isolinux.bin $ISO_DIR/boot/isolinux/
           for f in menu.c32 vesamenu.c32 ldlinux.c32 libutil.c32 libcom32.c32; do sudo cp /usr/lib/syslinux/modules/bios/$f $ISO_DIR/boot/isolinux/ 2>/dev/null || true; done
           
-          echo "UI vesamenu.c32 MENU RESOLUTION 800 600 MENU BACKGROUND /boot/isolinux/splash.png MENU TITLE ${{ matrix.label }} v2.6.5 TIMEOUT 100 DEFAULT autodetect LABEL autodetect MENU LABEL [...]
-          echo "set timeout=10 set default=0 set gfxmode=800x600 insmod all_video insmod gfxterm terminal_output gfxterm background_image /boot/isolinux/splash.png menuentry 'Gamma Auto-Detect' {[...]
+          cat << 'EOFISOLINUX' | sudo tee $ISO_DIR/boot/isolinux/isolinux.cfg
+          UI vesamenu.c32
+          MENU RESOLUTION 800 600
+          MENU BACKGROUND /boot/isolinux/splash.png
+          MENU TITLE ${{ matrix.label }} v2.6.5
+          TIMEOUT 100
+          DEFAULT autodetect
+          LABEL autodetect
+          MENU LABEL ^Gamma Auto-Detect
+          KERNEL /casper/vmlinuz
+          APPEND initrd=/casper/initrd.lz boot=casper gamma_auto=1 quiet splash
+          EOFISOLINUX
+          
+          cat << 'EOFGRUB' | sudo tee $ISO_DIR/boot/grub/grub.cfg
+          set timeout=10
+          set default=0
+          set gfxmode=800x600
+          insmod all_video
+          insmod gfxterm
+          terminal_output gfxterm
+          background_image /boot/isolinux/splash.png
+          
+          menuentry 'Gamma Auto-Detect' {
+            search --set=root --label GAMMA
+            echo 'Loading Gamma OS...'
+            linux /casper/vmlinuz boot=casper gamma_auto=1 quiet splash
+            initrd /casper/initrd.lz
+          }
+          EOFGRUB
           
           sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/EFI/BOOT/GRUB.CFG
           sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/EFI/BOOT/grub.cfg
           sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/efi/boot/GRUB.CFG
           sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/efi/boot/grub.cfg
           
-          # =====================================================================
-          # بناء ملفات الإقلاع الحيوية الـ EFI
-          # =====================================================================
           dd if=/dev/zero of=$ISO_DIR/boot/grub/efi.img bs=1M count=4
           mkfs.vfat $ISO_DIR/boot/grub/efi.img
           mmd -i $ISO_DIR/boot/grub/efi.img ::/EFI ::/EFI/BOOT
@@ -237,7 +269,6 @@ jobs:
             cp /tmp/grubx64.efi $ISO_DIR/efi/boot/grubx64.efi
           fi
           
-          # إنتاج الـ ISO النهائي الهجين
           sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long \
             -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
             -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
@@ -266,8 +297,8 @@ jobs:
           name: ${{ matrix.edition }} ${{ github.event.inputs.version }} Tank
           body: |
             ## Gamma OS - ${{ matrix.edition }} ${{ github.event.inputs.version }}
-            **تمت تصفية حزم الـ APT وتصحيح بنية السينتكس لقالب بناء الأيزو.**
-          files: | 
+            **ISO build and release automation for Gamma OS variants.**
+          files: |
             gamma-${{ matrix.edition }}.iso
             SHA256SUMS.txt
         env:
