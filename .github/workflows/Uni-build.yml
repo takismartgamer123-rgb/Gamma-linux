@@ -14,53 +14,53 @@ jobs:
     timeout-minutes: 180
     strategy: 
       fail-fast: false
-    matrix:
-      include:
-        # ============= 1. LEGACY-NANO = 512MB =============
-        - edition: legacy-nano
-          arch: i386
-          base: debian
-          packages: "linux-image-686-pae task-standard --no-install-recommends enlightenment terminology thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager zram-tools tl[...]
-          zram: "200"
-          swappiness: "100"
-          vfs: "150"
-          dirty: "5"
-          purge: "locales-all language-pack-* cups* bluetooth* printer-driver* speech-dispatcher* pulseaudio*"
-          hostname: "gamma-nano"
-          wallpaper: ""
-          label: "Gamma Legacy-Nano"
-          boot_base: "boot=live"
-          inst_base: "boot=live autostart=calamares"
-        # ============= 2. LITE-GHOST = 1GB =============
-        - edition: lite-ghost
-          arch: amd64
-          base: ubuntu
-          packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha-desktop thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manag[...]
-          zram: "75"
-          swappiness: "100"
-          vfs: "100"
-          dirty: "10"
-          purge: "snapd* flatpak* cups* printer-driver* bluetooth* geoclue* evolution* gnome-software* locales-all language-pack-*"
-          hostname: "gamma-lite"
-          wallpaper: "true"
-          label: "Gamma Lite-Ghost"
-          boot_base: "boot=casper"
-          inst_base: "boot=casper only-ubiquity"
-        # ============= 3. PRO-BEAST = 4GB+ =============
-        - edition: pro-beast
-          arch: amd64
-          base: ubuntu
-          packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha-desktop thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manag[...]
-          zram: "40"
-          swappiness: "80"
-          vfs: "50"
-          dirty: "20"
-          purge: "snapd* flatpak* locales-all language-pack-*"
-          hostname: "gamma-beast"
-          wallpaper: "true"
-          label: "Gamma Pro-Beast"
-          boot_base: "boot=casper"
-          inst_base: "boot=casper only-ubiquity"
+      matrix:
+        include:
+          # ============= 1. LEGACY-NANO = 512MB =============
+          - edition: legacy-nano
+            arch: i386
+            base: debian
+            packages: "linux-image-686-pae task-standard --no-install-recommends enlightenment terminology thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager zram-tools"
+            zram: "200"
+            swappiness: "100"
+            vfs: "150"
+            dirty: "5"
+            purge: "locales-all language-pack-* cups* bluetooth* printer-driver* speech-dispatcher* pulseaudio*"
+            hostname: "gamma-nano"
+            wallpaper: ""
+            label: "Gamma Legacy-Nano"
+            boot_base: "boot=live"
+            inst_base: "boot=live autostart=calamares"
+          # ============= 2. LITE-GHOST = 1GB =============
+          - edition: lite-ghost
+            arch: amd64
+            base: ubuntu
+            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha-desktop thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager"
+            zram: "75"
+            swappiness: "100"
+            vfs: "100"
+            dirty: "10"
+            purge: "snapd* flatpak* cups* printer-driver* bluetooth* geoclue* evolution* gnome-software* locales-all language-pack-*"
+            hostname: "gamma-lite"
+            wallpaper: "true"
+            label: "Gamma Lite-Ghost"
+            boot_base: "boot=casper"
+            inst_base: "boot=casper only-ubiquity"
+          # ============= 3. PRO-BEAST = 4GB+ =============
+          - edition: pro-beast
+            arch: amd64
+            base: ubuntu
+            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends moksha-desktop thunar materia-gtk-theme papirus-icon-theme lightdm slick-greeter network-manager"
+            zram: "40"
+            swappiness: "80"
+            vfs: "50"
+            dirty: "20"
+            purge: "snapd* flatpak* locales-all language-pack-*"
+            hostname: "gamma-beast"
+            wallpaper: "true"
+            label: "Gamma Pro-Beast"
+            boot_base: "boot=casper"
+            inst_base: "boot=casper only-ubiquity"
 
     steps:
       - uses: actions/checkout@v4
@@ -77,7 +77,7 @@ jobs:
       - name: Install Build Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y debootstrap squashfs-tools xorriso wget rsync zstd isolinux syslinux-common mtools dosfstools kexec-tools dmidecode pciutils imagemagick dpkg-dev dpkg-scanpackages p7[...]
+          sudo apt-get install -y debootstrap squashfs-tools xorriso wget rsync zstd isolinux syslinux-common mtools dosfstools kexec-tools dmidecode pciutils imagemagick dpkg-dev dpkg-scanpackages p7zip-full
           if [ "${{ matrix.arch }}" = "i386" ]; then
             sudo apt-get install -y grub-pc-bin grub-efi-ia32-bin binutils
           else
@@ -109,16 +109,16 @@ jobs:
           if [ ! -f local_repo/moksha-desktop*.deb ]; then
             mkdir -p local_repo/fake
             cat > local_repo/fake/Packages << 'EOF'
-Package: moksha-desktop
-Version: 1.0.0-fake
-Architecture: amd64
-Description: Moksha Desktop Environment
+          Package: moksha-desktop
+          Version: 1.0.0-fake
+          Architecture: amd64
+          Description: Moksha Desktop Environment
 
-Package: moksha-data
-Version: 1.0.0-fake
-Architecture: all
-Description: Moksha Data Files
-EOF
+          Package: moksha-data
+          Version: 1.0.0-fake
+          Architecture: all
+          Description: Moksha Data Files
+          EOF
             gzip -k -f local_repo/fake/Packages
             mv local_repo/fake/Packages.gz local_repo/Packages.gz
           fi
@@ -130,9 +130,13 @@ EOF
         run: |
           set -e
           if [ "${{ matrix.base }}" = "debian" ]; then
-            sudo debootstrap --arch=i386 bookworm chroot http://deb.debian.org/debian/ ; CASPER_DIR="live"; INITRD_NAME="initrd.img"
+            sudo debootstrap --arch=i386 bookworm chroot http://deb.debian.org/debian/
+            CASPER_DIR="live"
+            INITRD_NAME="initrd.img"
           else
-            sudo debootstrap --arch=amd64 jammy chroot http://archive.ubuntu.com/ubuntu/ ; CASPER_DIR="casper"; INITRD_NAME="initrd.lz"
+            sudo debootstrap --arch=amd64 jammy chroot http://archive.ubuntu.com/ubuntu/
+            CASPER_DIR="casper"
+            INITRD_NAME="initrd.lz"
           fi
           sudo mount --bind /dev chroot/dev && sudo mount --bind /run chroot/run
           sudo mount -t proc none chroot/proc && sudo mount -t sysfs none chroot/sys
@@ -149,8 +153,8 @@ EOF
           fi
           sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get update
           [ -n "${{ matrix.purge }}" ] && sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get remove -y --purge ${{ matrix.purge }} || true
-          sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${{ matrix.packages }} || (sudo chroot chroot apt-get install -fy && sudo chroot chroot apt-g[...]
-          
+          sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${{ matrix.packages }} || (sudo chroot chroot apt-get install -fy && sudo chroot chroot apt-get install -y --no-install-recommends ${{ matrix.packages }})
+
           # Theme Config
           sudo mkdir -p chroot/etc/skel/.e/e/config/standard
           echo 'theme: "Materia-dark"' | sudo tee chroot/etc/skel/.e/e/config/standard/e.cfg
@@ -170,23 +174,23 @@ EOF
             lspci -nn | grep -q "1002:" && CMDLINE="radeon.modeset=0 $CMDLINE"
             lspci -nn | grep -q "10de:" && CMDLINE="nouveau.modeset=0 $CMDLINE"
             [ ! -f /sys/firmware/efi ] && CMDLINE="acpi_osi=Linux $CMDLINE"
-            command -v kexec >/dev/null && [ "$CMDLINE" != "quiet splash" ] && kexec -l /CASPER_DIR/vmlinuz --initrd=/CASPER_DIR/INITRD_NAME --append="gamma.auto=0 $CMDLINE" 2>/dev/null && kexec -e 2>[...]
+            command -v kexec >/dev/null && [ "$CMDLINE" != "quiet splash" ] && kexec -l /CASPER_DIR/vmlinuz --initrd=/CASPER_DIR/INITRD_NAME --append="gamma.auto=0 $CMDLINE" 2>/dev/null && kexec -e 2>/dev/null
           fi
           EOF
           sudo chmod +x chroot/usr/share/initramfs-tools/scripts/casper-bottom/99gamma-auto
-          
+
           if [ "${{ matrix.edition }}" = "pro-beast" ]; then
             sudo mkdir -p chroot/etc/systemd/system/earlyoom.service.d
             echo -e '[Service]\nExecStart=\nExecStart=/usr/bin/earlyoom -m 5 -s 15 -r 60' | sudo tee chroot/etc/systemd/system/earlyoom.service.d/override.conf
             sudo chroot chroot systemctl enable earlyoom || true
           fi
-          
+
           if [ "${{ matrix.base }}" = "debian" ]; then
             echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap
           else
-            echo -e '#!/bin/sh\n/sbin/modprobe zram\necho $(($(sysctl -n vm.totalhigh_pages) * 4096 * '${{ matrix.zram }}' / 100)) > /sys/block/zram0/disksize\n/sbin/mkswap /dev/zram0\n/sbin/swapon -p[...]
+            echo -e '#!/bin/sh\n/sbin/modprobe zram\necho $(($(sysctl -n vm.totalhigh_pages) * 4096 * '${{ matrix.zram }}' / 100)) > /sys/block/zram0/disksize\n/sbin/mkswap /dev/zram0\n/sbin/swapon -p 32767 /dev/zram0' | sudo tee chroot/etc/init.d/zram-swap
           fi
-          echo -e "vm.swappiness=${{ matrix.swappiness }}\nvm.vfs_cache_pressure=${{ matrix.vfs }}\nvm.dirty_ratio=${{ matrix.dirty }}\nvm.overcommit_memory=1" | sudo tee chroot/etc/sysctl.d/99-zram.c[...]
+          echo -e "vm.swappiness=${{ matrix.swappiness }}\nvm.vfs_cache_pressure=${{ matrix.vfs }}\nvm.dirty_ratio=${{ matrix.dirty }}\nvm.overcommit_memory=1" | sudo tee chroot/etc/sysctl.d/99-zram.conf
           sudo chroot chroot systemctl disable NetworkManager-wait-online.service || true
           sudo chroot chroot bash -c "useradd -m -s /bin/bash gamma || true; echo 'gamma:gamma' | chpasswd; echo ${{ matrix.hostname }} > /etc/hostname"
           [ "${{ matrix.wallpaper }}" = "true" ] && sudo mkdir -p chroot/usr/share/backgrounds && sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg
@@ -199,25 +203,25 @@ EOF
           VMLINUZ_FILE=$(sudo sh -c "ls chroot/boot/vmlinuz-* | head -n 1")
           INITRD_FILE=$(sudo sh -c "ls chroot/boot/$INITRD_NAME-* | head -n 1")
           sudo umount chroot/dev chroot/run chroot/proc chroot/sys || true
-          
+
           ISO_DIR="iso"
           mkdir -p $ISO_DIR/$CASPER_DIR $ISO_DIR/boot/isolinux $ISO_DIR/boot/grub $ISO_DIR/EFI/BOOT $ISO_DIR/efi/boot
           sudo mksquashfs chroot $ISO_DIR/$CASPER_DIR/filesystem.squashfs -comp zstd -Xcompression-level 22 -b 1M -noappend
           sudo cp "$VMLINUZ_FILE" $ISO_DIR/$CASPER_DIR/vmlinuz
           sudo cp "$INITRD_FILE" $ISO_DIR/$CASPER_DIR/$INITRD_NAME
-          convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'GAMMA OS' -pointsize 28 -fill white -annotate +0+40 'v2.6.5 Tank' $ISO_[...]
+          convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'GAMMA OS' -pointsize 28 -fill white -annotate +0+40 'v2.6.5 Tank' $ISO_DIR/boot/isolinux/splash.png
           sudo cp /usr/lib/ISOLINUX/isolinux.bin $ISO_DIR/boot/isolinux/
           for f in menu.c32 vesamenu.c32 ldlinux.c32 libutil.c32 libcom32.c32; do sudo cp /usr/lib/syslinux/modules/bios/$f $ISO_DIR/boot/isolinux/ 2>/dev/null || true; done
-          
-          echo "UI vesamenu.c32 MENU RESOLUTION 800 600 MENU BACKGROUND /boot/isolinux/splash.png MENU TITLE ${{ matrix.label }} v2.6.5 TIMEOUT 100 DEFAULT autodetect LABEL autodetect MENU LABEL ^Gamm[...]
-          echo "set timeout=10 set default=0 set gfxmode=800x600 insmod all_video insmod gfxterm terminal_output gfxterm background_image /boot/isolinux/splash.png menuentry 'Gamma Auto-Detect' { sear[...]
-          
+
+          echo "UI vesamenu.c32 MENU RESOLUTION 800 600 MENU BACKGROUND /boot/isolinux/splash.png MENU TITLE ${{ matrix.label }} v2.6.5 TIMEOUT 100 DEFAULT autodetect LABEL autodetect MENU LABEL ^Gamma Auto-Detect KERNEL ../casper/vmlinuz APPEND boot=casper quiet splash" | sudo tee $ISO_DIR/boot/isolinux/isolinux.cfg
+          echo "set timeout=10 set default=0 set gfxmode=800x600 insmod all_video insmod gfxterm terminal_output gfxterm background_image /boot/isolinux/splash.png menuentry 'Gamma Auto-Detect' { search --no-floppy --label GAMMA_${{ matrix.edition }} --set root linux /casper/vmlinuz boot=casper quiet splash }" | sudo tee $ISO_DIR/boot/grub/grub.cfg
+
           # نسخ اعدادات الـ Grub لكل المسارات الممكنة
           sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/EFI/BOOT/GRUB.CFG
           sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/EFI/BOOT/grub.cfg
           sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/efi/boot/GRUB.CFG
           sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/efi/boot/grub.cfg
-          
+
           # =====================================================================
           # 🚨 الـ EFI الاستراتيجي: نسخ كل الصيغ لتجاوز مشاكل Case Sensitivity
           # =====================================================================
@@ -228,36 +232,36 @@ EOF
           if [ "${{ matrix.arch }}" = "i386" ]; then
             sudo grub-mkimage -O i386-efi -o /tmp/BOOTIA32.EFI -p /boot/grub iso9660 fat extcmd boot linux normal configfile search search_fs_file search_fs_uuid search_label
             mcopy -i $ISO_DIR/boot/grub/efi.img /tmp/BOOTIA32.EFI ::/EFI/BOOT/BOOTIA32.EFI
-            
+
             # نسخ بكل الصيغ (كبيرة/صغيرة) لمجلد EFI
             cp /tmp/BOOTIA32.EFI $ISO_DIR/EFI/BOOT/BOOTIA32.EFI
             cp /tmp/BOOTIA32.EFI $ISO_DIR/EFI/BOOT/bootia32.efi
-            
+
             # نسخ بكل الصيغ (كبيرة/صغيرة) لمجلد efi
             cp /tmp/BOOTIA32.EFI $ISO_DIR/efi/boot/BOOTIA32.EFI
             cp /tmp/BOOTIA32.EFI $ISO_DIR/efi/boot/bootia32.efi
           else
             cp /usr/lib/shim/shimx64.efi.signed /tmp/BOOTX64.EFI || cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /tmp/BOOTX64.EFI
             cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /tmp/grubx64.efi || touch /tmp/grubx64.efi
-            
+
             # حقن داخل الـ FAT Image (نظام الـ FAT يعتمد على الحروف الكبيرة كمعيار)
             mcopy -i $ISO_DIR/boot/grub/efi.img /tmp/BOOTX64.EFI ::/EFI/BOOT/BOOTX64.EFI
             mcopy -i $ISO_DIR/boot/grub/efi.img /tmp/grubx64.efi ::/EFI/BOOT/GRUBX64.EFI
             mcopy -i $ISO_DIR/boot/grub/efi.img /tmp/grubx64.efi ::/EFI/BOOT/grubx64.efi
-            
+
             # نسخ بكل الصيغ (كبيرة/صغيرة) لمجلد EFI
             cp /tmp/BOOTX64.EFI $ISO_DIR/EFI/BOOT/BOOTX64.EFI
             cp /tmp/BOOTX64.EFI $ISO_DIR/EFI/BOOT/bootx64.efi
             cp /tmp/grubx64.efi $ISO_DIR/EFI/BOOT/GRUBX64.EFI
             cp /tmp/grubx64.efi $ISO_DIR/EFI/BOOT/grubx64.efi
-            
+
             # نسخ بكل الصيغ (كبيرة/صغيرة) لمجلد efi
             cp /tmp/BOOTX64.EFI $ISO_DIR/efi/boot/BOOTX64.EFI
             cp /tmp/BOOTX64.EFI $ISO_DIR/efi/boot/bootx64.efi
             cp /tmp/grubx64.efi $ISO_DIR/efi/boot/GRUBX64.EFI
             cp /tmp/grubx64.efi $ISO_DIR/efi/boot/grubx64.efi
           fi
-          
+
           # بناء الـ ISO النهائي مع ربط الـ efi.img
           sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long \
             -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
@@ -289,7 +293,7 @@ EOF
             ## Gamma OS - ${{ matrix.edition }} ${{ github.event.inputs.version }} Tank
             **Full Compatibility: BIOS Legacy + UEFI + IA32 (Ultra HP Hardware Compatible Layout)**
             **Features: ZRAM, Auto-Detect, EarlyOOM, Moksha/Enlightenment**
-          files: | 
+          files: |
             gamma-${{ matrix.edition }}.iso
             SHA256SUMS.txt
         env:
