@@ -85,10 +85,11 @@ jobs:
           sudo rm -f chroot/etc/resolv.conf && echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
           
           if [ "${{ matrix.base }}" = "ubuntu" ]; then 
-            echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee chroot/etc/apt/sources.list
-            echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
-            echo "deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
-            echo "deb [trusted=yes] http://packages.bodhilinux.com/bodhi jammy b6main" | sudo tee -a chroot/etc/apt/sources.list
+          echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee chroot/etc/apt/sources.list
+          echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
+          echo "deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
+          sudo chroot chroot apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 57CE159590828213 || true
+          echo "deb [trusted=yes] http://packages.bodhilinux.com/bodhi jammy main" | sudo tee -a chroot/etc/apt/sources.list
           fi
           
           sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get update
