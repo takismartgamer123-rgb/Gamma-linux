@@ -69,13 +69,14 @@ jobs:
       - name: Build ISO
         run: |
           set -e
-          if [ "${{ matrix.base }}" = "debian" ]; then sudo debootstrap --arch=i386 bookworm chroot http://deb.debian.org/debian/ CASPER_DIR="live"; INITRD_NAME="initrd.img"
-          else sudo debootstrap --arch=amd64 jammy chroot http://archive.ubuntu.com/ubuntu/ CASPER_DIR="casper"; INITRD_NAME="initrd.lz"
+          if [ "${{ matrix.base }}" = "debian" ]; then sudo debootstrap --arch=i386 bookworm chroot http://deb.debian.org/debian/ ; CASPER_DIR="live"; INITRD_NAME="initrd.img"
+          else sudo debootstrap --arch=amd64 jammy chroot http://archive.ubuntu.com/ubuntu/ ; CASPER_DIR="casper"; INITRD_NAME="initrd.lz"
           fi
           sudo mount --bind /dev chroot/dev && sudo mount --bind /run chroot/run
           sudo mount -t proc none chroot/proc && sudo mount -t sysfs none chroot/sys
           sudo rm -f chroot/etc/resolv.conf && echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
           if [ "${{ matrix.base }}" = "ubuntu" ]; then echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee chroot/etc/apt/sources.list; echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list; echo "deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list; fi
+          
           # ZERO BLOAT PACKAGES + 3 LANGUAGES ONLY
           sudo chroot chroot apt-get update
           [ -n "${{ matrix.purge }}" ] && sudo chroot chroot apt-get remove -y --purge ${{ matrix.purge }} || true
@@ -86,6 +87,7 @@ jobs:
           sudo mkdir -p chroot/etc/skel/.e/e/config/standard
           echo 'theme: "Materia-dark"' | sudo tee chroot/etc/skel/.e/e/config/standard/e.cfg
           echo 'icon_theme: "Papirus-Dark"' | sudo tee -a chroot/etc/skel/.e/e/config/standard/e.cfg
+          
           # GAMMA TINYGEN ONLY BROWSER
           cat << 'EOFPY' | sudo tee chroot/usr/bin/gamma-tinygen
           #!/usr/bin/env python3
@@ -110,6 +112,7 @@ jobs:
           if __name__=="__main__": w=Browser(); w.connect("destroy",Gtk.main_quit); w.show_all(); Gtk.main()
           EOFPY
           sudo chmod +x chroot/usr/bin/gamma-tinygen
+          
           cat << 'EOFDESK' | sudo tee chroot/usr/share/applications/gamma-tinygen.desktop
           [Desktop Entry]
           Name=Gamma TinyGen
@@ -118,8 +121,12 @@ jobs:
           Type=Application
           Categories=Network;WebBrowser;
           EOFDESK
+          
+          # Fix for ImageMagick (Must create directory first)
+          sudo mkdir -p chroot/usr/share/icons/hicolor/256x256/apps/
           convert -size 256x256 xc:#0a0a1a -fill '#00d4ff' -gravity center -pointsize 140 -annotate +0+20 'TG' chroot/usr/share/icons/hicolor/256x256/apps/gamma-tinygen.png
           sudo chroot chroot xdg-settings set default-web-browser gamma-tinygen.desktop
+          
           # SMART INSTALLER
           cat << 'EOFSH' | sudo tee chroot/usr/local/bin/gamma-installer
           #!/bin/bash
@@ -130,6 +137,7 @@ jobs:
           EOFSH
           sudo chmod +x chroot/usr/local/bin/gamma-installer
           if [ "${{ matrix.base }}" = "ubuntu" ]; then sudo sed -i 's|Exec=ubiquity gtk_ui|Exec=/usr/local/bin/gamma-installer|' chroot/usr/share/applications/ubiquity.desktop; fi
+          
           # KERNEL + AUTO-DETECT v2
           KERNEL_VERSION=$(ls chroot/lib/modules/ | head -n 1)
           sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION"
@@ -149,32 +157,61 @@ jobs:
           EOF
           sudo chmod +x chroot/usr/share/initramfs-tools/scripts/casper-bottom/99gamma-auto
           sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION"
+          
           # ZRAM
           if [ "${{ matrix.base }}" = "debian" ]; then echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap
           else echo -e '#!/bin/sh\n/sbin/modprobe zram\necho $(($(sysctl -n vm.totalhigh_pages) * 4096 * '${{ matrix.zram }}' / 100)) > /sys/block/zram0/disksize\n/sbin/mkswap /dev/zram0\n/sbin/swapon -p 32767 /dev/zram0' | sudo tee chroot/etc/rc.local; sudo chmod +x chroot/etc/rc.local; fi
           [ -n "${{ matrix.swappiness }}" ] && echo "vm.swappiness=${{ matrix.swappiness }}" | sudo tee chroot/etc/sysctl.d/99-zram.conf
           [ -n "${{ matrix.vfs }}" ] && echo "vm.vfs_cache_pressure=${{ matrix.vfs }}" | sudo tee -a chroot/etc/sysctl.d/99-zram.conf
           [ -n "${{ matrix.dirty }}" ] && echo "vm.dirty_ratio=${{ matrix.dirty }}" | sudo tee -a chroot/etc/sysctl.d/99-zram.conf
+          
           # USER
           sudo chroot chroot systemctl disable NetworkManager-wait-online.service || true
           sudo chroot chroot bash -c "useradd -m -s /bin/bash gamma || true; echo 'gamma:gamma' | chpasswd; echo ${{ matrix.hostname }} > /etc/hostname"
           [ "${{ matrix.wallpaper }}" = "true" ] && sudo mkdir -p chroot/usr/share/backgrounds && sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg
-          # ISO
+          
+          # ISO BUILD DIRECTORIES (Dual-Case UEFI + Consolidated Isolinux)
           VMLINUZ_FILE=$(sudo sh -c "ls chroot/boot/vmlinuz-* | head -n 1")
           INITRD_FILE=$(sudo sh -c "ls chroot/boot/$INITRD_NAME-* | head -n 1")
           sudo umount chroot/dev chroot/run chroot/proc chroot/sys || true
-          ISO_DIR="iso"; mkdir -p $ISO_DIR/$CASPER_DIR $ISO_DIR/boot/syslinux $ISO_DIR/boot/grub $ISO_DIR/EFI/BOOT
+          
+          ISO_DIR="iso"
+          mkdir -p $ISO_DIR/$CASPER_DIR $ISO_DIR/boot/isolinux $ISO_DIR/boot/grub $ISO_DIR/EFI/BOOT $ISO_DIR/efi/boot
+          
           sudo mksquashfs chroot $ISO_DIR/$CASPER_DIR/filesystem.squashfs -comp zstd -Xcompression-level 22 -b 1M -noappend
           sudo cp "$VMLINUZ_FILE" $ISO_DIR/$CASPER_DIR/vmlinuz
           sudo cp "$INITRD_FILE" $ISO_DIR/$CASPER_DIR/$INITRD_NAME
-          convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'Gamma Linux' -pointsize 28 -fill white -annotate +0+40 'v2.6.3 Zero' $ISO_DIR/boot/splash.png || true
-          sudo cp /usr/lib/ISOLINUX/isolinux.bin $ISO_DIR/boot/
-          for f in menu.c32 vesamenu.c32 ldlinux.c32 libutil.c32 libcom32.c32; do sudo cp /usr/lib/syslinux/modules/bios/$f $ISO_DIR/boot/syslinux/ 2>/dev/null || true; done
-          echo "UI vesamenu.c32 MENU RESOLUTION 800 600 MENU BACKGROUND /boot/splash.png MENU TITLE ${{ matrix.label }} v2.6.3 TIMEOUT 100 DEFAULT autodetect LABEL autodetect MENU LABEL ^Gamma Auto-Detect KERNEL /$CASPER_DIR/vmlinuz APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.boot_base }} quiet splash gamma.auto=1 LABEL install MENU LABEL ^Install Gamma OS KERNEL /$CASPER_DIR/vmlinuz APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.inst_base }} quiet splash gamma.auto=1 LABEL safe MENU LABEL ^Safe Graphics KERNEL /$CASPER_DIR/vmlinuz APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.boot_base }} nomodeset quiet splash" | sudo tee $ISO_DIR/boot/isolinux.cfg
-          echo "set timeout=10 set default=0 set gfxmode=800x600 insmod all_video insmod gfxterm terminal_output gfxterm background_image /boot/splash.png menuentry 'Gamma Auto-Detect' { linux /$CASPER_DIR/vmlinuz ${{ matrix.boot_base }} quiet splash gamma.auto=1 initrd /$CASPER_DIR/$INITRD_NAME } menuentry 'Install Gamma OS' { linux /$CASPER_DIR/vmlinuz ${{ matrix.inst_base }} quiet splash gamma.auto=1 initrd /$CASPER_DIR/$INITRD_NAME } menuentry 'Safe Graphics' { linux /$CASPER_DIR/vmlinuz ${{ matrix.boot_base }} nomodeset quiet splash initrd /$CASPER_DIR/$INITRD_NAME }" | sudo tee $ISO_DIR/boot/grub/grub.cfg
-          if [ "${{ matrix.arch }}" = "i386" ]; then sudo grub-mkimage -O i386-efi -o $ISO_DIR/EFI/BOOT/BOOTIA32.EFI -p /boot/grub iso9660 fat extcmd boot linux normal configfile
-          else cp /usr/lib/shim/shimx64.efi.signed $ISO_DIR/EFI/BOOT/BOOTX64.EFI || cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed $ISO_DIR/EFI/BOOT/BOOTX64.EFI; fi
-          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux.bin -c boot/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e EFI/BOOT/BOOTX64.EFI -no-emul-boot -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -append_partition 2 0xef $ISO_DIR/EFI/BOOT/BOOTX64.EFI -o "gamma-${{ matrix.edition }}.iso" $ISO_DIR
+          
+          # Splash image in correct isolinux folder
+          convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'Gamma Linux' -pointsize 28 -fill white -annotate +0+40 'v2.6.3 Zero' $ISO_DIR/boot/isolinux/splash.png || true
+          
+          # Fix Isolinux (All files grouped together = no load errors)
+          sudo cp /usr/lib/ISOLINUX/isolinux.bin $ISO_DIR/boot/isolinux/
+          for f in menu.c32 vesamenu.c32 ldlinux.c32 libutil.c32 libcom32.c32; do sudo cp /usr/lib/syslinux/modules/bios/$f $ISO_DIR/boot/isolinux/ 2>/dev/null || true; done
+          
+          # Legacy Isolinux config
+          echo "UI vesamenu.c32 MENU RESOLUTION 800 600 MENU BACKGROUND /boot/isolinux/splash.png MENU TITLE ${{ matrix.label }} v2.6.3 TIMEOUT 100 DEFAULT autodetect LABEL autodetect MENU LABEL ^Gamma Auto-Detect KERNEL /$CASPER_DIR/vmlinuz APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.boot_base }} quiet splash gamma.auto=1 LABEL install MENU LABEL ^Install Gamma OS KERNEL /$CASPER_DIR/vmlinuz APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.inst_base }} quiet splash gamma.auto=1 LABEL safe MENU LABEL ^Safe Graphics KERNEL /$CASPER_DIR/vmlinuz APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.boot_base }} nomodeset quiet splash" | sudo tee $ISO_DIR/boot/isolinux/isolinux.cfg
+          
+          # Dynamic GRUB Config (Ventoy/Rufus Universal Fix - added "search --set=root")
+          echo "set timeout=10 set default=0 set gfxmode=800x600 insmod all_video insmod gfxterm terminal_output gfxterm background_image /boot/isolinux/splash.png menuentry 'Gamma Auto-Detect' { search --no-floppy --set=root --file /$CASPER_DIR/vmlinuz; linux /$CASPER_DIR/vmlinuz ${{ matrix.boot_base }} quiet splash gamma.auto=1 initrd /$CASPER_DIR/$INITRD_NAME } menuentry 'Install Gamma OS' { search --no-floppy --set=root --file /$CASPER_DIR/vmlinuz; linux /$CASPER_DIR/vmlinuz ${{ matrix.inst_base }} quiet splash gamma.auto=1 initrd /$CASPER_DIR/$INITRD_NAME } menuentry 'Safe Graphics' { search --no-floppy --set=root --file /$CASPER_DIR/vmlinuz; linux /$CASPER_DIR/vmlinuz ${{ matrix.boot_base }} nomodeset quiet splash initrd /$CASPER_DIR/$INITRD_NAME }" | sudo tee $ISO_DIR/boot/grub/grub.cfg
+          
+          # Copy GRUB config to CAPS and Small cases for universal strict UEFI
+          sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/EFI/BOOT/GRUB.CFG
+          sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/efi/boot/grub.cfg
+          
+          # Auto-Detect EFI Binary generation for 32bit and 64bit
+          if [ "${{ matrix.arch }}" = "i386" ]; then 
+            sudo grub-mkimage -O i386-efi -o $ISO_DIR/EFI/BOOT/BOOTIA32.EFI -p /boot/grub iso9660 fat extcmd boot linux normal configfile search search_fs_file search_fs_uuid search_label
+            sudo cp $ISO_DIR/EFI/BOOT/BOOTIA32.EFI $ISO_DIR/efi/boot/bootia32.efi
+            EFI_FILE="EFI/BOOT/BOOTIA32.EFI"
+          else 
+            cp /usr/lib/shim/shimx64.efi.signed $ISO_DIR/EFI/BOOT/BOOTX64.EFI || cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed $ISO_DIR/EFI/BOOT/BOOTX64.EFI
+            cp $ISO_DIR/EFI/BOOT/BOOTX64.EFI $ISO_DIR/efi/boot/bootx64.efi
+            EFI_FILE="EFI/BOOT/BOOTX64.EFI"
+          fi
+          
+          # Final Xorriso command with GPT-BASDAT for maximum compatibility
+          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e $EFI_FILE -no-emul-boot -isohybrid-gpt-basdat -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" $ISO_DIR
       - uses: actions/upload-artifact@v4
         with:
           name: gamma-${{ matrix.edition }}
