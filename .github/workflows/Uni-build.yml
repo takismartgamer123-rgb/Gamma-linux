@@ -9,7 +9,7 @@ on:
 permissions: 
   contents: write
 jobs:
-  build:
+   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 180
     strategy: 
