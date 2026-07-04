@@ -76,11 +76,17 @@ jobs:
       - name: Install Build Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y debootstrap squashfs-tools xorriso wget rsync zstd isolinux syslinux-common mtools dosfstools kexec-tools dmidecode pciutils imagemagick dpkg-dev p7zip-full aria2 mlocate
+          # Core tools needed for image building + common helpers
+          sudo apt-get install -y debootstrap squashfs-tools xorriso wget rsync zstd isolinux syslinux-common mtools dosfstools kexec-tools dmidecode pciutils imagemagick dpkg-dev p7zip-full aria2 genisoimage mlocate binutils
+          
+          # Install both BIOS and UEFI support as required:
+          # - grub-pc-bin provides BIOS/legacy binary helpers (for isolinux/genisoimage hybrid boot)
+          # - grub-efi-ia32-bin provides 32-bit UEFI binaries (for i386 UEFI)
+          # - grub-efi-amd64-signed / grub-efi-amd64 & shim-signed provide x86_64 UEFI support
           if [ "${{ matrix.arch }}" = "i386" ]; then
-            sudo apt-get install -y grub-pc-bin grub-efi-ia32-bin binutils grub-efi-ia32
+            sudo apt-get install -y grub-pc-bin grub-efi-ia32-bin
           else
-            sudo apt-get install -y shim-signed grub-efi-amd64-signed grub-efi-amd64
+            sudo apt-get install -y grub-pc-bin shim-signed grub-efi-amd64-signed grub-efi-amd64
           fi
           
       - name: Download Wallpaper
@@ -307,7 +313,7 @@ jobs:
           fi
           
           # Create splash image
-          convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'GAMMA OS' -pointsize 28 -fill '#ffffff' -annotate +0+40 'v2.6.5 Tank' "$ISO_DIR/boot/isolinux/splash.png" 2>/dev/null || echo "Warning: Could not create splash image"
+          convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'GAMMA OS' -pointsize 28 -fill '#ffffff' -annotate +0+40 'v2.6.5 Tank' "$ISO_DIR/boot/isolinux/splash.png" || true
           
           # Copy ISOLINUX bootloader
           sudo cp /usr/lib/ISOLINUX/isolinux.bin "$ISO_DIR/boot/isolinux/" 2>/dev/null || echo "Warning: isolinux.bin not found"
@@ -374,6 +380,7 @@ jobs:
           
           # Setup EFI bootloaders
           if [ "${{ matrix.arch }}" = "i386" ]; then
+            # create i386-efi grub image and copy to EFI img
             sudo grub-mkimage -O i386-efi -o /tmp/BOOTIA32.EFI -p /boot/grub iso9660 fat extcmd boot linux normal configfile search_fs_file search_fs_uuid search_label 2>/dev/null || true
             mcopy -i "$ISO_DIR/boot/grub/efi.img" /tmp/BOOTIA32.EFI ::/EFI/BOOT/BOOTIA32.EFI 2>/dev/null || true
             for f in "$ISO_DIR/EFI/BOOT" "$ISO_DIR/efi/boot"; do
@@ -381,6 +388,7 @@ jobs:
               sudo cp /tmp/BOOTIA32.EFI "$f/bootia32.efi" 2>/dev/null || true
             done
           else
+            # x86_64 EFI: prefer signed shim/grub if available, else create/copy placeholders
             if [ -f /usr/lib/shim/shimx64.efi.signed ]; then
               sudo cp /usr/lib/shim/shimx64.efi.signed /tmp/BOOTX64.EFI
             elif [ -f /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ]; then
