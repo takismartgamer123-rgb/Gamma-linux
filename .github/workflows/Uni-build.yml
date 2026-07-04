@@ -280,9 +280,14 @@ jobs:
             sudo cp "$VMLINUZ_FILE" "$ISO_DIR/$CASPER_DIR/vmlinuz" || echo "Warning: Could not copy vmlinuz"
           fi
           
+          # ================= FIX 1: MULTI-INITRD FOR HP BIOS / VENTOY =================
           if [ -n "$INITRD_FILE" ] && [ -f "$INITRD_FILE" ]; then
             sudo cp "$INITRD_FILE" "$ISO_DIR/$CASPER_DIR/$INITRD_NAME" || echo "Warning: Could not copy initrd"
+            sudo cp "$INITRD_FILE" "$ISO_DIR/$CASPER_DIR/initrd.lz" 2>/dev/null || true
+            sudo cp "$INITRD_FILE" "$ISO_DIR/$CASPER_DIR/initrd.img" 2>/dev/null || true
+            sudo cp "$INITRD_FILE" "$ISO_DIR/$CASPER_DIR/initrd" 2>/dev/null || true
           fi
+          # ===========================================================================
           
           convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'GAMMA OS' -pointsize 28 -fill '#ffffff' -annotate +0+40 'v2.6.5 Tank' "$ISO_DIR/boot/isolinux/splash.png"
           
@@ -310,6 +315,7 @@ jobs:
             APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.boot_base }} quiet splash
           EOF
           
+          # ================= FIX 2: GRUB FALLBACK TRICK ==============================
           sudo tee "$ISO_DIR/boot/grub/grub.cfg" > /dev/null <<EOF
           set timeout=10
           set default=0
@@ -321,18 +327,21 @@ jobs:
           
           menuentry 'Gamma Auto-Detect' {
             search --set=root --file /$CASPER_DIR/vmlinuz
-            echo 'Loading Gamma OS...'
+            echo 'Loading Gamma OS Kernel...'
             linux /$CASPER_DIR/vmlinuz ${{ matrix.boot_base }} gamma.auto=1 quiet splash
-            initrd /$CASPER_DIR/$INITRD_NAME
+            echo 'Loading Initramfs...'
+            initrd /$CASPER_DIR/$INITRD_NAME /$CASPER_DIR/initrd.lz /$CASPER_DIR/initrd.img /$CASPER_DIR/initrd
           }
           
           menuentry 'Gamma Live Boot' {
             search --set=root --file /$CASPER_DIR/vmlinuz
-            echo 'Loading Gamma OS...'
+            echo 'Loading Gamma OS Kernel...'
             linux /$CASPER_DIR/vmlinuz ${{ matrix.boot_base }} quiet splash
-            initrd /$CASPER_DIR/$INITRD_NAME
+            echo 'Loading Initramfs...'
+            initrd /$CASPER_DIR/$INITRD_NAME /$CASPER_DIR/initrd.lz /$CASPER_DIR/initrd.img /$CASPER_DIR/initrd
           }
           EOF
+          # ===========================================================================
           
           sudo cp "$ISO_DIR/boot/grub/grub.cfg" "$ISO_DIR/EFI/BOOT/GRUB.CFG" 2>/dev/null || true
           sudo cp "$ISO_DIR/boot/grub/grub.cfg" "$ISO_DIR/EFI/BOOT/grub.cfg" 2>/dev/null || true
