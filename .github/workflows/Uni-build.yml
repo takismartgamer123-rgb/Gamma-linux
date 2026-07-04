@@ -50,7 +50,7 @@ jobs:
           - edition: legacy-32
             arch: i386
             base: debian
-            packages: "linux-image-686-pae task-standard enlightenment terminology thunar thunar-volman thunar-archive-plugin network-manager kexec-tools lightdm dbus-x11"
+            packages: "linux-image-686-pae enlightenment terminology thunar thunar-volman thunar-archive-plugin network-manager kexec-tools lightdm dbus-x11"
             zram: "200"
             swappiness: "100"
             vfs: "150"
