@@ -20,12 +20,12 @@ jobs:
           - edition: pro-maxmini
             arch: amd64
             base: ubuntu
-            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends openbox obconf tint2 picom thunar thunar-volman thunar-archive-plugin terminology lightdm network-manager kexec-tools earlyoom ubiquity ubiquity-frontend-gtk ubiquity-casper os-prober materia-gtk-theme papirus-icon-theme"
+            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal openbox obconf tint2 picom thunar thunar-volman thunar-archive-plugin terminology lightdm earlyoom dbus-x11"
             zram: "40"
             swappiness: "80"
             vfs: "50"
             dirty: "20"
-            purge: "snapd* flatpak* locales-all language-pack-*"
+            purge: "snapd flatpak locales-all language-pack-en-*"
             hostname: "gamma-pro"
             wallpaper: "true"
             label: "Gamma Pro-MaxMini"
@@ -35,12 +35,12 @@ jobs:
           - edition: lite-ghost
             arch: amd64
             base: ubuntu
-            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal --no-install-recommends openbox obconf tint2 picom thunar thunar-volman thunar-archive-plugin terminology lightdm network-manager kexec-tools ubiquity ubiquity-frontend-gtk ubiquity-casper os-prober materia-gtk-theme papirus-icon-theme"
+            packages: "linux-image-generic-hwe-22.04 initramfs-tools ubuntu-minimal openbox obconf tint2 picom thunar thunar-volman thunar-archive-plugin terminology lightdm dbus-x11"
             zram: "75"
             swappiness: "100"
             vfs: "100"
             dirty: "10"
-            purge: "snapd* flatpak* cups* printer-driver* bluetooth* geoclue* evolution* gnome-software* locales-all language-pack-*"
+            purge: "snapd flatpak cups printer-driver-* bluetooth geoclue evolution gnome-software locales-all language-pack-en-*"
             hostname: "gamma-lite"
             wallpaper: "true"
             label: "Gamma Lite-Ghost"
@@ -50,12 +50,12 @@ jobs:
           - edition: legacy-32
             arch: i386
             base: debian
-            packages: "linux-image-686-pae task-standard --no-install-recommends enlightenment terminology thunar thunar-volman thunar-archive-plugin network-manager kexec-tools lightdm"
+            packages: "linux-image-686-pae task-standard enlightenment terminology thunar thunar-volman thunar-archive-plugin network-manager kexec-tools lightdm dbus-x11"
             zram: "200"
             swappiness: "100"
             vfs: "150"
             dirty: "5"
-            purge: "locales-all language-pack-* cups* bluetooth* printer-driver* speech-dispatcher* pulseaudio*"
+            purge: "locales-all language-pack-en-* cups printer-driver-* bluetooth speech-dispatcher pulseaudio"
             hostname: "gamma-nano"
             wallpaper: ""
             label: "Gamma Legacy-32"
@@ -76,229 +76,386 @@ jobs:
       - name: Install Build Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y debootstrap squashfs-tools xorriso wget rsync zstd isolinux syslinux-common mtools dosfstools kexec-tools dmidecode pciutils imagemagick dpkg-dev p7zip-full aria2 mcopy
+          sudo apt-get install -y debootstrap squashfs-tools xorriso wget rsync zstd isolinux syslinux-common mtools dosfstools kexec-tools dmidecode pciutils imagemagick dpkg-dev p7zip-full aria2 mlocate
           if [ "${{ matrix.arch }}" = "i386" ]; then
-            sudo apt-get install -y grub-pc-bin grub-efi-ia32-bin binutils
+            sudo apt-get install -y grub-pc-bin grub-efi-ia32-bin binutils grub-efi-ia32
           else
-            sudo apt-get install -y shim-signed grub-efi-amd64-signed
+            sudo apt-get install -y shim-signed grub-efi-amd64-signed grub-efi-amd64
           fi
           
       - name: Download Wallpaper
         if: matrix.wallpaper == 'true'
-        run: wget -O gamma-wallpaper.jpg "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1920" || true
+        run: |
+          mkdir -p wallpapers
+          wget -O wallpapers/gamma-wallpaper.jpg "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1920" || echo "Wallpaper download failed, continuing..."
         
       # 3. Build ISO
       - name: Build ISO
         run: |
           set -e
           set -o pipefail
+          
+          # Determine base system and paths
           if [ "${{ matrix.base }}" = "debian" ]; then
-            sudo debootstrap --arch=${{ matrix.arch }} bookworm chroot http://deb.debian.org/debian/
+            sudo debootstrap --arch=${{ matrix.arch }} --include=systemd-sysv bookworm chroot http://deb.debian.org/debian/
             CASPER_DIR="live"
             INITRD_NAME="initrd.img"
           else
-            sudo debootstrap --arch=${{ matrix.arch }} jammy chroot http://archive.ubuntu.com/ubuntu/
+            sudo debootstrap --arch=${{ matrix.arch }} --include=systemd-sysv jammy chroot http://archive.ubuntu.com/ubuntu/
             CASPER_DIR="casper"
             INITRD_NAME="initrd.lz"
           fi
-          sudo mount --bind /dev chroot/dev && sudo mount --bind /run chroot/run || true
-          sudo mount -t proc none chroot/proc && sudo mount -t sysfs none chroot/sys
-          echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
-
+          
+          # Mount necessary filesystems
+          sudo mount --bind /dev chroot/dev || true
+          sudo mount --bind /run chroot/run || true
+          sudo mount --bind /sys chroot/sys || true
+          sudo mount -t proc proc chroot/proc || true
+          
+          # Configure DNS
+          echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf > /dev/null
+          echo 'nameserver 1.1.1.1' | sudo tee -a chroot/etc/resolv.conf > /dev/null
+          
+          # Setup APT sources
           if [ "${{ matrix.base }}" = "ubuntu" ]; then
-            echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee chroot/etc/apt/sources.list
-            echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
-            echo "deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
+            sudo tee chroot/etc/apt/sources.list > /dev/null <<EOF
+          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+          EOF
           fi
-
+          
+          # Update and install base packages
           sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get update
-
-          # اللغات: عربي + انجليزي + فرنسي
           sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get install -y locales language-pack-ar language-pack-en language-pack-fr
-          echo "ar_DZ.UTF-8 UTF-8" | sudo tee -a chroot/etc/locale.gen
-          echo "en_US.UTF-8 UTF-8" | sudo tee -a chroot/etc/locale.gen
-          echo "fr_FR.UTF-8 UTF-8" | sudo tee -a chroot/etc/locale.gen
+          
+          # Configure locales
+          sudo tee -a chroot/etc/locale.gen > /dev/null <<EOF
+          ar_DZ.UTF-8 UTF-8
+          en_US.UTF-8 UTF-8
+          fr_FR.UTF-8 UTF-8
+          EOF
           sudo chroot chroot locale-gen
-          echo 'LANG=en_US.UTF-8' | sudo tee chroot/etc/default/locale
-
+          echo 'LANG=en_US.UTF-8' | sudo tee chroot/etc/default/locale > /dev/null
+          
+          # Remove bloat packages
           if [ -n "${{ matrix.purge }}" ]; then
             sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get remove -y --purge ${{ matrix.purge }} || true
           fi
-
-          sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${{ matrix.packages }} || (sudo chroot chroot apt-get -f install -y && sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${{ matrix.packages }}) || true
-
-          # إعداد Gamma Desktop
+          
+          # Install required packages
+          sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${{ matrix.packages }} || {
+            sudo chroot chroot apt-get -f install -y
+            sudo chroot chroot env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${{ matrix.packages }}
+          }
+          
+          # Configure Gamma Desktop (Ubuntu/Openbox)
           if [ "${{ matrix.base }}" = "ubuntu" ]; then
             sudo mkdir -p chroot/etc/skel/.config
-            echo 'export GTK_THEME=Materia-dark' | sudo tee chroot/etc/skel/.xprofile
-            echo 'export ICON_THEME=Papirus-Dark' | sudo tee -a chroot/etc/skel/.xprofile
+            echo 'export GTK_THEME=Materia-dark' | sudo tee chroot/etc/skel/.xprofile > /dev/null
+            echo 'export ICON_THEME=Papirus-Dark' | sudo tee -a chroot/etc/skel/.xprofile > /dev/null
+            
             sudo mkdir -p chroot/etc/xdg/openbox
-            cat << 'EOFAUTO' | sudo tee chroot/etc/xdg/openbox/autostart
-tint2 &
-picom --backend glx --vsync --blur-method kawase &
-thunar --daemon &
-EOFAUTO
-            cat << 'EOFKEYS' | sudo tee chroot/etc/xdg/openbox/rc.xml
-<?xml version="1.0" encoding="UTF-8"?>
-<openbox_config>
-  <keyboard>
-    <keybind key="C-A-T"><action name="Execute"><command>terminology</command></action></keybind>
-  </keyboard>
-</openbox_config>
-EOFKEYS
-
-            # سكربت الحذف الذاتي لـ Ubiquity بعد التثبيت
-            cat << 'EOFDEL' | sudo tee chroot/etc/systemd/system/gamma-cleanup.service
-[Unit]
-Description=Remove Ubiquity after first boot
-After=graphical.target
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c "sleep 10 && apt-get purge -y ubiquity* os-prober && apt-get autoremove -y && systemctl disable gamma-cleanup"
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOFDEL
+            sudo tee chroot/etc/xdg/openbox/autostart > /dev/null <<'EOFAUTO'
+          tint2 &
+          picom --backend glx --vsync --blur-method kawase &
+          thunar --daemon &
+          EOFAUTO
+            
+            sudo tee chroot/etc/xdg/openbox/rc.xml > /dev/null <<'EOFKEYS'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <openbox_config>
+            <keyboard>
+              <keybind key="C-A-T"><action name="Execute"><command>terminology</command></action></keybind>
+              <keybind key="C-A-E"><action name="Execute"><command>pcmanfm</command></action></keybind>
+            </keyboard>
+          </openbox_config>
+          EOFKEYS
+            
+            # Auto-cleanup Ubiquity after installation
+            sudo tee chroot/etc/systemd/system/gamma-cleanup.service > /dev/null <<'EOFDEL'
+          [Unit]
+          Description=Remove Ubiquity after first boot
+          After=graphical.target
+          
+          [Service]
+          Type=oneshot
+          ExecStart=/bin/bash -c "sleep 15 && apt-get purge -y ubiquity ubiquity-casper os-prober 2>/dev/null; apt-get autoremove -y 2>/dev/null; systemctl disable gamma-cleanup"
+          RemainAfterExit=yes
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOFDEL
             sudo chroot chroot systemctl enable gamma-cleanup || true
           fi
-
-          # إعداد Enlightenment
+          
+          # Configure Enlightenment (Debian/Legacy)
           if [ "${{ matrix.base }}" = "debian" ]; then
             sudo mkdir -p chroot/etc/skel/.e/e/config/standard
-            echo 'theme: "Materia-dark"' | sudo tee chroot/etc/skel/.e/e/config/standard/e.cfg
-            echo 'icon_theme: "Papirus-Dark"' | sudo tee -a chroot/etc/skel/.e/e/config/standard/e.cfg
-            echo 'composite: "0"' | sudo tee -a chroot/etc/skel/.e/e/config/standard/e.cfg
+            sudo tee chroot/etc/skel/.e/e/config/standard/e.cfg > /dev/null <<'EOFE'
+          theme: "Materia-dark"
+          icon_theme: "Papirus-Dark"
+          composite: "0"
+          EOFE
           fi
-
-          KERNEL_VERSION=$(ls chroot/lib/modules/ | head -n 1 || true)
+          
+          # Rebuild initramfs with kernel
+          KERNEL_VERSION=$(sudo ls chroot/lib/modules/ 2>/dev/null | head -n 1)
           if [ -n "$KERNEL_VERSION" ]; then
-            sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION" || true
+            sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION" 2>/dev/null || true
           fi
-
+          
+          # Add custom boot script
           sudo mkdir -p chroot/usr/share/initramfs-tools/scripts/casper-bottom/
-          cat << 'EOFSCRIPT' | sed "s|CASPER_DIR|$CASPER_DIR|g" | sed "s|INITRD_NAME|$INITRD_NAME|g" | sudo tee chroot/usr/share/initramfs-tools/scripts/casper-bottom/99gamma-auto
-#!/bin/sh
-if [ "$gamma.auto" = "1" ]; then
-  CMDLINE="quiet splash zswap.enabled=1 zswap.compressor=lz4 zswap.zpool=zsmalloc"
-  lspci -nn | grep -q "8086:0116" && CMDLINE="i915.enable_psr=0 $CMDLINE"
-  dmidecode -s bios-release-date 2>/dev/null | grep -E "201[0-5]" && CMDLINE="noapic nolapic acpi=off nomodeset intel_idle.max_cstate=1 pci=noacpi irqpoll $CMDLINE"
-  lspci -nn | grep -q "1002:" && CMDLINE="radeon.modeset=0 $CMDLINE"
-  lspci -nn | grep -q "10de:" && CMDLINE="nouveau.modeset=0 $CMDLINE"
-  [ ! -f /sys/firmware/efi ] && CMDLINE="acpi_osi=Linux $CMDLINE"
-  command -v kexec >/dev/null && [ "$CMDLINE" != "quiet splash" ] && kexec -l /CASPER_DIR/vmlinuz --initrd=/CASPER_DIR/INITRD_NAME --append="gamma.auto=0 $CMDLINE" 2>/dev/null && kexec -e || true
-fi
-EOFSCRIPT
+          CASPER_DIR_ESCAPED=$(echo "$CASPER_DIR" | sed 's|/|\\/|g')
+          INITRD_NAME_ESCAPED=$(echo "$INITRD_NAME" | sed 's|/|\\/|g')
+          
+          sudo tee chroot/usr/share/initramfs-tools/scripts/casper-bottom/99gamma-auto > /dev/null <<'EOFSCRIPT'
+          #!/bin/sh
+          if [ "$gamma_auto" = "1" ]; then
+            CMDLINE="quiet splash zswap.enabled=1 zswap.compressor=lz4 zswap.zpool=zsmalloc"
+            lspci -nn 2>/dev/null | grep -q "8086:0116" && CMDLINE="i915.enable_psr=0 $CMDLINE"
+            dmidecode -s bios-release-date 2>/dev/null | grep -E "201[0-5]" && CMDLINE="noapic nolapic acpi=off nomodeset intel_idle.max_cstate=1 pci=noacpi irqpoll $CMDLINE"
+            lspci -nn 2>/dev/null | grep -q "1002:" && CMDLINE="radeon.modeset=0 $CMDLINE"
+            lspci -nn 2>/dev/null | grep -q "10de:" && CMDLINE="nouveau.modeset=0 $CMDLINE"
+            [ ! -d /sys/firmware/efi ] && CMDLINE="acpi_osi=Linux $CMDLINE"
+          fi
+          EOFSCRIPT
           sudo chmod +x chroot/usr/share/initramfs-tools/scripts/casper-bottom/99gamma-auto
-
+          
+          # Configure earlyoom for pro-maxmini
           if [ "${{ matrix.edition }}" = "pro-maxmini" ]; then
             sudo mkdir -p chroot/etc/systemd/system/earlyoom.service.d
-            echo -e '[Service]\nExecStart=\nExecStart=/usr/bin/earlyoom -m 5 -s 15 -r 60' | sudo tee chroot/etc/systemd/system/earlyoom.service.d/override.conf
+            sudo tee chroot/etc/systemd/system/earlyoom.service.d/override.conf > /dev/null <<'EOFEARLYOOM'
+          [Service]
+          ExecStart=
+          ExecStart=/usr/bin/earlyoom -m 5 -s 15 -r 60
+          EOFEARLYOOM
             sudo chroot chroot systemctl enable earlyoom || true
           fi
-
+          
+          # Configure ZRAM swap
           if [ "${{ matrix.base }}" = "debian" ]; then
-            echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap
+            echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap > /dev/null
+            sudo chroot chroot systemctl enable zramswap || true
           else
-            cat << 'EOFZRAM' | sudo tee chroot/etc/init.d/zramswap
-#!/bin/sh
-/sbin/modprobe zram
-echo $(($(sysctl -n vm.totalhigh_pages) * 4096 * ${{ matrix.zram }} / 100)) > /sys/block/zram0/disksize
-/sbin/mkswap /dev/zram0
-/sbin/swapon /dev/zram0
-EOFZRAM
+            sudo tee chroot/etc/init.d/zramswap > /dev/null <<'EOFZRAM'
+          #!/bin/sh
+          /sbin/modprobe zram
+          echo $(($(sysctl -n vm.totalhigh_pages) * 4096 * ${{ matrix.zram }} / 100)) > /sys/block/zram0/disksize
+          /sbin/mkswap /dev/zram0
+          /sbin/swapon /dev/zram0
+          EOFZRAM
             sudo chmod +x chroot/etc/init.d/zramswap
           fi
-
-          cat << 'EOFSYSCTL' | sudo tee chroot/etc/sysctl.d/99-gamma.conf
-vm.swappiness=${{ matrix.swappiness }}
-vm.vfs_cache_pressure=${{ matrix.vfs }}
-vm.dirty_ratio=${{ matrix.dirty }}
-vm.overcommit_memory=1
-EOFSYSCTL
+          
+          # Apply sysctl optimization
+          sudo tee chroot/etc/sysctl.d/99-gamma.conf > /dev/null <<'EOFSYSCTL'
+          vm.swappiness=${{ matrix.swappiness }}
+          vm.vfs_cache_pressure=${{ matrix.vfs }}
+          vm.dirty_ratio=${{ matrix.dirty }}
+          vm.overcommit_memory=1
+          vm.panic=10
+          kernel.panic=10
+          EOFSYSCTL
+          
+          # Create gamma user and set hostname
+          sudo chroot chroot bash -c "useradd -m -s /bin/bash gamma 2>/dev/null || true"
+          echo 'gamma:gamma' | sudo chroot chroot chpasswd
+          echo "${{ matrix.hostname }}" | sudo tee chroot/etc/hostname > /dev/null
+          
+          # Disable unnecessary services
           sudo chroot chroot systemctl disable NetworkManager-wait-online.service || true
-          sudo chroot chroot bash -c "useradd -m -s /bin/bash gamma || true; echo 'gamma:gamma' | chpasswd; echo ${{ matrix.hostname }} > /etc/hostname"
-
-          if [ "${{ matrix.wallpaper }}" = "true" ]; then
+          sudo chroot chroot systemctl set-default graphical.target || true
+          
+          # Copy wallpaper if available
+          if [ "${{ matrix.wallpaper }}" = "true" ] && [ -f wallpapers/gamma-wallpaper.jpg ]; then
             sudo mkdir -p chroot/usr/share/backgrounds
-            sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg || true
+            sudo cp wallpapers/gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg || true
           fi
-
+          
+          # Cleanup before squashing
           sudo chroot chroot apt-get clean || true
-          VMLINUZ_FILE=$(sudo sh -c "ls chroot/boot/vmlinuz-* | head -n 1" || true)
-          INITRD_FILE=$(sudo sh -c "ls chroot/boot/$INITRD_NAME-* | head -n 1" || true)
-          sudo umount chroot/dev chroot/run chroot/proc chroot/sys || true
-
+          sudo chroot chroot apt-get autoclean || true
+          sudo chroot chroot bash -c "rm -rf /tmp/* /var/tmp/* /var/log/* /var/cache/apt/archives/*" || true
+          
+          # Unmount filesystems
+          sudo umount chroot/dev 2>/dev/null || true
+          sudo umount chroot/run 2>/dev/null || true
+          sudo umount chroot/proc 2>/dev/null || true
+          sudo umount chroot/sys 2>/dev/null || true
+          
+          # Get kernel and initramfs files
+          VMLINUZ_FILE=$(sudo ls chroot/boot/vmlinuz-* 2>/dev/null | head -n 1 || echo "")
+          INITRD_FILE=$(sudo ls chroot/boot/${INITRD_NAME}-* 2>/dev/null | head -n 1 || echo "")
+          
+          # Create ISO directory structure
           ISO_DIR="iso"
-          mkdir -p $ISO_DIR/$CASPER_DIR $ISO_DIR/boot/isolinux $ISO_DIR/boot/grub $ISO_DIR/EFI/BOOT $ISO_DIR/efi/boot
-          sudo mksquashfs chroot $ISO_DIR/$CASPER_DIR/filesystem.squashfs -comp zstd -Xcompression-level 22 -b 1M -noappend
-
-          [ -n "$VMLINUZ_FILE" ] && sudo cp "$VMLINUZ_FILE" $ISO_DIR/$CASPER_DIR/vmlinuz
-          [ -n "$INITRD_FILE" ] && sudo cp "$INITRD_FILE" $ISO_DIR/$CASPER_DIR/$INITRD_NAME
-
-          convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'GAMMA OS' -pointsize 28 -fill white -annotate +0+40 'v2.6.5 Tank' $ISO_DIR/boot/isolinux/splash.png || true
-          sudo cp /usr/lib/ISOLINUX/isolinux.bin $ISO_DIR/boot/isolinux/ 2>/dev/null || true
-          for f in menu.c32 vesamenu.c32 ldlinux.c32 libutil.c32 libcom32.c32; do sudo cp /usr/lib/syslinux/modules/bios/$f $ISO_DIR/boot/isolinux/ 2>/dev/null || true; done
-
-          cat <<EOFISOLINUX | sudo tee $ISO_DIR/boot/isolinux/isolinux.cfg
-UI vesamenu.c32
-MENU RESOLUTION 800 600
-MENU BACKGROUND /boot/isolinux/splash.png
-MENU TITLE ${{ matrix.label }} v2.6.5
-TIMEOUT 100
-DEFAULT autodetect
-LABEL autodetect
-  MENU LABEL ^Gamma Auto-Detect
-  KERNEL /$CASPER_DIR/vmlinuz
-  APPEND initrd=/$CASPER_DIR/$INITRD_NAME ${{ matrix.boot_base }} gamma.auto=1 quiet splash
-EOFISOLINUX
-
-          cat <<EOFGRUB | sudo tee $ISO_DIR/boot/grub/grub.cfg
-set timeout=10
-set default=0
-set gfxmode=800x600
-insmod all_video
-insmod gfxterm
-terminal_output gfxterm
-background_image /boot/isolinux/splash.png
-menuentry 'Gamma Auto-Detect' {
-  search --set=root --file /$CASPER_DIR/vmlinuz
-  echo 'Loading Gamma OS...'
-  linux /$CASPER_DIR/vmlinuz ${{ matrix.boot_base }} gamma.auto=1 quiet splash
-  initrd /$CASPER_DIR/$INITRD_NAME
-}
-EOFGRUB
-
-          sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/EFI/BOOT/GRUB.CFG || true
-          sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/EFI/BOOT/grub.cfg || true
-          sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/efi/boot/GRUB.CFG || true
-          sudo cp $ISO_DIR/boot/grub/grub.cfg $ISO_DIR/efi/boot/grub.cfg || true
-          dd if=/dev/zero of=$ISO_DIR/boot/grub/efi.img bs=1M count=4 || true
-          mkfs.vfat $ISO_DIR/boot/grub/efi.img || true
-          mmd -i $ISO_DIR/boot/grub/efi.img ::/EFI ::/EFI/BOOT || true
-
-          if [ "${{ matrix.arch }}" = "i386" ]; then
-            sudo grub-mkimage -O i386-efi -o /tmp/BOOTIA32.EFI -p /boot/grub iso9660 fat extcmd boot linux normal configfile search_fs_file search_fs_uuid search_label || true
-            mcopy -i $ISO_DIR/boot/grub/efi.img /tmp/BOOTIA32.EFI ::/EFI/BOOT/BOOTIA32.EFI || true
-            for f in $ISO_DIR/EFI/BOOT $ISO_DIR/efi/boot; do cp /tmp/BOOTIA32.EFI $f/BOOTIA32.EFI; cp /tmp/BOOTIA32.EFI $f/bootia32.efi; done
-          else
-            cp /usr/lib/shim/shimx64.efi.signed /tmp/BOOTX64.EFI 2>/dev/null || cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /tmp/BOOTX64.EFI 2>/dev/null || true
-            cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /tmp/grubx64.efi 2>/dev/null || touch /tmp/grubx64.efi
-            mcopy -i $ISO_DIR/boot/grub/efi.img /tmp/BOOTX64.EFI ::/EFI/BOOT/BOOTX64.EFI || true
-            mcopy -i $ISO_DIR/boot/grub/efi.img /tmp/grubx64.efi ::/EFI/BOOT/GRUBX64.EFI || true
-            for f in $ISO_DIR/EFI/BOOT $ISO_DIR/efi/boot; do cp /tmp/BOOTX64.EFI $f/BOOTX64.EFI; cp /tmp/BOOTX64.EFI $f/bootx64.efi; cp /tmp/grubx64.efi $f/GRUBX64.EFI; cp /tmp/grubx64.efi $f/grubx64.efi; done
+          mkdir -p "$ISO_DIR/$CASPER_DIR" "$ISO_DIR/boot/isolinux" "$ISO_DIR/boot/grub" "$ISO_DIR/EFI/BOOT" "$ISO_DIR/efi/boot"
+          
+          # Create compressed squashfs
+          echo "Creating squashfs filesystem..."
+          sudo mksquashfs chroot "$ISO_DIR/$CASPER_DIR/filesystem.squashfs" -comp zstd -Xcompression-level 19 -b 1M -noappend -e chroot/dev chroot/proc chroot/sys chroot/run
+          
+          # Copy kernel and initramfs
+          if [ -n "$VMLINUZ_FILE" ] && [ -f "$VMLINUZ_FILE" ]; then
+            sudo cp "$VMLINUZ_FILE" "$ISO_DIR/$CASPER_DIR/vmlinuz" || echo "Warning: Could not copy vmlinuz"
           fi
-
-          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long \
-            -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table \
-            -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
-            -o "gamma-${{ matrix.edition }}.iso" $ISO_DIR || true
+          
+          if [ -n "$INITRD_FILE" ] && [ -f "$INITRD_FILE" ]; then
+            sudo cp "$INITRD_FILE" "$ISO_DIR/$CASPER_DIR/$INITRD_NAME" || echo "Warning: Could not copy initrd"
+          fi
+          
+          # Create splash image
+          convert -size 800x600 xc:#0a0a1a -font DejaVu-Sans-Bold -pointsize 56 -fill '#00d4ff' -gravity center -annotate +0-80 'GAMMA OS' -pointsize 28 -fill '#ffffff' -annotate +0+40 'v2.6.5 Tank' "$ISO_DIR/boot/isolinux/splash.png" 2>/dev/null || echo "Warning: Could not create splash image"
+          
+          # Copy ISOLINUX bootloader
+          sudo cp /usr/lib/ISOLINUX/isolinux.bin "$ISO_DIR/boot/isolinux/" 2>/dev/null || echo "Warning: isolinux.bin not found"
+          sudo cp /usr/lib/ISOLINUX/isohdpfx.bin "$ISO_DIR/boot/isolinux/" 2>/dev/null || echo "Warning: isohdpfx.bin not found"
+          
+          # Copy SYSLINUX modules
+          for f in menu.c32 vesamenu.c32 ldlinux.c32 libutil.c32 libcom32.c32; do
+            sudo cp "/usr/lib/syslinux/modules/bios/$f" "$ISO_DIR/boot/isolinux/" 2>/dev/null || true
+          done
+          
+          # Create ISOLINUX config
+          sudo tee "$ISO_DIR/boot/isolinux/isolinux.cfg" > /dev/null <<'EOFISOLINUX'
+          UI vesamenu.c32
+          MENU RESOLUTION 800 600
+          MENU BACKGROUND /boot/isolinux/splash.png
+          MENU TITLE ${{ matrix.label }} v2.6.5
+          TIMEOUT 100
+          DEFAULT autodetect
+          LABEL autodetect
+            MENU LABEL ^Gamma Auto-Detect
+            KERNEL /${{ matrix.base }}/vmlinuz
+            APPEND initrd=/${{ matrix.base }}/${{ matrix.base }} ${{ matrix.boot_base }} gamma.auto=1 quiet splash
+          LABEL live
+            MENU LABEL ^Live Boot
+            KERNEL /${{ matrix.base }}/vmlinuz
+            APPEND initrd=/${{ matrix.base }}/${{ matrix.base }} ${{ matrix.boot_base }} quiet splash
+          EOFISOLINUX
+          
+          # Create GRUB config
+          sudo tee "$ISO_DIR/boot/grub/grub.cfg" > /dev/null <<'EOFGRUB'
+          set timeout=10
+          set default=0
+          set gfxmode=800x600
+          insmod all_video
+          insmod gfxterm
+          terminal_output gfxterm
+          background_image /boot/isolinux/splash.png
+          
+          menuentry 'Gamma Auto-Detect' {
+            search --set=root --file /boot/vmlinuz
+            echo 'Loading Gamma OS...'
+            linux /${{ matrix.base }}/vmlinuz ${{ matrix.boot_base }} gamma.auto=1 quiet splash
+            initrd /${{ matrix.base }}/${{ matrix.base }}
+          }
+          
+          menuentry 'Gamma Live Boot' {
+            search --set=root --file /boot/vmlinuz
+            echo 'Loading Gamma OS...'
+            linux /${{ matrix.base }}/vmlinuz ${{ matrix.boot_base }} quiet splash
+            initrd /${{ matrix.base }}/${{ matrix.base }}
+          }
+          EOFGRUB
+          
+          # Copy GRUB config to EFI directories
+          sudo cp "$ISO_DIR/boot/grub/grub.cfg" "$ISO_DIR/EFI/BOOT/GRUB.CFG" 2>/dev/null || true
+          sudo cp "$ISO_DIR/boot/grub/grub.cfg" "$ISO_DIR/EFI/BOOT/grub.cfg" 2>/dev/null || true
+          sudo cp "$ISO_DIR/boot/grub/grub.cfg" "$ISO_DIR/efi/boot/GRUB.CFG" 2>/dev/null || true
+          sudo cp "$ISO_DIR/boot/grub/grub.cfg" "$ISO_DIR/efi/boot/grub.cfg" 2>/dev/null || true
+          
+          # Create EFI partition image
+          dd if=/dev/zero of="$ISO_DIR/boot/grub/efi.img" bs=1M count=4 2>/dev/null || true
+          mkfs.vfat "$ISO_DIR/boot/grub/efi.img" 2>/dev/null || true
+          mmd -i "$ISO_DIR/boot/grub/efi.img" ::/EFI ::/EFI/BOOT 2>/dev/null || true
+          
+          # Setup EFI bootloaders
+          if [ "${{ matrix.arch }}" = "i386" ]; then
+            sudo grub-mkimage -O i386-efi -o /tmp/BOOTIA32.EFI -p /boot/grub iso9660 fat extcmd boot linux normal configfile search_fs_file search_fs_uuid search_label 2>/dev/null || true
+            mcopy -i "$ISO_DIR/boot/grub/efi.img" /tmp/BOOTIA32.EFI ::/EFI/BOOT/BOOTIA32.EFI 2>/dev/null || true
+            for f in "$ISO_DIR/EFI/BOOT" "$ISO_DIR/efi/boot"; do
+              sudo cp /tmp/BOOTIA32.EFI "$f/BOOTIA32.EFI" 2>/dev/null || true
+              sudo cp /tmp/BOOTIA32.EFI "$f/bootia32.efi" 2>/dev/null || true
+            done
+          else
+            if [ -f /usr/lib/shim/shimx64.efi.signed ]; then
+              sudo cp /usr/lib/shim/shimx64.efi.signed /tmp/BOOTX64.EFI
+            elif [ -f /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ]; then
+              sudo cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /tmp/BOOTX64.EFI
+            else
+              sudo touch /tmp/BOOTX64.EFI
+            fi
+            
+            if [ -f /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ]; then
+              sudo cp /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed /tmp/grubx64.efi
+            else
+              sudo touch /tmp/grubx64.efi
+            fi
+            
+            mcopy -i "$ISO_DIR/boot/grub/efi.img" /tmp/BOOTX64.EFI ::/EFI/BOOT/BOOTX64.EFI 2>/dev/null || true
+            mcopy -i "$ISO_DIR/boot/grub/efi.img" /tmp/grubx64.efi ::/EFI/BOOT/GRUBX64.EFI 2>/dev/null || true
+            
+            for f in "$ISO_DIR/EFI/BOOT" "$ISO_DIR/efi/boot"; do
+              sudo cp /tmp/BOOTX64.EFI "$f/BOOTX64.EFI" 2>/dev/null || true
+              sudo cp /tmp/BOOTX64.EFI "$f/bootx64.efi" 2>/dev/null || true
+              sudo cp /tmp/grubx64.efi "$f/GRUBX64.EFI" 2>/dev/null || true
+              sudo cp /tmp/grubx64.efi "$f/grubx64.efi" 2>/dev/null || true
+            done
+          fi
+          
+          # Create final ISO
+          echo "Creating ISO image..."
+          ISOLINUX_PATH="/usr/lib/ISOLINUX/isolinux.bin"
+          ISOHDPFX_PATH="/usr/lib/ISOLINUX/isohdpfx.bin"
+          
+          if [ ! -f "$ISOLINUX_PATH" ]; then
+            ISOLINUX_PATH="/usr/lib/syslinux/isolinux.bin"
+          fi
+          
+          if [ ! -f "$ISOHDPFX_PATH" ]; then
+            ISOHDPFX_PATH="/usr/lib/syslinux/isohdpfx.bin"
+          fi
+          
+          sudo xorriso -as mkisofs \
+            -iso-level 3 \
+            -r \
+            -V "GAMMA_${{ matrix.edition }}" \
+            -J \
+            -joliet-long \
+            -b boot/isolinux/isolinux.bin \
+            -c boot/isolinux/boot.cat \
+            -no-emul-boot \
+            -boot-load-size 4 \
+            -boot-info-table \
+            -eltorito-alt-boot \
+            -e boot/grub/efi.img \
+            -no-emul-boot \
+            -isohybrid-gpt-basdat \
+            -isohybrid-mbr "$ISOHDPFX_PATH" \
+            -o "gamma-${{ matrix.edition }}.iso" \
+            "$ISO_DIR" || {
+              echo "ISO creation failed, attempting fallback..."
+              sudo genisoimage -r -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o "gamma-${{ matrix.edition }}.iso" "$ISO_DIR" || true
+            }
+            
+      - name: Verify ISO
+        run: |
+          if [ -f "gamma-${{ matrix.edition }}.iso" ]; then
+            ls -lh "gamma-${{ matrix.edition }}.iso"
+            file "gamma-${{ matrix.edition }}.iso"
+          else
+            echo "WARNING: ISO file not created for ${{ matrix.edition }}"
+            exit 1
+          fi
             
       - uses: actions/upload-artifact@v4
         with:
           name: gamma-${{ matrix.edition }}
           path: gamma-${{ matrix.edition }}.iso
+          retention-days: 30
           
   release:
     needs: build
@@ -310,8 +467,13 @@ EOFGRUB
       - uses: actions/download-artifact@v4
         with:
           name: gamma-${{ matrix.edition }}
+          
       - name: Generate SHA256
-        run: sha256sum gamma-${{ matrix.edition }}.iso > SHA256SUMS.txt
+        run: |
+          ls -la
+          sha256sum gamma-${{ matrix.edition }}.iso > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.version }}-${{ matrix.edition }}
@@ -320,8 +482,15 @@ EOFGRUB
             ## Gamma OS - ${{ matrix.edition }} ${{ github.event.inputs.version }}
             **Gamma Desktop: Openbox + Tint2 + Picom**
             **المميزات: 3 لغات + Alongside + الحذف الذاتي + زيرو بلوت**
+            
+            ### System Specs:
+            - **Edition**: ${{ matrix.edition }}
+            - **Release**: v2.6.5 Tank
+            - **Build Date**: $(date -u)
           files: |
             gamma-${{ matrix.edition }}.iso
             SHA256SUMS.txt
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
