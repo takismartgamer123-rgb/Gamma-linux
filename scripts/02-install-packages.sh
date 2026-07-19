@@ -7,19 +7,53 @@ echo "[02] Installing packages for $EDITION"
 
 export DEBIAN_FRONTEND=noninteractive
 
-sudo chroot chroot apt-get update
+
+# ==========================
+# Repository Setup
+# ==========================
+
+if grep -qi "ubuntu" chroot/etc/os-release; then
+
+    echo "Ubuntu detected"
+
+    sudo chroot chroot apt-get update
+
+    sudo chroot chroot apt-get install -y \
+        software-properties-common
+
+    sudo chroot chroot add-apt-repository universe || true
+
+    sudo chroot chroot apt-get update
+
+
+elif grep -qi "debian" chroot/etc/os-release; then
+
+    echo "Debian detected"
+
+    sudo chroot chroot apt-get update
+
+fi
+
+
 
 # ==========================
 # Locales
 # ==========================
+
 if [ "$EDITION" = "legacy" ]; then
-    sudo chroot chroot apt-get install -y locales
+
+    sudo chroot chroot apt-get install -y \
+        locales
+
 else
+
     sudo chroot chroot apt-get install -y \
         locales \
         language-pack-ar \
         language-pack-fr
+
 fi
+
 
 cat <<EOF | sudo tee chroot/etc/locale.gen >/dev/null
 ar_DZ.UTF-8 UTF-8
@@ -27,16 +61,23 @@ en_US.UTF-8 UTF-8
 fr_FR.UTF-8 UTF-8
 EOF
 
+
 sudo chroot chroot locale-gen
 
+
 echo "LANG=en_US.UTF-8" | sudo tee chroot/etc/default/locale >/dev/null
+
+
 
 # ==========================
 # Packages
 # ==========================
+
 case "$EDITION" in
 
+
 pro)
+
 PKGS="
 linux-image-generic-hwe-22.04
 initramfs-tools
@@ -48,9 +89,12 @@ network-manager
 earlyoom
 dbus-x11
 "
+
 ;;
 
+
 lite)
+
 PKGS="
 linux-image-generic-hwe-22.04
 initramfs-tools
@@ -60,9 +104,12 @@ terminology
 lightdm
 dbus-x11
 "
+
 ;;
 
+
 legacy)
+
 PKGS="
 linux-image-686-pae
 enlightenment
@@ -71,28 +118,52 @@ lightdm
 network-manager
 dbus-x11
 "
+
 ;;
 
+
 *)
+
 echo "Unknown edition: $EDITION"
 exit 1
+
 ;;
 
 esac
+
+
+
+echo "[02] Installing:"
+
+echo "$PKGS"
+
+
 
 sudo chroot chroot apt-get install \
     -y \
     --no-install-recommends \
     $PKGS
 
+
+
 # ==========================
 # Cleanup
 # ==========================
 
-REMOVE_PKGS="snapd flatpak cups"
+REMOVE_PKGS="
+snapd
+flatpak
+cups
+"
 
-sudo chroot chroot apt-get purge -y $REMOVE_PKGS || true
+
+sudo chroot chroot apt-get purge -y \
+    $REMOVE_PKGS || true
+
+
 sudo chroot chroot apt-get autoremove -y
+
 sudo chroot chroot apt-get clean
+
 
 echo "[02] Packages installed successfully."
