@@ -21,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin mtools isolinux syslinux-common edje-utils cmake libefl-dev qemu-system-x86
+        sudo apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin mtools isolinux syslinux-common qemu-system-x86
 
     - name: 01. Prepare
       run: bash scripts/01-prepare.sh ${{ matrix.edition }}
