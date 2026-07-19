@@ -40,12 +40,34 @@ jobs:
 
 
     # ================================
+    # Free Space
+    # ================================
+
+    - name: Free Disk Space
+      run: |
+        sudo rm -rf \
+          /usr/local/lib/android \
+          /opt/ghc \
+          /usr/share/dotnet \
+          /opt/hostedtoolcache/CodeQL || true
+
+        sudo docker system prune -af || true
+
+
+    # ================================
     # Dependencies
     # ================================
 
     - name: Install Build Dependencies
       run: |
         sudo apt-get update
+
+        sudo apt-get autoremove -y || true
+        sudo apt-get clean || true
+        sudo apt-get -f install -y || true
+
+        sudo apt-get install -y \
+          libunwind-dev
 
         sudo apt-get install -y \
           build-essential \
@@ -65,26 +87,14 @@ jobs:
           libefl-all-dev
 
 
-    - name: Check EFL Tools
+    # ================================
+    # Check Environment
+    # ================================
+
+    - name: Check Build Environment
       run: |
         cmake --version
-        which edje_cc || true
-        edje_cc --version || true
-
-
-    # ================================
-    # Free Space
-    # ================================
-
-    - name: Free Disk Space
-      run: |
-        sudo rm -rf \
-          /usr/local/lib/android \
-          /opt/ghc \
-          /usr/share/dotnet \
-          /opt/hostedtoolcache/CodeQL || true
-
-        sudo docker system prune -af || true
+        pkg-config --modversion efl || true
 
 
     # ================================
