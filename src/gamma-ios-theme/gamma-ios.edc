@@ -1,0 +1,25 @@
+collections {
+   group { name: "gamma/ios/window";
+      parts {
+         part { name: "bg"; 
+            description { state: "default" 0.0;
+               color: 10 10 26 240; 
+               rel1 { relative: 0.0 0.0; } 
+               rel2 { relative: 1.0 1.0; }
+            }
+         }
+      }
+   }
+   group { name: "gamma/ios/dock";
+      parts {
+         part { name: "dock_bg"; 
+            description { state: "default" 0.0;
+               color: 255 255 255 30; 
+               rel1 { relative: 0.2 0.92; } 
+               rel2 { relative: 0.8 0.98; }
+               aspect: 8.0 1.0;
+            }
+         }
+      }
+   }
+}
