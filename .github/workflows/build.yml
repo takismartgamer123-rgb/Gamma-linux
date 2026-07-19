@@ -1,317 +1,37 @@
-name: Build Gamma v2.3.0-FINAL ♾️🇩🇿
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release Version'
-        required: true
-        default: 'v2.3.0-FINAL'
-permissions:
-  contents: write
+name: Build Gamma Linux v2.7-Pro
+on: workflow_dispatch
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 150
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # ============= LEGACY-32 (Debian Base) =============
-          - edition: legacy-32
-            arch: i386
-            base: debian
-            timeout: 150
-            packages: "linux-image-686-pae lxqt-core lightdm calamares zram-tools tlp"
-            zram: "150"
-            swappiness: ""
-            vfs: ""
-            dirty: ""
-            purge: ""
-            hostname: "gamma-legacy"
-            wallpaper: ""
-            uefi: "ia32"
-            label: "Gamma Legacy-32"
-            release_suffix: "legacy32"
-            boot_opts: "boot=live quiet splash"
-            inst_opts: "boot=live quiet splash autostart=calamares"
-            body: |
-              ## Gamma Legacy-32 ${{ github.event.inputs.version }} ♾️🇩🇿
-              **For 512MB RAM PCs | Debian 12 i386**
-              **LXQt 1.4 | ZRAM 150% | Calamares Installer**
-              **BIOS + UEFI ia32 Hybrid Boot**
-
-          # ============= LITE-GHOST (Ubuntu Base) =============
-          - edition: lite-ghost
-            arch: amd64
-            base: ubuntu
-            timeout: 120
-            packages: "linux-image-generic initramfs-tools lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm slick-greeter zram-config tlp ubiquity ubiquity-frontend-gtk"
-            zram: "50"
-            swappiness: "100"
-            vfs: "100"
-            dirty: "10"
-            purge: "snapd* flatpak* cups* printer-driver* bluetooth* geoclue* evolution* gnome-software*"
-            hostname: "gamma-lite"
-            wallpaper: "true"
-            uefi: "x64"
-            label: "Gamma Lite-Ghost"
-            release_suffix: "lite-ghost"
-            boot_opts: "boot=casper quiet splash"
-            inst_opts: "boot=casper only-ubiquity quiet splash"
-            body: |
-              ## Gamma Lite-Ghost ${{ github.event.inputs.version }} ♾️🇩🇿
-              **For 1GB RAM PCs | Pure Ubuntu Base | GHOST MODE**
-              **LXQt 1.4 | ZRAM 50% | Aggressive Swapping | No Bloatware**
-              **BIOS + UEFI x64 Hybrid Boot**
-
-          # ============= PRO-MAXMINI (Ubuntu Base) =============
-          - edition: pro-maxmini
-            arch: amd64
-            base: ubuntu
-            timeout: 120
-            packages: "linux-image-generic initramfs-tools lxqt-core lxqt-themes papirus-icon-theme materia-gtk-theme lightdm slick-greeter zram-config tlp ubiquity ubiquity-frontend-gtk"
-            zram: "25"
-            swappiness: ""
-            vfs: ""
-            dirty: ""
-            purge: "snapd* flatpak*"
-            hostname: "gamma-pro"
-            wallpaper: "true"
-            uefi: "x64"
-            label: "Gamma Pro-MaxMini"
-            release_suffix: "pro-maxmini"
-            boot_opts: "boot=casper quiet splash"
-            inst_opts: "boot=casper only-ubiquity quiet splash"
-            body: |
-              ## Gamma Pro-MaxMini ${{ github.event.inputs.version }} ♾️🇩🇿
-              **For 2GB+ RAM PCs | Pure Ubuntu Base**
-              **LXQt 1.4 | ZRAM 25% | TLP | Ubiquity Installer**
-              **BIOS + UEFI x64 Hybrid Boot**
-
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Optimize Disk
-      if: matrix.arch == 'amd64'
-      run: sudo rm -rf /usr/share/dotnet /opt/ghc "$AGENT_TOOLSDIRECTORY" && sudo apt-get clean && df -h
-
-    - name: Install Tools
-      run: |
-        sudo apt-get update
-        if [ "${{ matrix.arch }}" = "i386" ]; then
-          sudo apt-get install -y debootstrap squashfs-tools xorriso wget isolinux syslinux-utils syslinux-common grub-pc-bin grub-efi-ia32-bin binutils mtools dosfstools
-        else
-          sudo apt-get install -y debootstrap squashfs-tools xorriso wget rsync zstd isolinux syslinux-utils syslinux-common shim-signed grub-efi-amd64-signed mtools dosfstools
-        fi
-
-    - name: Fetch Assets
-      if: matrix.wallpaper == 'true'
-      run: |
-        wget -O gamma-wallpaper.jpg "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1920" || true
-        wget -O gamma-logo.png "https://raw.githubusercontent.com/takismartgamer123-rgb/Gamma-linux/main/assets/logo.png" || true
-
-    - name: Build ISO
-      run: |
-        if [ "${{ matrix.base }}" = "debian" ]; then
-          sudo debootstrap --arch=i386 bookworm chroot http://deb.debian.org/debian/
-        else
-          sudo debootstrap --arch=amd64 jammy chroot http://archive.ubuntu.com/ubuntu/
-        fi
-
-        sudo mount --bind /dev chroot/dev && sudo mount --bind /run chroot/run
-        sudo mount -t proc none chroot/proc && sudo mount -t sysfs none chroot/sys
-        sudo rm -f chroot/etc/resolv.conf && echo 'nameserver 8.8.8.8' | sudo tee chroot/etc/resolv.conf
+      - uses: actions/checkout@v4
+      
+      - name: 01. Prepare
+        run: bash scripts/01-prepare.sh ${{ matrix.edition }}
         
-        if [ "${{ matrix.base }}" = "ubuntu" ]; then
-          echo "deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee chroot/etc/apt/sources.list
-          echo "deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
-          echo "deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a chroot/etc/apt/sources.list
-        fi
-
-        sudo chroot chroot apt-get update
+      - name: 02. Install Packages  
+        run: bash scripts/02-install-packages.sh ${{ matrix.edition }}
         
-        if [ -n "${{ matrix.purge }}" ]; then
-          sudo chroot chroot apt-get remove -y --purge ${{ matrix.purge }} || true
-        fi
+      - name: 03. Install Gamma Components
+        run: bash scripts/03-install-gamma.sh
         
-        sudo chroot chroot apt-get install -y --no-install-recommends ${{ matrix.packages }}
+      - name: 04. Configure System
+        run: bash scripts/04-configure.sh ${{ matrix.edition }}
         
-        # استخراج إصدار الكرنال الحقيقي وبناء الـ initramfs بشكل صارم دون تخطّي
-        KERNEL_VERSION=$(ls chroot/lib/modules/ | head -n 1)
-        if [ -n "$KERNEL_VERSION" ]; then
-          echo "🚀 Forcing initramfs generation for kernel: $KERNEL_VERSION"
-          sudo chroot chroot update-initramfs -c -k "$KERNEL_VERSION"
-        else
-          echo "🚨 CRITICAL: No kernel found in /lib/modules!" && exit 1
-        fi
+      - name: 05. Build SquashFS
+        run: bash scripts/05-build-squashfs.sh
         
-        if [ "${{ matrix.base }}" = "debian" ]; then
-          echo "ZRAM_SIZE_PERCENT=${{ matrix.zram }}" | sudo tee chroot/etc/default/zramswap
-        else
-          sudo mkdir -p chroot/etc/init.d/
-          echo -e '#!/bin/sh\n/sbin/modprobe zram\necho $(( $(sysctl -n vm.totalhigh_pages) * 4096 * '${{ matrix.zram }}' / 100 )) > /sys/block/zram0/disksize\n/sbin/mkswap /dev/zram0\n/sbin/swapon -p 32767 /dev/zram0' | sudo tee chroot/etc/rc.local
-          sudo chmod +x chroot/etc/rc.local || true
-        fi
-
-        if [ -n "${{ matrix.swappiness }}" ]; then
-          echo "vm.swappiness=${{ matrix.swappiness }}" | sudo tee chroot/etc/sysctl.d/99-zram.conf
-          echo "vm.vfs_cache_pressure=${{ matrix.vfs }}" | sudo tee -a chroot/etc/sysctl.d/99-zram.conf
-          echo "vm.dirty_ratio=${{ matrix.dirty }}" | sudo tee -a chroot/etc/sysctl.d/99-zram.conf
-        fi
+      - name: 06. Build EFI
+        run: bash scripts/06-build-efi.sh
         
-        sudo chroot chroot systemctl disable NetworkManager-wait-online.service || true
-        sudo chroot chroot bash -c "useradd -m -s /bin/bash gamma || true; echo 'gamma:gamma' | chpasswd; hostnamectl set-hostname ${{ matrix.hostname }} 2>/dev/null || echo ${{ matrix.hostname }} > /etc/hostname"
+      - name: 07. Build ISO
+        run: bash scripts/07-build-iso.sh ${{ matrix.edition }}
         
-        if [ "${{ matrix.wallpaper }}" = "true" ]; then
-          sudo mkdir -p chroot/usr/share/backgrounds && sudo cp gamma-wallpaper.jpg chroot/usr/share/backgrounds/gamma-wallpaper.jpg || true
-        fi
+      - name: 08. QEMU Test
+        run: bash scripts/08-test.sh
         
-        # التقاط المسارات الحقيقية للملفات بعد البناء الصحيح
-        VMLINUZ_FILE=$(sudo sh -c 'ls chroot/boot/vmlinuz-* chroot/vmlinuz 2>/dev/null | head -n 1')
-        INITRD_FILE=$(sudo sh -c 'ls chroot/boot/initrd.img-* chroot/boot/initrd-* chroot/initrd.img 2>/dev/null | head -n 1')
-        
-        echo "Found Kernel: $VMLINUZ_FILE"
-        echo "Found Initrd: $INITRD_FILE"
-        
-        if [ -z "$VMLINUZ_FILE" ] || [ -z "$INITRD_FILE" ]; then
-          echo "🚨 CRITICAL ERROR: Kernel or Initrd not found!"
-          echo "=== Contents of chroot /boot ==="
-          sudo ls -la chroot/boot/
-          exit 1
-        fi
-        
-        sudo umount chroot/dev chroot/run chroot/proc chroot/sys || true
-        
-        if [ "${{ matrix.base }}" = "debian" ]; then
-          mkdir -p iso/live iso/boot/isolinux iso/boot/grub
-          sudo mksquashfs chroot iso/live/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
-          
-          sudo cp "$VMLINUZ_FILE" iso/live/vmlinuz
-          sudo cp "$INITRD_FILE" iso/live/initrd.img
-          
-          sudo cp /usr/lib/ISOLINUX/isolinux.bin iso/boot/isolinux/
-          sudo cp /usr/lib/syslinux/modules/bios/*.c32 iso/boot/isolinux/
-          
-          echo "UI menu.c32
-          PROMPT 0
-          MENU TITLE ${{ matrix.label }} Boot Options
-          TIMEOUT 100
-          DEFAULT live
-
-          LABEL live
-          MENU LABEL Start ${{ matrix.label }} (Live)
-          KERNEL /live/vmlinuz
-          APPEND initrd=/live/initrd.img ${{ matrix.boot_opts }}
-
-          LABEL safe
-          MENU LABEL Start ${{ matrix.label }} (Safe Graphics)
-          KERNEL /live/vmlinuz
-          APPEND initrd=/live/initrd.img ${{ matrix.boot_opts }} nomodeset
-
-          LABEL install
-          MENU LABEL Install ${{ matrix.label }} OS
-          KERNEL /live/vmlinuz
-          APPEND initrd=/live/initrd.img ${{ matrix.inst_opts }}" | sudo tee iso/boot/isolinux/isolinux.cfg
-          
-          dd if=/dev/zero of=iso/boot/efiboot.img bs=1M count=10
-          mkfs.vfat iso/boot/efiboot.img
-          mmd -i iso/boot/efiboot.img ::/EFI ::/EFI/BOOT
-          sudo grub-mkimage -O i386-efi -o BOOTIA32.EFI -p /boot/grub extcmd boot linux normal configfile fat iso9660
-          mcopy -i iso/boot/efiboot.img BOOTIA32.EFI ::/EFI/BOOT/BOOTIA32.EFI
-          rm -f BOOTIA32.EFI
-          
-          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e boot/efiboot.img -no-emul-boot -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" iso/
-        else
-          mkdir -p ext/casper ext/boot/isolinux ext/boot/grub
-          sudo mksquashfs chroot ext/casper/filesystem.squashfs -comp zstd -Xcompression-level 15 -b 1M -noappend
-          
-          sudo cp "$VMLINUZ_FILE" ext/casper/vmlinuz
-          sudo cp "$INITRD_FILE" ext/casper/initrd.lz
-          
-          sudo cp /usr/lib/ISOLINUX/isolinux.bin ext/boot/isolinux/
-          sudo cp /usr/lib/syslinux/modules/bios/*.c32 ext/boot/isolinux/
-          
-          echo "UI menu.c32
-          PROMPT 0
-          MENU TITLE ${{ matrix.label }} Boot Options
-          TIMEOUT 100
-          DEFAULT live
-
-          LABEL live
-          MENU LABEL Start ${{ matrix.label }} (Live)
-          KERNEL /casper/vmlinuz
-          APPEND initrd=/casper/initrd.lz ${{ matrix.boot_opts }}
-
-          LABEL safe
-          MENU LABEL Start ${{ matrix.label }} (Safe Graphics)
-          KERNEL /casper/vmlinuz
-          APPEND initrd=/casper/initrd.lz ${{ matrix.boot_opts }} nomodeset
-
-          LABEL install
-          MENU LABEL Install ${{ matrix.label }} OS
-          KERNEL /casper/vmlinuz
-          APPEND initrd=/casper/initrd.lz ${{ matrix.inst_opts }}" | sudo tee ext/boot/isolinux/isolinux.cfg
-          
-          dd if=/dev/zero of=ext/boot/efiboot.img bs=1M count=10
-          mkfs.vfat ext/boot/efiboot.img
-          mmd -i ext/boot/efiboot.img ::/EFI ::/EFI/BOOT
-          mcopy -i ext/boot/efiboot.img /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed ::/EFI/BOOT/BOOTX64.EFI || true
-          
-          sudo xorriso -as mkisofs -iso-level 3 -r -V "GAMMA_${{ matrix.edition }}" -J -joliet-long -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e boot/efiboot.img -no-emul-boot -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -o "gamma-${{ matrix.edition }}.iso" ext/
-        fi
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: gamma-${{ matrix.edition }}
-        path: gamma-${{ matrix.edition }}.iso
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        edition: [legacy-32, lite-ghost, pro-maxmini]
-        include:
-          - edition: legacy-32
-            suffix: legacy32
-            body: |
-              ## Gamma Legacy-32 ${{ github.event.inputs.version }} ♾️🇩🇿
-              **For 512MB RAM PCs | Debian 12 i386**
-              **LXQt 1.4 | ZRAM 150% | Calamares Installer**
-              **BIOS + UEFI ia32 Hybrid Boot**
-          - edition: lite-ghost
-            suffix: lite-ghost
-            body: |
-              ## Gamma Lite-Ghost ${{ github.event.inputs.version }} ♾️🇩🇿
-              **For 1GB RAM PCs | Pure Ubuntu Base | GHOST MODE**
-              **LXQt 1.4 | ZRAM 50% | Aggressive Swapping | No Bloatware**
-              **BIOS + UEFI x64 Hybrid Boot**
-          - edition: pro-maxmini
-            suffix: pro-maxmini
-            body: |
-              ## Gamma Pro-MaxMini ${{ github.event.inputs.version }} ♾️🇩🇿
-              **For 2GB+ RAM PCs | Pure Ubuntu Base**
-              **LXQt 1.4 | ZRAM 25% | TLP | Ubiquity Installer**
-              **BIOS + UEFI x64 Hybrid Boot**
-    steps:
-    - uses: actions/download-artifact@v4
-      with:
-        name: gamma-${{ matrix.edition }}
-    - name: Generate SHA256
-      run: sha256sum gamma-${{ matrix.edition }}.iso > SHA256SUMS.txt
-    - uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ github.event.inputs.version }}-${{ matrix.suffix }}
-        name: ${{ matrix.edition }} ${{ github.event.inputs.version }} ♾️🇩🇿
-        body: |
-          ${{ matrix.body }}
-          ✅ **Verify with SHA256SUMS.txt**
-          *Alpha failed. Beta crashed. Gamma survives*
-          **By: Taki - 17 Years Old from Guelma, Algeria**
-          **Dedicated to my father Fateh**
-        files: |
-          gamma-${{ matrix.edition }}.iso
-          SHA256SUMS.txt
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gamma-${{ matrix.edition }}
+          path: output/*.iso
