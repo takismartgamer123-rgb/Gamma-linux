@@ -1,43 +1,61 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[03] Building Gamma CC + Theme"
+echo "[03] Building Gamma Components"
 
-ROOT="$PWD"
+ROOT="$(pwd)"
 
-# ==========================
+# ==========================================
+# Check Sources
+# ==========================================
+
+[ -d src/gamma-cc ] || { echo "ERROR: src/gamma-cc not found."; exit 1; }
+
+[ -f src/gamma-ios-theme/gamma-ios.edc ] || {
+    echo "ERROR: gamma-ios.edc not found."
+    exit 1
+}
+
+# ==========================================
 # Build Gamma CC
-# ==========================
+# ==========================================
 
-cd src/gamma-cc
+echo "[03] Building Gamma CC..."
 
-mkdir -p build
-cd build
+mkdir -p src/gamma-cc/build
 
-cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+cd src/gamma-cc/build
+
+cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    ..
+
 make -j"$(nproc)"
 
 sudo make install DESTDIR="$ROOT/chroot"
 
 cd "$ROOT"
 
-# ==========================
-# Build Gamma Theme
-# ==========================
+# ==========================================
+# Build Theme
+# ==========================================
+
+echo "[03] Building Gamma Theme..."
 
 edje_cc \
     src/gamma-ios-theme/gamma-ios.edc \
     src/gamma-ios-theme/gamma-ios.edj
 
-sudo mkdir -p \
-chroot/usr/share/enlightenment/data/themes/gamma-ios
+sudo install -d \
+    chroot/usr/share/enlightenment/data/themes/gamma-ios
 
-sudo cp \
-src/gamma-ios-theme/gamma-ios.edj \
-chroot/usr/share/enlightenment/data/themes/gamma-ios/
+sudo install -m644 \
+    src/gamma-ios-theme/gamma-ios.edj \
+    chroot/usr/share/enlightenment/data/themes/gamma-ios/
 
-sudo cp \
-src/gamma-ios-theme/theme.desktop \
-chroot/usr/share/enlightenment/data/themes/gamma-ios/
+sudo install -m644 \
+    src/gamma-ios-theme/theme.desktop \
+    chroot/usr/share/enlightenment/data/themes/gamma-ios/
 
-echo "[03] Gamma components installed."
+echo "[03] Gamma Components installed successfully."
