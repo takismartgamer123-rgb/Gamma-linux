@@ -1,37 +1,81 @@
-name: Build Gamma Linux v2.7-Pro
-on: workflow_dispatch
+name: Build Gamma Linux v2.7
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag e.g v2.7'
+        required: true
+        default: 'v2.7'
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [pro, lite, legacy]
+    
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: 01. Prepare
-        run: bash scripts/01-prepare.sh ${{ matrix.edition }}
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin mtools isolinux syslinux-common edje-utils cmake libefl-dev qemu-system-x86
+
+    - name: 01. Prepare
+      run: bash scripts/01-prepare.sh ${{ matrix.edition }}
+
+    - name: 02. Install Packages
+      run: bash scripts/02-install-packages.sh ${{ matrix.edition }}
+
+    - name: 03. Install Gamma Components
+      run: bash scripts/03-install-gamma.sh
+
+    - name: 04. Configure System
+      run: bash scripts/04-configure.sh ${{ matrix.edition }}
+
+    - name: 05. Build SquashFS
+      run: bash scripts/05-build-squashfs.sh
+
+    - name: 06. Build EFI
+      run: bash scripts/06-build-efi.sh
+
+    - name: 07. Build ISO
+      run: bash scripts/07-build-iso.sh ${{ matrix.edition }}
+
+    - name: 08. QEMU Test
+      run: bash scripts/08-test.sh
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: gamma-${{ matrix.edition }}
+        path: output/*.iso
+
+  release:
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    
+    - uses: actions/download-artifact@v4
+      with:
+        path: artifacts
         
-      - name: 02. Install Packages  
-        run: bash scripts/02-install-packages.sh ${{ matrix.edition }}
-        
-      - name: 03. Install Gamma Components
-        run: bash scripts/03-install-gamma.sh
-        
-      - name: 04. Configure System
-        run: bash scripts/04-configure.sh ${{ matrix.edition }}
-        
-      - name: 05. Build SquashFS
-        run: bash scripts/05-build-squashfs.sh
-        
-      - name: 06. Build EFI
-        run: bash scripts/06-build-efi.sh
-        
-      - name: 07. Build ISO
-        run: bash scripts/07-build-iso.sh ${{ matrix.edition }}
-        
-      - name: 08. QEMU Test
-        run: bash scripts/08-test.sh
-        
-      - uses: actions/upload-artifact@v4
-        with:
-          name: gamma-${{ matrix.edition }}
-          path: output/*.iso
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event.inputs.tag }}
+        name: Gamma Linux ${{ github.event.inputs.tag }}
+        body: |
+          Gamma Linux v2.7 with Enlightenment 17
+          
+          **Editions:**
+          - pro: Full E17 + NetworkManager + Firmware
+          - lite: Minimal E17
+          - legacy: 32bit PAE for old PCs
+          
+          BIOS + UEFI Dual Boot
+        files: artifacts/**/*.iso
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
