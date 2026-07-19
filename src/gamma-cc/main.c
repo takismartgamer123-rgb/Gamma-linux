@@ -7,6 +7,10 @@
 
 static Evas_Object *win = NULL;
 
+static Eina_Bool ctrl_left = EINA_FALSE;
+static Eina_Bool ctrl_right = EINA_FALSE;
+
+
 
 static void
 _btn_clicked(void *data, Evas_Object *obj, void *event_info)
@@ -21,20 +25,43 @@ _btn_clicked(void *data, Evas_Object *obj, void *event_info)
 }
 
 
+
+static void
+_show_cc(void)
+{
+    if (win)
+    {
+        evas_object_show(win);
+        elm_win_raise(win);
+    }
+}
+
+
+
 static Eina_Bool
 _key_down(void *data, int type, void *event)
 {
     Ecore_Event_Key *ev = event;
 
+
     if (!ev || !ev->key)
         return ECORE_CALLBACK_PASS_ON;
 
 
-    if (!strcmp(ev->key, "Control_L") ||
-        !strcmp(ev->key, "Control_R"))
+
+    if (!strcmp(ev->key, "Control_L"))
+        ctrl_left = EINA_TRUE;
+
+
+
+    if (!strcmp(ev->key, "Control_R"))
+        ctrl_right = EINA_TRUE;
+
+
+
+    if (ctrl_left && ctrl_right)
     {
-        evas_object_show(win);
-        elm_win_raise(win);
+        _show_cc();
 
         return ECORE_CALLBACK_CANCEL;
     }
@@ -44,10 +71,41 @@ _key_down(void *data, int type, void *event)
 }
 
 
+
+
+static Eina_Bool
+_key_up(void *data, int type, void *event)
+{
+    Ecore_Event_Key *ev = event;
+
+
+    if (!ev || !ev->key)
+        return ECORE_CALLBACK_PASS_ON;
+
+
+
+    if (!strcmp(ev->key, "Control_L"))
+        ctrl_left = EINA_FALSE;
+
+
+
+    if (!strcmp(ev->key, "Control_R"))
+        ctrl_right = EINA_FALSE;
+
+
+
+    return ECORE_CALLBACK_PASS_ON;
+}
+
+
+
+
+
 int
 main(int argc, char **argv)
 {
     elm_init(argc, argv);
+
 
 
     win = elm_win_util_standard_add(
@@ -60,15 +118,20 @@ main(int argc, char **argv)
         return 1;
 
 
+
     elm_win_alpha_set(win, EINA_TRUE);
     elm_win_borderless_set(win, EINA_TRUE);
+
 
 
     evas_object_resize(win, 600, 300);
     evas_object_move(win, 200, 400);
 
 
+
+
     Evas_Object *bg = elm_bg_add(win);
+
 
     elm_bg_color_set(
         bg,
@@ -77,16 +140,20 @@ main(int argc, char **argv)
         20
     );
 
+
     elm_win_resize_object_add(
         win,
         bg
     );
 
+
     evas_object_show(bg);
 
 
 
+
     Evas_Object *box = elm_box_add(win);
+
 
     elm_box_horizontal_set(
         box,
@@ -101,12 +168,16 @@ main(int argc, char **argv)
 
 
 
+
+
     Evas_Object *btn = elm_button_add(win);
+
 
     elm_object_text_set(
         btn,
         "PERFORMANCE MODE"
     );
+
 
 
     evas_object_smart_callback_add(
@@ -115,6 +186,7 @@ main(int argc, char **argv)
         _btn_clicked,
         "pkexec gamma-cc --perf"
     );
+
 
 
     elm_box_pack_end(
@@ -127,7 +199,9 @@ main(int argc, char **argv)
     evas_object_show(box);
 
 
+
     evas_object_hide(win);
+
 
 
 
@@ -136,6 +210,14 @@ main(int argc, char **argv)
         _key_down,
         NULL
     );
+
+
+    ecore_event_handler_add(
+        ECORE_EVENT_KEY_UP,
+        _key_up,
+        NULL
+    );
+
 
 
     elm_run();
