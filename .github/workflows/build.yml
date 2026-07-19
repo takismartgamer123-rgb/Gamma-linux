@@ -1,4 +1,5 @@
 name: Build Gamma Linux v2.7
+
 on:
   workflow_dispatch:
     inputs:
@@ -7,75 +8,162 @@ on:
         required: true
         default: 'v2.7'
 
+permissions:
+  contents: write
+
+
 jobs:
+
+# =====================================
+# BUILD
+# =====================================
+
   build:
+
     runs-on: ubuntu-22.04
+
     strategy:
       fail-fast: false
       matrix:
-        edition: [pro, lite, legacy]
-    
-    steps:
-    - uses: actions/checkout@v4
+        edition:
+          - pro
+          - lite
+          - legacy
 
-    - name: Install dependencies
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+
+    - name: Install Build Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin mtools isolinux syslinux-common qemu-system-x86
 
-    - name: 01. Prepare
-      run: bash scripts/01-prepare.sh ${{ matrix.edition }}
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          pkg-config \
+          debootstrap \
+          squashfs-tools \
+          xorriso \
+          grub-pc-bin \
+          grub-efi-amd64-bin \
+          grub-efi-ia32-bin \
+          mtools \
+          dosfstools \
+          isolinux \
+          syslinux-common \
+          qemu-system-x86 \
+          libefl-all-dev \
+          edje-utils
 
-    - name: 02. Install Packages
-      run: bash scripts/02-install-packages.sh ${{ matrix.edition }}
 
-    - name: 03. Install Gamma Components
-      run: bash scripts/03-install-gamma.sh
+    - name: Free Disk Space
+      run: |
+        sudo rm -rf \
+        /usr/local/lib/android \
+        /opt/ghc \
+        /usr/share/dotnet || true
 
-    - name: 04. Configure System
-      run: bash scripts/04-configure.sh ${{ matrix.edition }}
 
-    - name: 05. Build SquashFS
-      run: bash scripts/05-build-squashfs.sh
+    - name: 01 Prepare
+      run: |
+        bash scripts/01-prepare.sh ${{ matrix.edition }}
 
-    - name: 06. Build EFI
-      run: bash scripts/06-build-efi.sh
 
-    - name: 07. Build ISO
-      run: bash scripts/07-build-iso.sh ${{ matrix.edition }}
+    - name: 02 Install Packages
+      run: |
+        bash scripts/02-install-packages.sh ${{ matrix.edition }}
 
-    - name: 08. QEMU Test
-      run: bash scripts/08-test.sh
 
-    - uses: actions/upload-artifact@v4
+    - name: 03 Install Gamma
+      run: |
+        bash scripts/03-install-gamma.sh
+
+
+    - name: 04 Configure
+      run: |
+        bash scripts/04-configure.sh ${{ matrix.edition }}
+
+
+    - name: 05 Build SquashFS
+      run: |
+        bash scripts/05-build-squashfs.sh
+
+
+    - name: 06 Build EFI
+      run: |
+        bash scripts/06-build-efi.sh
+
+
+    - name: 07 Build ISO
+      run: |
+        bash scripts/07-build-iso.sh ${{ matrix.edition }}
+
+
+    - name: 08 QEMU Test
+      run: |
+        bash scripts/08-test.sh ${{ matrix.edition }}
+
+
+    - name: Upload ISO
+      uses: actions/upload-artifact@v4
       with:
         name: gamma-${{ matrix.edition }}
-        path: output/*.iso
+        path: output/gamma-${{ matrix.edition }}.iso
+
+
+
+# =====================================
+# RELEASE
+# =====================================
 
   release:
+
     needs: build
+
     runs-on: ubuntu-22.04
+
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - uses: actions/download-artifact@v4
+
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
-        
+
+
     - name: Create Release
       uses: softprops/action-gh-release@v2
+
       with:
+
         tag_name: ${{ github.event.inputs.tag }}
+
         name: Gamma Linux ${{ github.event.inputs.tag }}
+
         body: |
-          Gamma Linux v2.7 with Enlightenment 17
-          
-          **Editions:**
-          - pro: Full E17 + NetworkManager + Firmware
-          - lite: Minimal E17
-          - legacy: 32bit PAE for old PCs
-          
-          BIOS + UEFI Dual Boot
-        files: artifacts/**/*.iso
+          # Gamma Linux v2.7
+
+          Enlightenment based distribution.
+
+          Editions:
+
+          - Pro: Full desktop experience
+          - Lite: Lightweight edition
+          - Legacy: 32-bit support
+
+          Features:
+
+          - Gamma CC
+          - Gamma iOS Theme
+          - BIOS + UEFI Boot
+
+        files: |
+          artifacts/**/*.iso
+
+
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
