@@ -5,58 +5,84 @@ EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
 
 echo "[07] Building Gamma Linux ISO ($EDITION)"
 
-# ==========================
-# Boot mode
-# ==========================
+# ==========================================
+# Boot configuration
+# ==========================================
+
 if [ "$EDITION" = "legacy" ]; then
-    BOOT="live"
+    LIVE_DIR="live"
+    BOOT="boot=live"
 else
-    BOOT="casper"
+    LIVE_DIR="casper"
+    BOOT="boot=casper"
 fi
 
-# ==========================
-# Directories
-# ==========================
+
+# ==========================================
+# Prepare
+# ==========================================
+
 mkdir -p output
 mkdir -p iso/boot/isolinux
 
-# ==========================
-# ISOLINUX Config
-# ==========================
+rm -f "output/gamma-${EDITION}.iso"
+
+
+# ==========================================
+# ISOLINUX
+# ==========================================
+
 cat > iso/boot/isolinux/isolinux.cfg <<EOF
 UI vesamenu.c32
 
-MENU TITLE Gamma Linux v2.7 ($EDITION)
+MENU TITLE Gamma Linux v2.7 ${EDITION}
 
 TIMEOUT 100
 DEFAULT live
 
+
 LABEL live
     MENU LABEL ^Start Gamma Linux
-    KERNEL /casper/vmlinuz
-    APPEND initrd=/casper/initrd.lz boot=$BOOT quiet splash
+    KERNEL /${LIVE_DIR}/vmlinuz
+    APPEND initrd=/${LIVE_DIR}/initrd.lz ${BOOT} quiet splash
+
 
 LABEL safe
     MENU LABEL Start Gamma Linux (Safe Mode)
-    KERNEL /casper/vmlinuz
-    APPEND initrd=/casper/initrd.lz boot=$BOOT nomodeset
+    KERNEL /${LIVE_DIR}/vmlinuz
+    APPEND initrd=/${LIVE_DIR}/initrd.lz ${BOOT} nomodeset
 EOF
 
-# ==========================
-# Quality Assurance
-# ==========================
-echo "[07] Running QA..."
 
-[ -f iso/casper/vmlinuz ] || { echo "ERROR: Missing kernel."; exit 1; }
-[ -f iso/casper/initrd.lz ] || { echo "ERROR: Missing initrd."; exit 1; }
-[ -f iso/casper/filesystem.squashfs ] || { echo "ERROR: Missing filesystem.squashfs."; exit 1; }
-[ -f iso/boot/grub/efi.img ] || { echo "ERROR: Missing EFI image."; exit 1; }
+# ==========================================
+# QA
+# ==========================================
+
+echo "[07] Running ISO QA..."
+
+FILES="
+iso/${LIVE_DIR}/vmlinuz
+iso/${LIVE_DIR}/initrd.lz
+iso/${LIVE_DIR}/filesystem.squashfs
+iso/boot/grub/efi.img
+iso/boot/isolinux/isolinux.bin
+iso/boot/isolinux/vesamenu.c32
+"
+
+for FILE in $FILES; do
+    if [ ! -f "$FILE" ]; then
+        echo "ERROR: Missing $FILE"
+        exit 1
+    fi
+done
 
 echo "[07] QA Passed."
 
-# ==========================
+
+# ==========================================
 # Build ISO
-# ==========================
+# ==========================================
+
 echo "[07] Creating ISO..."
 
 xorriso -as mkisofs \
@@ -78,11 +104,17 @@ xorriso -as mkisofs \
     -o "output/gamma-${EDITION}.iso" \
     iso
 
+
+# ==========================================
+# Result
+# ==========================================
+
+SIZE=$(du -h "output/gamma-${EDITION}.iso" | awk '{print $1}')
+
 echo
 echo "======================================="
-echo " Gamma Linux ISO Created Successfully!"
+echo " Gamma Linux ISO READY"
+echo " Edition: $EDITION"
+echo " Size: $SIZE"
+echo " File: output/gamma-${EDITION}.iso"
 echo "======================================="
-echo
-echo "ISO:"
-echo "output/gamma-${EDITION}.iso"
-echo
