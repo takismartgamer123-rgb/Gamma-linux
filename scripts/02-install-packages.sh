@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EDITION="$1"
+EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
 
 echo "[02] Installing packages for $EDITION"
+
+export DEBIAN_FRONTEND=noninteractive
 
 sudo chroot chroot apt-get update
 
@@ -13,16 +15,21 @@ sudo chroot chroot apt-get update
 if [ "$EDITION" = "legacy" ]; then
     sudo chroot chroot apt-get install -y locales
 else
-    sudo chroot chroot apt-get install -y locales language-pack-ar language-pack-fr
+    sudo chroot chroot apt-get install -y \
+        locales \
+        language-pack-ar \
+        language-pack-fr
 fi
 
-echo "ar_DZ.UTF-8 UTF-8
+cat <<EOF | sudo tee chroot/etc/locale.gen >/dev/null
+ar_DZ.UTF-8 UTF-8
 en_US.UTF-8 UTF-8
-fr_FR.UTF-8 UTF-8" | sudo tee -a chroot/etc/locale.gen > /dev/null
+fr_FR.UTF-8 UTF-8
+EOF
 
 sudo chroot chroot locale-gen
 
-echo "LANG=en_US.UTF-8" | sudo tee chroot/etc/default/locale > /dev/null
+echo "LANG=en_US.UTF-8" | sudo tee chroot/etc/default/locale >/dev/null
 
 # ==========================
 # Packages
@@ -40,8 +47,6 @@ lightdm
 network-manager
 earlyoom
 dbus-x11
-edje-utils
-wireless-tools
 "
 ;;
 
@@ -54,7 +59,6 @@ enlightenment
 terminology
 lightdm
 dbus-x11
-edje-utils
 "
 ;;
 
@@ -66,9 +70,6 @@ terminology
 lightdm
 network-manager
 dbus-x11
-firmware-linux
-firmware-linux-nonfree
-wireless-tools
 "
 ;;
 
@@ -79,19 +80,18 @@ exit 1
 
 esac
 
-sudo chroot chroot apt-get install -y --no-install-recommends $PKGS
+sudo chroot chroot apt-get install \
+    -y \
+    --no-install-recommends \
+    $PKGS
 
 # ==========================
 # Cleanup
 # ==========================
-sudo chroot chroot apt-get remove -y --purge \
-snapd \
-flatpak \
-cups \
-printer-driver-* \
-bluetooth \
-|| true
 
+REMOVE_PKGS="snapd flatpak cups"
+
+sudo chroot chroot apt-get purge -y $REMOVE_PKGS || true
 sudo chroot chroot apt-get autoremove -y
 sudo chroot chroot apt-get clean
 
