@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.5)
+project(gamma-cc)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(EFL REQUIRED elementary ecore eina evas)
+add_executable(gamma-cc main.c)
+target_link_libraries(gamma-cc ${EFL_LIBRARIES})
+install(TARGETS gamma-cc DESTINATION /usr/bin)
