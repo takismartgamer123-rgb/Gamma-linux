@@ -1,52 +1,47 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EDITION="$1"
+EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
 
-echo "[01] Preparing chroot for $EDITION"
+echo "[01] Preparing build environment ($EDITION)"
 
+# تنظيف
 sudo umount chroot/dev 2>/dev/null || true
 sudo umount chroot/proc 2>/dev/null || true
 sudo umount chroot/sys 2>/dev/null || true
 
-rm -rf chroot iso output
-mkdir -p chroot iso output assets
+sudo rm -rf chroot iso output
 
+mkdir -p chroot
+mkdir -p iso
+mkdir -p output
+
+# اختيار التوزيعة
 if [ "$EDITION" = "legacy" ]; then
-    sudo debootstrap \
-        --arch=i386 \
-        --include=systemd-sysv \
-        bookworm \
-        chroot \
-        http://deb.debian.org/debian/
-
-    cat <<EOF | sudo tee chroot/etc/apt/sources.list > /dev/null
-deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
-deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
-deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
-EOF
-
+    ARCH="i386"
+    RELEASE="bookworm"
+    MIRROR="http://deb.debian.org/debian"
 else
-    sudo debootstrap \
-        --arch=amd64 \
-        --include=systemd-sysv \
-        jammy \
-        chroot \
-        http://archive.ubuntu.com/ubuntu/
-
-    cat <<EOF | sudo tee chroot/etc/apt/sources.list > /dev/null
-deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
-deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
-deb http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
-EOF
+    ARCH="amd64"
+    RELEASE="jammy"
+    MIRROR="http://archive.ubuntu.com/ubuntu"
 fi
+
+echo "[01] Creating base system..."
+
+sudo debootstrap \
+    --arch="$ARCH" \
+    --include=systemd-sysv \
+    "$RELEASE" \
+    chroot \
+    "$MIRROR"
+
+echo "[01] Mounting virtual filesystems..."
 
 sudo mount --bind /dev chroot/dev
 sudo mount --bind /proc chroot/proc
 sudo mount --bind /sys chroot/sys
 
-echo "nameserver 8.8.8.8" | sudo tee chroot/etc/resolv.conf > /dev/null
+echo "nameserver 8.8.8.8" | sudo tee chroot/etc/resolv.conf >/dev/null
 
-sudo chroot chroot apt-get update
-
-echo "[01] Chroot ready."
+echo "[01] Done."
