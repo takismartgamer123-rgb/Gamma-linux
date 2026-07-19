@@ -22,6 +22,8 @@ jobs:
 
     runs-on: ubuntu-22.04
 
+    timeout-minutes: 180
+
     strategy:
       fail-fast: false
       matrix:
@@ -36,6 +38,10 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+
+    # ================================
+    # Dependencies
+    # ================================
 
     - name: Install Build Dependencies
       run: |
@@ -56,17 +62,34 @@ jobs:
           isolinux \
           syslinux-common \
           qemu-system-x86 \
-          libefl-all-dev \
-          edje-utils
+          libefl-all-dev
 
+
+    - name: Check EFL Tools
+      run: |
+        cmake --version
+        which edje_cc || true
+        edje_cc --version || true
+
+
+    # ================================
+    # Free Space
+    # ================================
 
     - name: Free Disk Space
       run: |
         sudo rm -rf \
-        /usr/local/lib/android \
-        /opt/ghc \
-        /usr/share/dotnet || true
+          /usr/local/lib/android \
+          /opt/ghc \
+          /usr/share/dotnet \
+          /opt/hostedtoolcache/CodeQL || true
 
+        sudo docker system prune -af || true
+
+
+    # ================================
+    # Build Gamma
+    # ================================
 
     - name: 01 Prepare
       run: |
@@ -78,12 +101,12 @@ jobs:
         bash scripts/02-install-packages.sh ${{ matrix.edition }}
 
 
-    - name: 03 Install Gamma
+    - name: 03 Install Gamma Components
       run: |
         bash scripts/03-install-gamma.sh
 
 
-    - name: 04 Configure
+    - name: 04 Configure System
       run: |
         bash scripts/04-configure.sh ${{ matrix.edition }}
 
@@ -108,6 +131,10 @@ jobs:
         bash scripts/08-test.sh ${{ matrix.edition }}
 
 
+    # ================================
+    # Upload
+    # ================================
+
     - name: Upload ISO
       uses: actions/upload-artifact@v4
       with:
@@ -129,7 +156,7 @@ jobs:
 
     steps:
 
-    - name: Download Artifacts
+    - name: Download ISO Artifacts
       uses: actions/download-artifact@v4
       with:
         path: artifacts
@@ -147,19 +174,21 @@ jobs:
         body: |
           # Gamma Linux v2.7
 
-          Enlightenment based distribution.
+          Enlightenment based Linux distribution.
 
           Editions:
 
-          - Pro: Full desktop experience
+          - Pro: Full desktop edition
           - Lite: Lightweight edition
-          - Legacy: 32-bit support
+          - Legacy: 32-bit edition
 
           Features:
 
           - Gamma CC
           - Gamma iOS Theme
+          - Enlightenment Desktop
           - BIOS + UEFI Boot
+
 
         files: |
           artifacts/**/*.iso
