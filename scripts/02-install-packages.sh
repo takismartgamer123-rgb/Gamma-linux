@@ -7,7 +7,7 @@ echo "[02] Installing packages for $EDITION"
 sudo chroot chroot apt-get update
 
 # اللغات
-sudo chroot chroot apt-get install -y locales language-pack-ar language-pack-fr
+sudo chroot chroot apt-get install -y locales language-pack-ar-base language-pack-fr-base
 echo "ar_DZ.UTF-8 UTF-8\nen_US.UTF-8 UTF-8\nfr_FR.UTF-8 UTF-8" | sudo tee -a chroot/etc/locale.gen
 sudo chroot chroot locale-gen
 echo "LANG=en_US.UTF-8" | sudo tee chroot/etc/default/locale
