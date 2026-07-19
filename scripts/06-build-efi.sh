@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[06] Building EFI Image"
+EDITION="${1:-pro}"
+
+echo "[06] Building EFI Image ($EDITION)"
+
 
 # ==========================================
 # Check dependencies
 # ==========================================
+
 command -v grub-mkstandalone >/dev/null || {
     echo "ERROR: grub-mkstandalone missing"
     exit 1
@@ -16,36 +20,62 @@ command -v mcopy >/dev/null || {
     exit 1
 }
 
+
+
+# ==========================================
+# Boot configuration
+# ==========================================
+
+if [ "$EDITION" = "legacy" ]; then
+    LIVE_DIR="live"
+    BOOT="boot=live"
+else
+    LIVE_DIR="casper"
+    BOOT="boot=casper"
+fi
+
+
+
 # ==========================================
 # Prepare directories
 # ==========================================
+
 sudo mkdir -p \
     iso/boot/grub \
     iso/EFI/BOOT
+
+sudo chown -R "$USER:$USER" iso
+
 
 
 # ==========================================
 # GRUB Config
 # ==========================================
-cat > iso/boot/grub/grub.cfg <<'EOF'
+
+sudo tee iso/boot/grub/grub.cfg > /dev/null <<EOF
 set timeout=5
 set default=0
 
-menuentry "Gamma Linux v2.7" {
 
-    linux /casper/vmlinuz \
-    boot=casper \
+menuentry "Gamma Linux v2.7 ${EDITION}" {
+
+    linux /${LIVE_DIR}/vmlinuz \
+    ${BOOT} \
     quiet splash
 
-    initrd /casper/initrd.lz
+    initrd /${LIVE_DIR}/initrd.lz
 }
+
 EOF
+
 
 
 # ==========================================
 # Build EFI executable
 # ==========================================
+
 echo "[06] Creating GRUB EFI..."
+
 
 grub-mkstandalone \
     -O x86_64-efi \
@@ -54,17 +84,22 @@ grub-mkstandalone \
     "boot/grub/grub.cfg=$PWD/iso/boot/grub/grub.cfg"
 
 
+
 cp \
-iso/EFI/BOOT/BOOTX64.EFI \
-iso/EFI/BOOT/grubx64.efi
+    iso/EFI/BOOT/BOOTX64.EFI \
+    iso/EFI/BOOT/grubx64.efi
+
 
 
 # ==========================================
 # Create EFI partition image
 # ==========================================
+
 echo "[06] Creating EFI partition..."
 
+
 rm -f iso/boot/grub/efi.img
+
 
 dd if=/dev/zero \
     of=iso/boot/grub/efi.img \
@@ -72,8 +107,10 @@ dd if=/dev/zero \
     count=10 \
     status=none
 
+
 mkfs.vfat \
     iso/boot/grub/efi.img
+
 
 
 mmd -i iso/boot/grub/efi.img ::/EFI
@@ -84,6 +121,7 @@ mcopy \
     -i iso/boot/grub/efi.img \
     iso/EFI/BOOT/BOOTX64.EFI \
     ::/EFI/BOOT/
+
 
 
 echo "[06] EFI image completed successfully."
