@@ -54,6 +54,7 @@ jobs:
         sudo docker system prune -af || true
 
 
+
     # ================================
     # Dependencies
     # ================================
@@ -66,8 +67,10 @@ jobs:
         sudo apt-get clean || true
         sudo apt-get -f install -y || true
 
+
         sudo apt-get install -y \
           libunwind-dev
+
 
         sudo apt-get install -y \
           build-essential \
@@ -84,7 +87,9 @@ jobs:
           isolinux \
           syslinux-common \
           qemu-system-x86 \
+          ovmf \
           libefl-all-dev
+
 
 
     # ================================
@@ -94,7 +99,15 @@ jobs:
     - name: Check Build Environment
       run: |
         cmake --version
-        pkg-config --modversion efl || true
+
+        pkg-config --modversion elementary || true
+        pkg-config --modversion eina || true
+        pkg-config --modversion evas || true
+
+        which grub-mkstandalone
+        which xorriso
+        which qemu-system-x86_64
+
 
 
     # ================================
@@ -106,9 +119,11 @@ jobs:
         bash scripts/01-prepare.sh ${{ matrix.edition }}
 
 
+
     - name: 02 Install Packages
       run: |
         bash scripts/02-install-packages.sh ${{ matrix.edition }}
+
 
 
     - name: 03 Install Gamma Components
@@ -116,9 +131,11 @@ jobs:
         bash scripts/03-install-gamma.sh
 
 
+
     - name: 04 Configure System
       run: |
         bash scripts/04-configure.sh ${{ matrix.edition }}
+
 
 
     - name: 05 Build SquashFS
@@ -126,9 +143,11 @@ jobs:
         bash scripts/05-build-squashfs.sh
 
 
+
     - name: 06 Build EFI
       run: |
-        bash scripts/06-build-efi.sh
+        bash scripts/06-build-efi.sh ${{ matrix.edition }}
+
 
 
     - name: 07 Build ISO
@@ -136,9 +155,11 @@ jobs:
         bash scripts/07-build-iso.sh ${{ matrix.edition }}
 
 
+
     - name: 08 QEMU Test
       run: |
         bash scripts/08-test.sh ${{ matrix.edition }}
+
 
 
     # ================================
@@ -150,6 +171,8 @@ jobs:
       with:
         name: gamma-${{ matrix.edition }}
         path: output/gamma-${{ matrix.edition }}.iso
+
+
 
 
 
@@ -172,6 +195,7 @@ jobs:
         path: artifacts
 
 
+
     - name: Create Release
       uses: softprops/action-gh-release@v2
 
@@ -180,6 +204,7 @@ jobs:
         tag_name: ${{ github.event.inputs.tag }}
 
         name: Gamma Linux ${{ github.event.inputs.tag }}
+
 
         body: |
           # Gamma Linux v2.7
@@ -190,14 +215,16 @@ jobs:
 
           - Pro: Full desktop edition
           - Lite: Lightweight edition
-          - Legacy: 32-bit edition
+          - Legacy: Debian Bookworm 32-bit edition
+
 
           Features:
 
           - Gamma CC
           - Gamma iOS Theme
           - Enlightenment Desktop
-          - BIOS + UEFI Boot
+          - BIOS + UEFI Hybrid Boot
+          - Supports old and modern PCs
 
 
         files: |
