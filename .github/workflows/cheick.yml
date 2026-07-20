@@ -8,24 +8,26 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-
-      - name: Download Gamma Lite ISO
+      - name: Download gamma-lite artifact
         uses: actions/download-artifact@v4
         with:
-          name: gamma-lite.iso
+          name: gamma-lite
           path: output
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 29739836293
 
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            xorriso \
-            squashfs-tools
+          sudo apt-get install -y xorriso squashfs-tools
 
-      - name: Show ISO
+      - name: Check ISO
         run: |
-          echo "===== ISO ====="
           ls -lh output/
+
+          xorriso \
+            -indev output/gamma-lite.iso \
+            -ls /
 
       - name: Extract ISO
         run: |
@@ -36,20 +38,9 @@ jobs:
             -indev output/gamma-lite.iso \
             -extract / iso-root
 
-          echo "===== ISO TREE ====="
-          find iso-root -maxdepth 2 -type f | head -50
+          ls -lh iso-root/casper
 
-      - name: Check Casper Files
-        run: |
-          echo "===== CASPER ====="
-
-          ls -lh iso-root/casper/
-
-          test -f iso-root/casper/vmlinuz && echo "vmlinuz OK"
-          test -f iso-root/casper/initrd.lz && echo "initrd OK"
-          test -f iso-root/casper/filesystem.squashfs && echo "squashfs OK"
-
-      - name: Mount SquashFS
+      - name: Check SquashFS
         run: |
           sudo mkdir -p /mnt/gamma
 
@@ -58,28 +49,11 @@ jobs:
             iso-root/casper/filesystem.squashfs \
             /mnt/gamma
 
-      - name: Inspect Root Filesystem
-        run: |
-          echo "===== ROOT ====="
-          ls -la /mnt/gamma | head -50
-
-          echo
           echo "===== INIT ====="
-          ls -l /mnt/gamma/sbin/init || true
+          ls -l /mnt/gamma/sbin/init
 
-          echo
           echo "===== SYSTEMD ====="
-          ls -l /mnt/gamma/lib/systemd/systemd || true
+          ls -l /mnt/gamma/lib/systemd/systemd
 
-          echo
           echo "===== OS ====="
-          cat /mnt/gamma/etc/os-release || true
-
-          echo
-          echo "===== CASPER INSIDE ====="
-          ls /mnt/gamma/usr/share/initramfs-tools/scripts/ 2>/dev/null | grep casper || true
-
-      - name: Cleanup
-        if: always()
-        run: |
-          sudo umount /mnt/gamma 2>/dev/null || true
+          cat /mnt/gamma/etc/os-release
