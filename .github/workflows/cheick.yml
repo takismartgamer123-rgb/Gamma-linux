@@ -1,4 +1,4 @@
-gamma-lite: Check Built ISO
+name: Check Built ISO
 
 on:
   workflow_dispatch:
