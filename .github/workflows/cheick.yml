@@ -1,0 +1,79 @@
+name: Gamma Package Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Install debootstrap
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debootstrap
+
+      - name: Create Ubuntu Jammy chroot
+        run: |
+          sudo debootstrap \
+            --arch=amd64 \
+            --include=systemd-sysv \
+            jammy \
+            chroot \
+            http://archive.ubuntu.com/ubuntu
+
+          sudo mount --bind /dev chroot/dev
+          sudo mount --bind /proc chroot/proc
+          sudo mount --bind /sys chroot/sys
+
+          echo "nameserver 8.8.8.8" | sudo tee chroot/etc/resolv.conf
+
+      - name: Update repositories
+        run: |
+          sudo chroot chroot apt-get update
+
+      - name: Check packages
+        run: |
+          PACKAGES="
+          linux-image-generic-hwe-22.04
+          linux-image-generic
+          initramfs-tools
+          ubuntu-minimal
+          casper
+          live-boot
+          live-config
+          enlightenment
+          terminology
+          lightdm
+          lightdm-gtk-greeter
+          network-manager
+          earlyoom
+          dbus-x11
+          software-properties-common
+          locales
+          language-pack-ar
+          language-pack-fr
+          "
+
+          FAILED=0
+
+          for pkg in $PACKAGES; do
+            echo "=============================="
+            echo "Checking: $pkg"
+
+            if sudo chroot chroot apt-cache policy "$pkg" | grep -q Candidate; then
+              sudo chroot chroot apt-cache policy "$pkg"
+            else
+              echo "❌ Package not found: $pkg"
+              FAILED=1
+            fi
+          done
+
+          echo "=============================="
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo "Some packages are missing."
+            exit 1
+          fi
+
+          echo "All packages are available."
