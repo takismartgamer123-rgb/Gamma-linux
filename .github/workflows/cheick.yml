@@ -1,4 +1,4 @@
-name: Check Built ISO
+gamma-lite: Check Built ISO
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ jobs:
       - name: Download Gamma Lite ISO
         uses: actions/download-artifact@v4
         with:
-          name: gamma-lite
+          name: gamma-lite.iso
           path: output
 
       - name: Install tools
