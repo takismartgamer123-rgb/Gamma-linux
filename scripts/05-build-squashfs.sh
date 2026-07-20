@@ -22,6 +22,7 @@ if [ -f "iso/${LIVE_DIR}/filesystem.squashfs" ]; then
     sudo rm -f "iso/${LIVE_DIR}/filesystem.squashfs"
 fi
 
+
 # ==========================================
 # Cleanup chroot
 # ==========================================
@@ -33,6 +34,7 @@ sudo rm -rf \
     chroot/var/tmp/* \
     chroot/var/cache/apt/archives/* \
     2>/dev/null || true
+
 
 # ==========================================
 # Build SquashFS
@@ -51,33 +53,53 @@ sudo mksquashfs \
     -e chroot/proc \
     -e chroot/sys
 
+
 # ==========================================
 # Kernel + Initramfs
 # ==========================================
 
-echo "[05] Copying kernel..."
+echo "[05] Copying kernel and initramfs..."
 
 VMLINUX=$(find chroot/boot -maxdepth 1 -name "vmlinuz-*" | sort | head -n1)
-INITRD=$(find chroot/boot -maxdepth 1 -name "initrd.img-*" | sort | head -n1)
+INITRD=$(find chroot/boot -maxdepth 1 -name "initrd.img-*" | sort | tail -n1)
+
 
 if [ -z "$VMLINUX" ]; then
     echo "ERROR: Kernel missing"
     exit 1
 fi
 
+
 if [ -z "$INITRD" ]; then
     echo "ERROR: Initramfs missing"
     exit 1
 fi
 
+
+echo "[05] Checking casper support..."
+
+if [ "$EDITION" != "legacy" ]; then
+
+    if ! sudo lsinitramfs "$INITRD" | grep -q "scripts/casper"; then
+        echo
+        echo "ERROR: initrd has no casper support!"
+        echo "Install casper package before building."
+        exit 1
+    fi
+
+fi
+
+
 sudo cp "$VMLINUX" "iso/${LIVE_DIR}/vmlinuz"
 sudo cp "$INITRD" "iso/${LIVE_DIR}/initrd.lz"
+
 
 # ==========================================
 # Report
 # ==========================================
 
 SIZE=$(du -h "iso/${LIVE_DIR}/filesystem.squashfs" | awk '{print $1}')
+
 
 echo
 echo "================================="
