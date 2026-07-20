@@ -1,4 +1,4 @@
-name: Check Initramfs
+name: Check Built ISO
 
 on:
   workflow_dispatch:
@@ -8,63 +8,78 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Install debootstrap
+
+      - name: Download Gamma Lite ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: gamma-lite
+          path: output
+
+      - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y debootstrap
+          sudo apt-get install -y \
+            xorriso \
+            squashfs-tools
 
-      - name: Create chroot
+      - name: Show ISO
         run: |
-          sudo debootstrap \
-            --arch=amd64 \
-            --include=systemd-sysv \
-            jammy \
-            chroot \
-            http://archive.ubuntu.com/ubuntu
+          echo "===== ISO ====="
+          ls -lh output/
 
-          sudo mount --bind /dev chroot/dev
-          sudo mount --bind /proc chroot/proc
-          sudo mount --bind /sys chroot/sys
-
-          echo "nameserver 8.8.8.8" | sudo tee chroot/etc/resolv.conf
-
-      - name: Install core packages
+      - name: Extract ISO
         run: |
-          sudo chroot chroot apt-get update
+          mkdir iso-root
 
-          sudo chroot chroot apt-get install -y \
-            linux-image-generic-hwe-22.04 \
-            initramfs-tools \
-            ubuntu-minimal \
-            casper
+          xorriso \
+            -osirrox on \
+            -indev output/gamma-lite.iso \
+            -extract / iso-root
 
-      - name: Check init system
+          echo "===== ISO TREE ====="
+          find iso-root -maxdepth 2 -type f | head -50
+
+      - name: Check Casper Files
         run: |
-          echo "===== /sbin/init ====="
-          sudo chroot chroot ls -l /sbin/init || true
+          echo "===== CASPER ====="
+
+          ls -lh iso-root/casper/
+
+          test -f iso-root/casper/vmlinuz && echo "vmlinuz OK"
+          test -f iso-root/casper/initrd.lz && echo "initrd OK"
+          test -f iso-root/casper/filesystem.squashfs && echo "squashfs OK"
+
+      - name: Mount SquashFS
+        run: |
+          sudo mkdir -p /mnt/gamma
+
+          sudo mount \
+            -o loop,ro \
+            iso-root/casper/filesystem.squashfs \
+            /mnt/gamma
+
+      - name: Inspect Root Filesystem
+        run: |
+          echo "===== ROOT ====="
+          ls -la /mnt/gamma | head -50
 
           echo
-          echo "===== systemd ====="
-          sudo chroot chroot ls -l /lib/systemd/systemd || true
+          echo "===== INIT ====="
+          ls -l /mnt/gamma/sbin/init || true
 
           echo
-          echo "===== casper ====="
-          sudo chroot chroot dpkg -l | grep casper || true
+          echo "===== SYSTEMD ====="
+          ls -l /mnt/gamma/lib/systemd/systemd || true
 
-      - name: Generate initramfs
+          echo
+          echo "===== OS ====="
+          cat /mnt/gamma/etc/os-release || true
+
+          echo
+          echo "===== CASPER INSIDE ====="
+          ls /mnt/gamma/usr/share/initramfs-tools/scripts/ 2>/dev/null | grep casper || true
+
+      - name: Cleanup
+        if: always()
         run: |
-          echo "===== update-initramfs ====="
-          sudo chroot chroot update-initramfs -c -k all || true
-
-      - name: Check generated initrd
-        run: |
-          echo "===== /boot ====="
-          sudo chroot chroot ls -lh /boot
-
-          echo
-          echo "===== initrd ====="
-          sudo chroot chroot ls -lh /boot/initrd* || true
-
-          echo
-          echo "===== kernel ====="
-          sudo chroot chroot ls -lh /boot/vmlinuz* || true
+          sudo umount /mnt/gamma 2>/dev/null || true
