@@ -20,6 +20,7 @@ jobs:
   build:
 
     runs-on: ubuntu-22.04
+
     timeout-minutes: 180
 
     strategy:
@@ -151,6 +152,7 @@ jobs:
   release:
 
     needs: build
+
     runs-on: ubuntu-22.04
 
     steps:
@@ -158,28 +160,181 @@ jobs:
     - name: Download ISO Artifacts
       uses: actions/download-artifact@v4
       with:
+        pattern: gamma-*
+        merge-multiple: true
         path: artifacts
+
+    - name: Show downloaded files
+      run: |
+        echo "===== RELEASE FILES ====="
+        find artifacts -type f
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
+
       with:
+
         tag_name: ${{ github.event.inputs.tag }}
-        name: Gamma Linux ${{ github.event.inputs.tag }}
+
+        name: 🚀 Gamma Linux ${{ github.event.inputs.tag }}
+
+        generate_release_notes: true
 
         body: |
-          # Gamma Linux v2.7
+          # 🚀 Gamma Linux ${{ github.event.inputs.tag }}
 
-          Enlightenment based Linux distribution.
+          ## No PC deserves to die.
 
-          Editions:
+          Gamma Linux is a modern Linux distribution built to provide a fast, elegant and lightweight desktop experience for both modern and legacy computers.
 
-          - Pro: Full desktop edition
-          - Lite: Lightweight edition
-          - Legacy: Debian Bookworm 32-bit edition
+          Powered by the Enlightenment Desktop, Gamma Linux focuses on speed, responsiveness and simplicity while keeping resource usage as low as possible.
 
-          Features:
+          ---
 
-          - Gamma CC
-          - Gamma iOS Theme
-          - Enlightenment Desktop
-         
+          # ✨ Editions
+
+          ## 🚀 Gamma Linux Pro
+
+          The complete Gamma experience.
+
+          ### Features
+
+          - 🎨 Full Gamma UI
+          - ⚡ Gamma Control Center (Gamma CC)
+          - 🖥 Enlightenment Desktop
+          - 🌐 NetworkManager
+          - 🎵 Terminology Terminal
+          - 🔐 LightDM
+          - 🚀 Performance Mode
+          - 💙 Gamma iOS Theme
+          - 📦 Full Desktop Experience
+          - ⚙ Optimized for daily use
+
+          Perfect for:
+
+          - Developers
+          - Power Users
+          - Content Creators
+          - Modern Hardware
+
+          ---
+
+          ## 🍃 Gamma Linux Lite
+
+          Lightweight without sacrificing usability.
+
+          ### Features
+
+          - ⚡ Gamma CC
+          - 🖥 Enlightenment Desktop
+          - 🎵 Terminology
+          - 🔐 LightDM
+          - 🚀 Lightweight Package Selection
+          - 🧠 Low RAM Usage
+          - ⚡ Fast Startup
+          - 💙 Gamma Theme
+
+          Perfect for:
+
+          - Older laptops
+          - Low-end computers
+          - Virtual Machines
+          - Everyday computing
+
+          ---
+
+          ## 💻 Gamma Linux Legacy
+
+          Give old computers a second life.
+
+          Based on Debian Bookworm.
+
+          ### Features
+
+          - 🧱 Debian Bookworm Base
+          - ⚡ Gamma CC
+          - 🖥 Enlightenment Desktop
+          - 🎵 Terminology
+          - 🌐 NetworkManager
+          - 🔐 LightDM
+          - 💾 Optimized for older hardware
+          - 💿 BIOS Support
+          - 💻 UEFI Support
+          - 🔥 Maximum Compatibility
+
+          Perfect for:
+
+          - Pentium Systems
+          - Core 2 Duo
+          - Legacy Laptops
+          - Older Desktop PCs
+
+          ---
+
+          # ⭐ Core Features
+
+          - ⚡ Gamma Control Center
+          - 🎨 Beautiful Gamma Theme
+          - 💙 Gamma iOS Theme
+          - 🖥 Enlightenment Desktop
+          - 🚀 Fast Boot
+          - 🧠 Low Memory Usage
+          - 💿 BIOS + UEFI Hybrid Boot
+          - 📦 Live ISO
+          - 🔥 Performance Optimized
+          - ❤️ Open Source
+
+          ---
+
+          # 📥 Downloads
+
+          This release contains:
+
+          - Gamma Linux Pro ISO
+          - Gamma Linux Lite ISO
+          - Gamma Linux Legacy ISO
+
+          ---
+
+          # ❤️ Support Gamma Linux
+
+          ## ⭐ Star our GitHub repository
+
+          https://github.com/takismartgamer123-rgb/Gamma-linux
+
+          ## 🗳 Vote us on DistroWatch
+
+          https://distrowatch.com/dwres-mobile.php?waitingdistro=1101&resource=links#new
+
+          Every vote helps Gamma Linux reach more users around the world.
+
+          ---
+
+          # 🛠 Technical Information
+
+          Desktop Environment
+
+          - Enlightenment
+
+          Supported Architectures
+
+          - x86_64
+          - i686 (Legacy)
+
+          Boot Modes
+
+          - BIOS
+          - UEFI
+          - Hybrid ISO
+
+          ---
+
+          # 💬 Project Motto
+
+          > **No PC deserves to die.**
+
+        files: |
+          artifacts/*.iso
+
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
