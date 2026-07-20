@@ -11,7 +11,6 @@ on:
 permissions:
   contents: write
 
-
 jobs:
 
 # =====================================
@@ -21,7 +20,6 @@ jobs:
   build:
 
     runs-on: ubuntu-22.04
-
     timeout-minutes: 180
 
     strategy:
@@ -32,12 +30,10 @@ jobs:
           - lite
           - legacy
 
-
     steps:
 
     - name: Checkout
       uses: actions/checkout@v4
-
 
     # ================================
     # Free Space
@@ -53,8 +49,6 @@ jobs:
 
         sudo docker system prune -af || true
 
-
-
     # ================================
     # Dependencies
     # ================================
@@ -67,10 +61,8 @@ jobs:
         sudo apt-get clean || true
         sudo apt-get -f install -y || true
 
-
         sudo apt-get install -y \
           libunwind-dev
-
 
         sudo apt-get install -y \
           build-essential \
@@ -90,8 +82,6 @@ jobs:
           ovmf \
           libefl-all-dev
 
-
-
     # ================================
     # Check Environment
     # ================================
@@ -108,8 +98,6 @@ jobs:
         which xorriso
         which qemu-system-x86_64
 
-
-
     # ================================
     # Build Gamma
     # ================================
@@ -118,49 +106,33 @@ jobs:
       run: |
         bash scripts/01-prepare.sh ${{ matrix.edition }}
 
-
-
     - name: 02 Install Packages
       run: |
         bash scripts/02-install-packages.sh ${{ matrix.edition }}
-
-
 
     - name: 03 Install Gamma Components
       run: |
         bash scripts/03-install-gamma.sh
 
-
-
     - name: 04 Configure System
       run: |
         bash scripts/04-configure.sh ${{ matrix.edition }}
 
-
-
     - name: 05 Build SquashFS
       run: |
-        bash scripts/05-build-squashfs.sh
-
-
+        bash scripts/05-build-squashfs.sh ${{ matrix.edition }}
 
     - name: 06 Build EFI
       run: |
         bash scripts/06-build-efi.sh ${{ matrix.edition }}
 
-
-
     - name: 07 Build ISO
       run: |
         bash scripts/07-build-iso.sh ${{ matrix.edition }}
 
-
-
     - name: 08 QEMU Test
       run: |
         bash scripts/08-test.sh ${{ matrix.edition }}
-
-
 
     # ================================
     # Upload
@@ -172,10 +144,6 @@ jobs:
         name: gamma-${{ matrix.edition }}
         path: output/gamma-${{ matrix.edition }}.iso
 
-
-
-
-
 # =====================================
 # RELEASE
 # =====================================
@@ -183,9 +151,7 @@ jobs:
   release:
 
     needs: build
-
     runs-on: ubuntu-22.04
-
 
     steps:
 
@@ -194,17 +160,11 @@ jobs:
       with:
         path: artifacts
 
-
-
     - name: Create Release
       uses: softprops/action-gh-release@v2
-
       with:
-
         tag_name: ${{ github.event.inputs.tag }}
-
         name: Gamma Linux ${{ github.event.inputs.tag }}
-
 
         body: |
           # Gamma Linux v2.7
@@ -217,19 +177,9 @@ jobs:
           - Lite: Lightweight edition
           - Legacy: Debian Bookworm 32-bit edition
 
-
           Features:
 
           - Gamma CC
           - Gamma iOS Theme
           - Enlightenment Desktop
-          - BIOS + UEFI Hybrid Boot
-          - Supports old and modern PCs
-
-
-        files: |
-          artifacts/**/*.iso
-
-
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+         
