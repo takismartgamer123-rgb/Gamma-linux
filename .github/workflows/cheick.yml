@@ -1,4 +1,4 @@
-name: Gamma Package Check
+name: Check Initramfs
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y debootstrap
 
-      - name: Create Ubuntu Jammy chroot
+      - name: Create chroot
         run: |
           sudo debootstrap \
             --arch=amd64 \
@@ -28,52 +28,43 @@ jobs:
 
           echo "nameserver 8.8.8.8" | sudo tee chroot/etc/resolv.conf
 
-      - name: Update repositories
+      - name: Install core packages
         run: |
           sudo chroot chroot apt-get update
 
-      - name: Check packages
+          sudo chroot chroot apt-get install -y \
+            linux-image-generic-hwe-22.04 \
+            initramfs-tools \
+            ubuntu-minimal \
+            casper
+
+      - name: Check init system
         run: |
-          PACKAGES="
-          linux-image-generic-hwe-22.04
-          linux-image-generic
-          initramfs-tools
-          ubuntu-minimal
-          casper
-          live-boot
-          live-config
-          enlightenment
-          terminology
-          lightdm
-          lightdm-gtk-greeter
-          network-manager
-          earlyoom
-          dbus-x11
-          software-properties-common
-          locales
-          language-pack-ar
-          language-pack-fr
-          "
+          echo "===== /sbin/init ====="
+          sudo chroot chroot ls -l /sbin/init || true
 
-          FAILED=0
+          echo
+          echo "===== systemd ====="
+          sudo chroot chroot ls -l /lib/systemd/systemd || true
 
-          for pkg in $PACKAGES; do
-            echo "=============================="
-            echo "Checking: $pkg"
+          echo
+          echo "===== casper ====="
+          sudo chroot chroot dpkg -l | grep casper || true
 
-            if sudo chroot chroot apt-cache policy "$pkg" | grep -q Candidate; then
-              sudo chroot chroot apt-cache policy "$pkg"
-            else
-              echo "❌ Package not found: $pkg"
-              FAILED=1
-            fi
-          done
+      - name: Generate initramfs
+        run: |
+          echo "===== update-initramfs ====="
+          sudo chroot chroot update-initramfs -c -k all || true
 
-          echo "=============================="
+      - name: Check generated initrd
+        run: |
+          echo "===== /boot ====="
+          sudo chroot chroot ls -lh /boot
 
-          if [ "$FAILED" -eq 1 ]; then
-            echo "Some packages are missing."
-            exit 1
-          fi
+          echo
+          echo "===== initrd ====="
+          sudo chroot chroot ls -lh /boot/initrd* || true
 
-          echo "All packages are available."
+          echo
+          echo "===== kernel ====="
+          sudo chroot chroot ls -lh /boot/vmlinuz* || true
