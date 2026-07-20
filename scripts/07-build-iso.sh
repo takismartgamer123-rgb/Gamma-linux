@@ -19,7 +19,6 @@ else
 fi
 
 
-
 ISO="output/gamma-${EDITION}.iso"
 
 
@@ -46,11 +45,23 @@ cp /usr/lib/ISOLINUX/isolinux.bin \
    iso/boot/isolinux/
 
 
+cp /usr/lib/syslinux/modules/bios/ldlinux.c32 \
+   iso/boot/isolinux/
+
+
 cp /usr/lib/syslinux/modules/bios/vesamenu.c32 \
    iso/boot/isolinux/
 
 
-cp /usr/lib/syslinux/modules/bios/ldlinux.c32 \
+cp /usr/lib/syslinux/modules/bios/libcom32.c32 \
+   iso/boot/isolinux/
+
+
+cp /usr/lib/syslinux/modules/bios/libutil.c32 \
+   iso/boot/isolinux/
+
+
+cp /usr/lib/syslinux/modules/bios/libmenu.c32 \
    iso/boot/isolinux/
 
 
@@ -78,6 +89,7 @@ LABEL safe
     MENU LABEL Gamma Linux Safe Mode
     KERNEL /${LIVE_DIR}/vmlinuz
     APPEND initrd=/${LIVE_DIR}/initrd.lz ${BOOT} nomodeset
+
 EOF
 
 
@@ -94,8 +106,13 @@ iso/${LIVE_DIR}/vmlinuz
 iso/${LIVE_DIR}/initrd.lz
 iso/${LIVE_DIR}/filesystem.squashfs
 iso/boot/grub/efi.img
+
 iso/boot/isolinux/isolinux.bin
+iso/boot/isolinux/ldlinux.c32
 iso/boot/isolinux/vesamenu.c32
+iso/boot/isolinux/libcom32.c32
+iso/boot/isolinux/libutil.c32
+iso/boot/isolinux/libmenu.c32
 "
 
 
