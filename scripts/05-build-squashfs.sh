@@ -1,21 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[05] Building SquashFS"
+EDITION="${1:-pro}"
+
+if [ "$EDITION" = "legacy" ]; then
+    LIVE_DIR="live"
+else
+    LIVE_DIR="casper"
+fi
+
+echo "[05] Building SquashFS ($EDITION)"
 
 # ==========================================
 # Prepare
 # ==========================================
-sudo mkdir -p iso/casper
 
-if [ -f iso/casper/filesystem.squashfs ]; then
+sudo mkdir -p "iso/${LIVE_DIR}"
+
+if [ -f "iso/${LIVE_DIR}/filesystem.squashfs" ]; then
     echo "[05] Removing old SquashFS..."
-    sudo rm -f iso/casper/filesystem.squashfs
+    sudo rm -f "iso/${LIVE_DIR}/filesystem.squashfs"
 fi
 
 # ==========================================
 # Cleanup chroot
 # ==========================================
+
 echo "[05] Cleaning temporary files..."
 
 sudo rm -rf \
@@ -24,15 +34,15 @@ sudo rm -rf \
     chroot/var/cache/apt/archives/* \
     2>/dev/null || true
 
-
 # ==========================================
 # Build SquashFS
 # ==========================================
+
 echo "[05] Compressing filesystem..."
 
 sudo mksquashfs \
     chroot \
-    iso/casper/filesystem.squashfs \
+    "iso/${LIVE_DIR}/filesystem.squashfs" \
     -comp zstd \
     -Xcompression-level 19 \
     -b 1M \
@@ -41,10 +51,10 @@ sudo mksquashfs \
     -e chroot/proc \
     -e chroot/sys
 
-
 # ==========================================
 # Kernel + Initramfs
 # ==========================================
+
 echo "[05] Copying kernel..."
 
 VMLINUX=$(find chroot/boot -maxdepth 1 -name "vmlinuz-*" | sort | head -n1)
@@ -60,19 +70,21 @@ if [ -z "$INITRD" ]; then
     exit 1
 fi
 
-sudo cp "$VMLINUX" iso/casper/vmlinuz
-sudo cp "$INITRD" iso/casper/initrd.lz
-
+sudo cp "$VMLINUX" "iso/${LIVE_DIR}/vmlinuz"
+sudo cp "$INITRD" "iso/${LIVE_DIR}/initrd.lz"
 
 # ==========================================
 # Report
 # ==========================================
-SIZE=$(du -h iso/casper/filesystem.squashfs | awk '{print $1}')
+
+SIZE=$(du -h "iso/${LIVE_DIR}/filesystem.squashfs" | awk '{print $1}')
 
 echo
 echo "================================="
 echo " SquashFS completed successfully"
-echo " Size: $SIZE"
-echo " Kernel: $(basename "$VMLINUX")"
-echo " Initrd: $(basename "$INITRD")"
+echo " Edition : $EDITION"
+echo " Live Dir: $LIVE_DIR"
+echo " Size    : $SIZE"
+echo " Kernel  : $(basename "$VMLINUX")"
+echo " Initrd  : $(basename "$INITRD")"
 echo "================================="
