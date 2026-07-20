@@ -81,6 +81,7 @@ pro)
 PKGS="
 linux-image-generic-hwe-22.04
 initramfs-tools
+casper
 ubuntu-minimal
 enlightenment
 terminology
@@ -98,6 +99,7 @@ lite)
 PKGS="
 linux-image-generic-hwe-22.04
 initramfs-tools
+casper
 ubuntu-minimal
 enlightenment
 terminology
@@ -112,6 +114,7 @@ legacy)
 
 PKGS="
 linux-image-686-pae
+initramfs-tools
 enlightenment
 terminology
 lightdm
@@ -143,6 +146,17 @@ sudo chroot chroot apt-get install \
     -y \
     --no-install-recommends \
     $PKGS
+
+
+
+# ==========================
+# Force initramfs rebuild
+# ==========================
+
+echo "[02] Rebuilding initramfs"
+
+sudo chroot chroot update-initramfs -c -k all || \
+sudo chroot chroot update-initramfs -u -k all
 
 
 
