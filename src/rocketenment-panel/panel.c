@@ -74,7 +74,31 @@ if (ee)
         0
     );
 
+Evas_Object *bg;
 
+
+bg = elm_bg_add(
+    panel->win
+);
+
+
+elm_bg_color_set(
+    bg,
+    10,
+    20,
+    45
+);
+
+
+elm_win_resize_object_add(
+    panel->win,
+    bg
+);
+
+
+evas_object_show(
+    bg
+);
 
     panel->box = elm_box_add(
         panel->win
