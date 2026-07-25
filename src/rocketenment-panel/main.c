@@ -4,6 +4,7 @@
 #include "clock.h"
 
 
+
 EAPI_MAIN int
 elm_main(int argc, char **argv)
 {
@@ -37,7 +38,7 @@ elm_main(int argc, char **argv)
 
 
     elm_box_pack_end(
-        panel->box,
+        panel->right_box,
         clock->label
     );
 
@@ -65,6 +66,7 @@ elm_main(int argc, char **argv)
 
     return 0;
 }
+
 
 
 ELM_MAIN()
