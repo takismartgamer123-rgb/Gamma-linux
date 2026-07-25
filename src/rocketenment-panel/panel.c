@@ -1,10 +1,17 @@
 #include "panel.h"
 
+#include <stdlib.h>
+
 
 RocketPanel *
 rocket_panel_create(void)
 {
-    RocketPanel *panel = calloc(1, sizeof(RocketPanel));
+    RocketPanel *panel;
+
+    panel = calloc(
+        1,
+        sizeof(RocketPanel)
+    );
 
     if (!panel)
         return NULL;
@@ -35,94 +42,92 @@ rocket_panel_create(void)
     );
 
 
-    Ecore_Evas *ee;
-
-int w, h;
-
-ee = ecore_evas_new(
-    NULL,
-    0,
-    0,
-    0,
-    0,
-    NULL
-);
-
-if (ee)
-{
-    ecore_evas_screen_geometry_get(
-        ee,
-        NULL,
-        NULL,
-        &w,
-        &h
-    );
-
-    ecore_evas_free(ee);
-
-    evas_object_resize(
-        panel->win,
-        w,
-        42
-    );
-}
-
-
     evas_object_move(
         panel->win,
         0,
         0
     );
 
-Evas_Object *bg;
+
+    evas_object_resize(
+        panel->win,
+        1920,
+        42
+    );
 
 
-bg = elm_bg_add(
-    panel->win
-);
+
+    /*
+     * Background
+     */
+
+    panel->bg = elm_bg_add(
+        panel->win
+    );
 
 
-elm_bg_color_set(
-    bg,
-    10,
-    20,
-    45
-);
+    elm_bg_color_set(
+        panel->bg,
+        10,
+        20,
+        45
+    );
 
 
-elm_win_resize_object_add(
-    panel->win,
-    bg
-);
+    elm_win_resize_object_add(
+        panel->win,
+        panel->bg
+    );
 
 
-evas_object_show(
-    bg
-);
+    evas_object_show(
+        panel->bg
+    );
 
-    panel->box = elm_box_add(
+
+
+    /*
+     * Main container
+     */
+
+    panel->main_box = elm_box_add(
         panel->win
     );
 
 
     elm_box_horizontal_set(
-        panel->box,
+        panel->main_box,
         EINA_TRUE
     );
 
 
     elm_box_padding_set(
-        panel->box,
-        15,
+        panel->main_box,
+        20,
         0
     );
 
 
     elm_win_resize_object_add(
         panel->win,
-        panel->box
+        panel->main_box
     );
 
+
+
+    /*
+     * Left side
+     */
+
+    panel->left_box = elm_box_add(
+        panel->win
+    );
+
+
+    elm_box_horizontal_set(
+        panel->left_box,
+        EINA_TRUE
+    );
 
 
     panel->title = elm_label_add(
@@ -137,7 +142,7 @@ evas_object_show(
 
 
     elm_box_pack_end(
-        panel->box,
+        panel->left_box,
         panel->title
     );
 
@@ -148,25 +153,18 @@ evas_object_show(
 
 
 
-    panel->clock = elm_label_add(
+    /*
+     * Right side
+     */
+
+    panel->right_box = elm_box_add(
         panel->win
     );
 
 
-    elm_object_text_set(
-        panel->clock,
-        "00:00"
-    );
-
-
-    elm_box_pack_end(
-        panel->box,
-        panel->clock
-    );
-
-
-    evas_object_show(
-        panel->clock
+    elm_box_horizontal_set(
+        panel->right_box,
+        EINA_TRUE
     );
 
 
@@ -175,7 +173,6 @@ evas_object_show(
         panel->win
     );
 
-
     elm_object_text_set(
         panel->network,
         "🌐"
@@ -183,7 +180,7 @@ evas_object_show(
 
 
     elm_box_pack_end(
-        panel->box,
+        panel->right_box,
         panel->network
     );
 
@@ -206,7 +203,7 @@ evas_object_show(
 
 
     elm_box_pack_end(
-        panel->box,
+        panel->right_box,
         panel->sound
     );
 
@@ -229,7 +226,7 @@ evas_object_show(
 
 
     elm_box_pack_end(
-        panel->box,
+        panel->right_box,
         panel->battery
     );
 
@@ -240,8 +237,30 @@ evas_object_show(
 
 
 
+    elm_box_pack_end(
+        panel->main_box,
+        panel->left_box
+    );
+
+
+    elm_box_pack_end(
+        panel->main_box,
+        panel->right_box
+    );
+
+
     evas_object_show(
-        panel->box
+        panel->left_box
+    );
+
+
+    evas_object_show(
+        panel->right_box
+    );
+
+
+    evas_object_show(
+        panel->main_box
     );
 
 
