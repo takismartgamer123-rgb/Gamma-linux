@@ -1,12 +1,12 @@
 #include "clock.h"
 
+#include <stdlib.h>
 #include <time.h>
-#include <stdio.h>
 
 
 
 static Eina_Bool
-_clock_update(void *data)
+clock_update(void *data)
 {
     RocketClock *clock = data;
 
@@ -15,22 +15,23 @@ _clock_update(void *data)
 
 
     time_t now;
-
-    struct tm *time_info;
+    struct tm *tm_info;
 
     char buffer[32];
 
 
     now = time(NULL);
 
-    time_info = localtime(&now);
+    tm_info = localtime(
+        &now
+    );
 
 
     strftime(
         buffer,
         sizeof(buffer),
         "%H:%M",
-        time_info
+        tm_info
     );
 
 
@@ -42,8 +43,6 @@ _clock_update(void *data)
 
     return ECORE_CALLBACK_RENEW;
 }
-
-
 
 
 
@@ -83,20 +82,18 @@ rocket_clock_create(Evas_Object *parent)
 
     clock->timer = ecore_timer_add(
         1.0,
-        _clock_update,
+        clock_update,
         clock
     );
 
 
-
-    _clock_update(clock);
-
+    clock_update(
+        clock
+    );
 
 
     return clock;
 }
-
-
 
 
 
@@ -107,23 +104,16 @@ rocket_clock_destroy(RocketClock *clock)
         return;
 
 
-
     if (clock->timer)
-    {
         ecore_timer_del(
             clock->timer
         );
-    }
-
 
 
     if (clock->label)
-    {
         evas_object_del(
             clock->label
         );
-    }
-
 
 
     free(clock);
