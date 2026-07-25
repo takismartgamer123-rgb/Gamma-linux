@@ -2,6 +2,7 @@
 #define ROCKETENMENT_CLOCK_H
 
 #include <Elementary.h>
+#include <Ecore.h>
 
 
 typedef struct
@@ -10,6 +11,7 @@ typedef struct
     Ecore_Timer *timer;
 
 } RocketClock;
+
 
 
 RocketClock *
