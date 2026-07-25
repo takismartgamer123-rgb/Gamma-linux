@@ -35,11 +35,37 @@ rocket_panel_create(void)
     );
 
 
+    Ecore_Evas *ee;
+
+int w, h;
+
+ee = ecore_evas_new(
+    NULL,
+    0,
+    0,
+    0,
+    0,
+    NULL
+);
+
+if (ee)
+{
+    ecore_evas_screen_geometry_get(
+        ee,
+        NULL,
+        NULL,
+        &w,
+        &h
+    );
+
+    ecore_evas_free(ee);
+
     evas_object_resize(
         panel->win,
-        1920,
+        w,
         42
     );
+}
 
 
     evas_object_move(
