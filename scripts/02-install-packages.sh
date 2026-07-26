@@ -185,7 +185,13 @@ sudo chroot chroot apt-get install \
     -y \
     --no-install-recommends \
     $PKGS
+echo "[02] Verifying installation..."
 
+sudo chroot chroot test -x /usr/bin/Xorg
+sudo chroot chroot test -x /usr/sbin/lightdm
+sudo chroot chroot test -f /usr/share/xsessions/enlightenment.desktop
+
+echo "[02] Xorg and Enlightenment verified."
 
 
 # ==========================
@@ -206,7 +212,6 @@ sudo chroot chroot update-initramfs -u -k all
 REMOVE_PKGS="
 snapd
 flatpak
-cups
 "
 
 
