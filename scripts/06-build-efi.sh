@@ -3,52 +3,46 @@ set -euo pipefail
 
 EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+ISO_DIR="$ROOT/iso"
+EFI_DIR="$ISO_DIR/EFI/BOOT"
+GRUB_DIR="$ISO_DIR/boot/grub"
+
 echo "[06] Building EFI boot files ($EDITION)"
 
-ROOT="$(pwd)"
-EFI_DIR="$ROOT/iso/EFI/BOOT"
-GRUB_DIR="$ROOT/iso/boot/grub"
-
 # ==========================================
-# Dependencies
-# ==========================================
-
-command -v grub-mkstandalone >/dev/null || {
-    echo "ERROR: grub-mkstandalone missing"
-    exit 1
-}
-
-command -v mcopy >/dev/null || {
-    echo "ERROR: mtools missing"
-    exit 1
-}
-
-command -v mkfs.vfat >/dev/null || {
-    echo "ERROR: mkfs.vfat missing"
-    exit 1
-}
-
-# ==========================================
-# Edition / Live layout
+# Validate edition
 # ==========================================
 
 case "$EDITION" in
-    legacy)
-        LIVE_DIR="live"
-        BOOT="boot=live"
-        ;;
     pro|lite)
         LIVE_DIR="casper"
         BOOT="boot=casper"
         ;;
+    legacy)
+        LIVE_DIR="live"
+        BOOT="boot=live"
+        ;;
     *)
-        echo "ERROR: Unknown edition '$EDITION'"
+        echo "ERROR: Unknown edition: $EDITION"
         exit 1
         ;;
 esac
 
 # ==========================================
-# Prepare
+# Dependencies
+# ==========================================
+
+for CMD in grub-mkstandalone mcopy mkfs.vfat; do
+    if ! command -v "$CMD" >/dev/null 2>&1; then
+        echo "ERROR: Required command missing: $CMD"
+        exit 1
+    fi
+done
+
+# ==========================================
+# Prepare directories
 # ==========================================
 
 sudo mkdir -p \
@@ -61,6 +55,23 @@ sudo rm -f \
     "$EFI_DIR/grubx64.efi" \
     "$EFI_DIR/grubia32.efi" \
     "$GRUB_DIR/efi.img"
+
+# ==========================================
+# Validate kernel + initramfs
+# ==========================================
+
+VMLINUX="$ISO_DIR/$LIVE_DIR/vmlinuz"
+INITRD="$ISO_DIR/$LIVE_DIR/initrd.lz"
+
+if [ ! -f "$VMLINUX" ]; then
+    echo "ERROR: Missing kernel: $VMLINUX"
+    exit 1
+fi
+
+if [ ! -f "$INITRD" ]; then
+    echo "ERROR: Missing initramfs: $INITRD"
+    exit 1
+fi
 
 # ==========================================
 # GRUB configuration
@@ -85,59 +96,63 @@ EOF
 # Build x86_64 EFI
 # ==========================================
 
-echo "[06] Creating x86_64 EFI..."
+echo "[06] Building x86_64 EFI..."
 
-if command -v grub-mkstandalone >/dev/null; then
-    grub-mkstandalone \
-        -O x86_64-efi \
-        --modules="normal linux search search_fs_file fat iso9660" \
-        -o "$EFI_DIR/BOOTX64.EFI" \
-        "boot/grub/grub.cfg=$GRUB_DIR/grub.cfg"
-fi
+grub-mkstandalone \
+    -O x86_64-efi \
+    --modules="normal linux search search_fs_file fat iso9660" \
+    -o "$EFI_DIR/BOOTX64.EFI" \
+    "boot/grub/grub.cfg=$GRUB_DIR/grub.cfg"
+
+sudo cp \
+    "$EFI_DIR/BOOTX64.EFI" \
+    "$EFI_DIR/grubx64.efi"
 
 # ==========================================
 # Build IA32 EFI
 # ==========================================
 
-echo "[06] Creating IA32 EFI..."
+echo "[06] Building IA32 EFI..."
 
 if grub-mkstandalone \
-        -O i386-efi \
-        --modules="normal linux search search_fs_file fat iso9660" \
-        -o "$EFI_DIR/BOOTIA32.EFI" \
-        "boot/grub/grub.cfg=$GRUB_DIR/grub.cfg"; then
+    -O i386-efi \
+    --modules="normal linux search search_fs_file fat iso9660" \
+    -o "$EFI_DIR/BOOTIA32.EFI" \
+    "boot/grub/grub.cfg=$GRUB_DIR/grub.cfg"
+then
+    sudo cp \
+        "$EFI_DIR/BOOTIA32.EFI" \
+        "$EFI_DIR/grubia32.efi"
 
-    echo "[06] IA32 EFI created."
-
+    IA32_STATUS="available"
 else
-
-    echo "[06] WARNING: IA32 EFI build failed."
-    echo "[06] Continuing with x86_64 EFI."
+    IA32_STATUS="unavailable"
 
     if [ "$EDITION" = "legacy" ]; then
-        echo "[06] ERROR: Legacy edition requires IA32 EFI support."
+        echo "ERROR: IA32 EFI is required for legacy edition."
         exit 1
     fi
 
+    echo "WARNING: Could not build IA32 EFI."
 fi
 
 # ==========================================
-# Verify EFI files
+# Verify EFI executables
 # ==========================================
 
-if [ ! -f "$EFI_DIR/BOOTX64.EFI" ]; then
-    echo "ERROR: BOOTX64.EFI missing"
+if [ ! -s "$EFI_DIR/BOOTX64.EFI" ]; then
+    echo "ERROR: BOOTX64.EFI is missing or empty."
     exit 1
 fi
 
 if [ "$EDITION" = "legacy" ] &&
-   [ ! -f "$EFI_DIR/BOOTIA32.EFI" ]; then
-    echo "ERROR: BOOTIA32.EFI missing for legacy edition"
+   [ ! -s "$EFI_DIR/BOOTIA32.EFI" ]; then
+    echo "ERROR: BOOTIA32.EFI is missing or empty."
     exit 1
 fi
 
 # ==========================================
-# EFI System Partition image
+# Create EFI System Partition image
 # ==========================================
 
 echo "[06] Creating EFI System Partition image..."
@@ -155,13 +170,11 @@ mkfs.vfat \
 mmd -i "$GRUB_DIR/efi.img" ::/EFI
 mmd -i "$GRUB_DIR/efi.img" ::/EFI/BOOT
 
-# x86_64
 mcopy \
     -i "$GRUB_DIR/efi.img" \
     "$EFI_DIR/BOOTX64.EFI" \
     ::/EFI/BOOT/
 
-# IA32
 if [ -f "$EFI_DIR/BOOTIA32.EFI" ]; then
     mcopy \
         -i "$GRUB_DIR/efi.img" \
@@ -173,11 +186,15 @@ fi
 # Final verification
 # ==========================================
 
+echo "[06] Verifying EFI image..."
+
+mdir -i "$GRUB_DIR/efi.img" ::/EFI/BOOT >/dev/null
+
 echo
 echo "========================================="
 echo " EFI BUILD COMPLETE"
 echo " Edition : $EDITION"
-echo " x86_64  : BOOTX64.EFI"
-echo " IA32    : $([ -f "$EFI_DIR/BOOTIA32.EFI" ] && echo "BOOTIA32.EFI" || echo "not available")"
+echo " x86_64  : available"
+echo " IA32    : $IA32_STATUS"
 echo " ESP     : $GRUB_DIR/efi.img"
 echo "========================================="
