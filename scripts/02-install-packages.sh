@@ -3,225 +3,244 @@ set -euo pipefail
 
 EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
 
-echo "[02] Installing packages for $EDITION"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CHROOT="$ROOT/chroot"
 
 export DEBIAN_FRONTEND=noninteractive
 
+echo "[02] Installing packages for $EDITION"
 
-# ==========================
-# Repository Setup
-# ==========================
+# ==========================================================
+# Validate edition
+# ==========================================================
 
-if grep -qi "ubuntu" chroot/etc/os-release; then
+case "$EDITION" in
+    pro|lite|legacy)
+        ;;
+    *)
+        echo "ERROR: Unknown edition: $EDITION"
+        exit 1
+        ;;
+esac
 
-    echo "Ubuntu detected"
+# ==========================================================
+# Repository setup
+# ==========================================================
 
-    sudo chroot chroot apt-get update
+if grep -qi '^ID=ubuntu' "$CHROOT/etc/os-release"; then
 
-    sudo chroot chroot apt-get install -y \
+    echo "[02] Ubuntu detected"
+
+    sudo chroot "$CHROOT" apt-get update
+
+    sudo chroot "$CHROOT" apt-get install -y \
         software-properties-common
 
-    sudo chroot chroot add-apt-repository universe || true
+    sudo chroot "$CHROOT" add-apt-repository universe
 
-    sudo chroot chroot apt-get update
+    sudo chroot "$CHROOT" apt-get update
 
+elif grep -qi '^ID=debian' "$CHROOT/etc/os-release"; then
 
-elif grep -qi "debian" chroot/etc/os-release; then
+    echo "[02] Debian detected"
 
-    echo "Debian detected"
-
-    sudo chroot chroot apt-get update
-
-fi
-
-
-
-# ==========================
-# Locales
-# ==========================
-
-if [ "$EDITION" = "legacy" ]; then
-
-    sudo chroot chroot apt-get install -y \
-        locales
+    sudo chroot "$CHROOT" apt-get update
 
 else
 
-    sudo chroot chroot apt-get install -y \
-        locales \
-        language-pack-ar \
-        language-pack-fr
+    echo "ERROR: Unsupported base distribution."
+    cat "$CHROOT/etc/os-release"
+    exit 1
 
 fi
 
+# ==========================================================
+# Locale
+# ==========================================================
 
-cat <<EOF | sudo tee chroot/etc/locale.gen >/dev/null
+if [ "$EDITION" = "legacy" ]; then
+
+    sudo chroot "$CHROOT" apt-get install -y \
+        locales \
+        keyboard-configuration
+
+else
+
+    sudo chroot "$CHROOT" apt-get install -y \
+        locales \
+        language-pack-ar \
+        language-pack-fr \
+        keyboard-configuration
+
+fi
+
+sudo tee "$CHROOT/etc/locale.gen" >/dev/null <<EOF
 ar_DZ.UTF-8 UTF-8
 en_US.UTF-8 UTF-8
 fr_FR.UTF-8 UTF-8
 EOF
 
+sudo chroot "$CHROOT" locale-gen
 
-sudo chroot chroot locale-gen
+sudo tee "$CHROOT/etc/default/locale" >/dev/null <<EOF
+LANG=en_US.UTF-8
+LANGUAGE=en_US:en
+EOF
 
+# ==========================================================
+# Common desktop / Live / Installer packages
+# ==========================================================
 
-echo "LANG=en_US.UTF-8" | sudo tee chroot/etc/default/locale >/dev/null
+COMMON_PKGS=(
+    initramfs-tools
 
+    xserver-xorg
+    xserver-xorg-core
+    xserver-xorg-video-all
+    x11-xserver-utils
+    xinit
+    xauth
+    mesa-utils
 
+    lightdm
+    lightdm-gtk-greeter
 
-# ==========================
-# Packages
-# ==========================
+    policykit-1
+    pkexec
+
+    xdg-utils
+    gvfs
+    gvfs-backends
+
+    enlightenment
+    terminology
+
+    network-manager
+    dbus-x11
+    udisks2
+
+    parted
+    dosfstools
+    e2fsprogs
+    btrfs-progs
+    gdisk
+
+    rsync
+    cryptsetup
+
+    calamares
+    calamares-settings-debian
+
+    zram-tools
+)
+
+# ==========================================================
+# Edition-specific packages
+# ==========================================================
 
 case "$EDITION" in
 
+    pro)
 
-pro)
+        PKGS=(
+            "${COMMON_PKGS[@]}"
 
-PKGS="
-linux-image-generic-hwe-22.04
-initramfs-tools
-casper
-ubuntu-minimal
-xserver-xorg
-xserver-xorg-core
-xserver-xorg-video-all
-x11-xserver-utils
-xinit
-xauth
-mesa-utils
-lightdm
-lightdm-gtk-greeter
-policykit-1
-xdg-utils
-gvfs
-gvfs-backends
-enlightenment
-terminology
-lightdm
-network-manager
-earlyoom
-dbus-x11
-"
+            linux-image-generic-hwe-22.04
 
-;;
+            casper
+            ubuntu-minimal
 
+            xserver-xorg-video-all
 
-lite)
+            earlyoom
+        )
 
-PKGS="
-linux-image-generic-hwe-22.04
-initramfs-tools
-casper
-ubuntu-minimal
-xserver-xorg
-xserver-xorg-core
-xserver-xorg-video-all
-x11-xserver-utils
-xinit
-xauth
-mesa-utils
-lightdm
-lightdm-gtk-greeter
-policykit-1
-xdg-utils
-gvfs
-gvfs-backends
-enlightenment
-terminology
-lightdm
-dbus-x11
-"
+        ;;
 
-;;
+    lite)
 
+        PKGS=(
+            "${COMMON_PKGS[@]}"
 
-legacy)
+            linux-image-generic-hwe-22.04
 
-PKGS="
-linux-image-686-pae
-initramfs-tools
-xserver-xorg
-xserver-xorg-core
-xserver-xorg-video-all
-x11-xserver-utils
-xinit
-xauth
-mesa-utils
-lightdm
-lightdm-gtk-greeter
-policykit-1
-xdg-utils
-gvfs
-gvfs-backends
-enlightenment
-terminology
-lightdm
-network-manager
-dbus-x11
-"
+            casper
+            ubuntu-minimal
 
-;;
+            xserver-xorg-video-all
+        )
 
+        ;;
 
-*)
+    legacy)
 
-echo "Unknown edition: $EDITION"
-exit 1
+        PKGS=(
+            "${COMMON_PKGS[@]}"
 
-;;
+            linux-image-686-pae
+
+            grub-pc
+            grub-pc-bin
+            grub-efi-ia32-bin
+        )
+
+        ;;
 
 esac
 
+# ==========================================================
+# Install
+# ==========================================================
 
-
+echo
 echo "[02] Installing:"
+printf '  %s\n' "${PKGS[@]}"
+echo
 
-echo "$PKGS"
-
-
-
-sudo chroot chroot apt-get install \
+sudo chroot "$CHROOT" apt-get install \
     -y \
     --no-install-recommends \
-    $PKGS
-echo "[02] Verifying installation..."
+    "${PKGS[@]}"
 
-sudo chroot chroot test -x /usr/bin/Xorg
-sudo chroot chroot test -x /usr/sbin/lightdm
-sudo chroot chroot test -f /usr/share/xsessions/enlightenment.desktop
+# ==========================================================
+# Verify critical components
+# ==========================================================
 
-echo "[02] Xorg and Enlightenment verified."
+echo "[02] Verifying critical packages..."
 
+sudo chroot "$CHROOT" test -x /usr/bin/Xorg
+sudo chroot "$CHROOT" test -x /usr/sbin/lightdm
+sudo chroot "$CHROOT" test -x /usr/bin/calamares
+sudo chroot "$CHROOT" test -x /usr/sbin/zramswap
+sudo chroot "$CHROOT" test -f /usr/share/xsessions/enlightenment.desktop
 
-# ==========================
-# Force initramfs rebuild
-# ==========================
+echo "[02] Critical packages verified."
 
-echo "[02] Rebuilding initramfs"
+# ==========================================================
+# Initramfs
+# ==========================================================
 
-sudo chroot chroot update-initramfs -c -k all || \
-sudo chroot chroot update-initramfs -u -k all
+echo "[02] Rebuilding initramfs..."
 
+sudo chroot "$CHROOT" update-initramfs -c -k all || true
+sudo chroot "$CHROOT" update-initramfs -u -k all
 
+# ==========================================================
+# Remove Snap / Flatpak
+# ==========================================================
 
-# ==========================
-# Cleanup
-# ==========================
+REMOVE_PKGS=(
+    snapd
+    flatpak
+)
 
-REMOVE_PKGS="
-snapd
-flatpak
-"
+sudo chroot "$CHROOT" apt-get purge -y \
+    "${REMOVE_PKGS[@]}" || true
 
+# ==========================================================
+# Package cleanup
+# ==========================================================
 
-sudo chroot chroot apt-get purge -y \
-    $REMOVE_PKGS || true
+sudo chroot "$CHROOT" apt-get clean
 
-
-sudo chroot chroot apt-get autoremove -y
-
-sudo chroot chroot apt-get clean
-
-
-echo "[02] Packages installed successfully."
+echo "[02] Package installation completed."
