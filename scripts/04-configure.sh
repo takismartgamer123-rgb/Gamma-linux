@@ -240,18 +240,13 @@ sudo ln -sf \
     "$CHROOT/etc/systemd/system/default.target"
 
 # ==========================================================
-# Calamares verification
+# Calamares verification and setup
 # ==========================================================
 
 echo "[04] Verifying Calamares..."
 
 if [ ! -x "$CHROOT/usr/bin/calamares" ]; then
     echo "ERROR: Calamares is not installed."
-    exit 1
-fi
-
-if [ ! -f "$CHROOT/usr/share/calamares/settings.conf" ]; then
-    echo "ERROR: Calamares settings.conf is missing."
     exit 1
 fi
 
@@ -264,16 +259,79 @@ CAL_ROOT="$CHROOT/etc/calamares"
 sudo mkdir -p \
     "$CAL_ROOT/branding/gamma"
 
-# Copy the distribution-provided settings to /etc so Gamma
-# can override branding without modifying /usr/share.
-sudo cp \
-    "$CHROOT/usr/share/calamares/settings.conf" \
-    "$CAL_ROOT/settings.conf"
+# Find and copy the Calamares settings file from the system
+# It may be in different locations depending on the distribution
+CALAMARES_SETTINGS=""
 
-# Use Gamma branding while retaining the upstream module order.
-sudo sed -i \
-    -E 's/^[[:space:]]*branding:[[:space:]]*.*/branding: gamma/' \
-    "$CAL_ROOT/settings.conf"
+if [ -f "$CHROOT/usr/share/calamares/settings.conf" ]; then
+    CALAMARES_SETTINGS="$CHROOT/usr/share/calamares/settings.conf"
+elif [ -f "$CHROOT/etc/calamares/settings.conf" ]; then
+    CALAMARES_SETTINGS="$CHROOT/etc/calamares/settings.conf"
+fi
+
+if [ -z "$CALAMARES_SETTINGS" ]; then
+    echo "[04] WARNING: Calamares settings.conf not found in standard locations."
+    echo "[04] Creating minimal Calamares settings.conf..."
+    
+    # Create a minimal Calamares settings file if none exists
+    sudo tee "$CAL_ROOT/settings.conf" >/dev/null <<'CALEOF'
+---
+branding: gamma
+
+sequence:
+  - show:
+    - welcome
+    - locale
+    - keyboard
+    - partition
+    - summary
+  - exec:
+    - partition
+    - mount
+    - unpackfs
+    - machineid
+    - fstab
+    - locale
+    - keyboard
+    - localecfg
+    - users
+    - displaymanager
+    - hwclock
+    - grub
+    - bootloader
+    - umount
+  - show:
+    - finished
+
+modules:
+  welcome: null
+  locale: null
+  keyboard: null
+  partition: null
+  summary: null
+  unpackfs: null
+  machineid: null
+  fstab: null
+  localecfg: null
+  users: null
+  displaymanager:
+    displaymanagers:
+      - lightdm
+  hwclock:
+    hwclock_backend: auto
+  grub: null
+  bootloader: null
+  finished: null
+CALEOF
+else
+    # Copy and customize the existing settings
+    sudo cp "$CALAMARES_SETTINGS" "$CAL_ROOT/settings.conf"
+    
+    # Use Gamma branding while retaining the upstream module order.
+    sudo sed -i \
+        -E 's/^[[:space:]]*branding:[[:space:]]*.*/branding: gamma/' \
+        "$CAL_ROOT/settings.conf"
+fi
 
 # ==========================================================
 # Gamma Calamares branding
