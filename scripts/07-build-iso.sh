@@ -46,9 +46,11 @@ done
 # Prepare
 # ==========================================
 
-mkdir -p \
+sudo mkdir -p \
     "$OUTPUT_DIR" \
     "$ISO_DIR/boot/isolinux"
+
+sudo chmod -R 755 "$ISO_DIR"
 
 rm -f "$ISO"
 
