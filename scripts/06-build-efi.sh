@@ -34,7 +34,7 @@ esac
 # Dependencies
 # ==========================================
 
-for CMD in grub-mkstandalone mcopy mkfs.vfat; do
+for CMD in grub-mkstandalone mkfs.vfat; do
     if ! command -v "$CMD" >/dev/null 2>&1; then
         echo "ERROR: Required command missing: $CMD"
         exit 1
@@ -159,30 +159,42 @@ fi
 
 echo "[06] Creating EFI System Partition image..."
 
+# Increased size from 16MB to 550MB to avoid FAT32 minimum cluster requirements
 sudo dd if=/dev/zero \
     of="$GRUB_DIR/efi.img" \
     bs=1M \
-    count=16 \
+    count=550 \
     status=none
 
+# Format with explicit FAT32 parameters
 sudo mkfs.vfat \
     -F 32 \
+    -s 8 \
     "$GRUB_DIR/efi.img" >/dev/null
 
-sudo mmd -i "$GRUB_DIR/efi.img" ::/EFI
-sudo mmd -i "$GRUB_DIR/efi.img" ::/EFI/BOOT
+# Create EFI directory structure using fuse-based mounting for better reliability
+EFI_MOUNT=$(mktemp -d)
+trap "sudo umount '$EFI_MOUNT' 2>/dev/null || true; rmdir '$EFI_MOUNT' 2>/dev/null || true" EXIT
 
-sudo mcopy \
-    -i "$GRUB_DIR/efi.img" \
-    "$EFI_DIR/BOOTX64.EFI" \
-    ::/EFI/BOOT/
+# Use loop device to mount and populate
+LOOP_DEV=$(sudo losetup -f)
+sudo losetup "$LOOP_DEV" "$GRUB_DIR/efi.img"
+sudo mount "$LOOP_DEV" "$EFI_MOUNT"
+
+# Create directories
+sudo mkdir -p "$EFI_MOUNT/EFI/BOOT"
+
+# Copy EFI binaries
+sudo cp "$EFI_DIR/BOOTX64.EFI" "$EFI_MOUNT/EFI/BOOT/"
 
 if [ -f "$EFI_DIR/BOOTIA32.EFI" ]; then
-    sudo mcopy \
-        -i "$GRUB_DIR/efi.img" \
-        "$EFI_DIR/BOOTIA32.EFI" \
-        ::/EFI/BOOT/
+    sudo cp "$EFI_DIR/BOOTIA32.EFI" "$EFI_MOUNT/EFI/BOOT/"
 fi
+
+# Sync and unmount
+sudo sync
+sudo umount "$EFI_MOUNT"
+sudo losetup -d "$LOOP_DEV"
 
 # ==========================================
 # Final verification
@@ -190,7 +202,23 @@ fi
 
 echo "[06] Verifying EFI image..."
 
-sudo mdir -i "$GRUB_DIR/efi.img" ::/EFI/BOOT >/dev/null
+# Verify the image can be mounted
+VERIFY_MOUNT=$(mktemp -d)
+trap "sudo umount '$VERIFY_MOUNT' 2>/dev/null || true; rmdir '$VERIFY_MOUNT' 2>/dev/null || true" EXIT
+
+VERIFY_LOOP=$(sudo losetup -f)
+sudo losetup "$VERIFY_LOOP" "$GRUB_DIR/efi.img"
+sudo mount "$VERIFY_LOOP" "$VERIFY_MOUNT"
+
+if [ ! -f "$VERIFY_MOUNT/EFI/BOOT/BOOTX64.EFI" ]; then
+    echo "ERROR: BOOTX64.EFI not found in EFI image"
+    sudo umount "$VERIFY_MOUNT" || true
+    sudo losetup -d "$VERIFY_LOOP" || true
+    exit 1
+fi
+
+sudo umount "$VERIFY_MOUNT"
+sudo losetup -d "$VERIFY_LOOP"
 
 echo
 echo "========================================="
