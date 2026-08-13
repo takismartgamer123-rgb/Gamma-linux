@@ -81,6 +81,7 @@ sudo tee "$CHROOT/etc/gamma-release" >/dev/null <<EOF
 GAMMA_NAME="Gamma Linux"
 GAMMA_EDITION="$EDITION"
 GAMMA_VERSION="2.7"
+CODENAME="Warden"
 EOF
 
 sudo tee "$CHROOT/etc/motd" >/dev/null <<'EOF'
