@@ -46,11 +46,17 @@ done
 # Prepare
 # ==========================================
 
-sudo mkdir -p \
+# Create the required directories as the invoking user (avoid sudo inside scripts)
+mkdir -p \
     "$OUTPUT_DIR" \
     "$ISO_DIR/boot/isolinux"
 
-sudo chmod -R 755 "$ISO_DIR"
+# Ensure files and directories under ISO_DIR are readable and directories are searchable/executable
+# but do not change ownership — this lets non-root runs of the script (and subsequent cp/cat)
+# write files into the directories.
+if [ -d "$ISO_DIR" ]; then
+    chmod -R a+rX "$ISO_DIR" || true
+fi
 
 rm -f "$ISO"
 
