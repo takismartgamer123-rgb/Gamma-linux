@@ -3,244 +3,329 @@ set -euo pipefail
 
 EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CHROOT="$ROOT/chroot"
+echo "[02] Installing packages for $EDITION"
 
 export DEBIAN_FRONTEND=noninteractive
 
-echo "[02] Installing packages for $EDITION"
+# ==========================================
+# Detect Base
+# ==========================================
 
-# ==========================================================
-# Validate edition
-# ==========================================================
+if [ ! -f chroot/etc/os-release ]; then
+    echo "ERROR: chroot/etc/os-release not found"
+    exit 1
+fi
 
-case "$EDITION" in
-    pro|lite|legacy)
-        ;;
-    *)
-        echo "ERROR: Unknown edition: $EDITION"
-        exit 1
-        ;;
-esac
+. chroot/etc/os-release
 
-# ==========================================================
-# Repository setup
-# ==========================================================
+echo "[02] Base: ${PRETTY_NAME:-unknown}"
 
-if grep -qi '^ID=ubuntu' "$CHROOT/etc/os-release"; then
+# ==========================================
+# Repository Setup
+# ==========================================
+
+if [ "${ID:-}" = "ubuntu" ]; then
 
     echo "[02] Ubuntu detected"
 
-    sudo chroot "$CHROOT" apt-get update
+    sudo chroot chroot apt-get update
 
-    sudo chroot "$CHROOT" apt-get install -y \
+    sudo chroot chroot apt-get install -y \
         software-properties-common
 
-    sudo chroot "$CHROOT" add-apt-repository universe
+    sudo chroot chroot add-apt-repository universe || true
 
-    sudo chroot "$CHROOT" apt-get update
+    sudo chroot chroot apt-get update
 
-elif grep -qi '^ID=debian' "$CHROOT/etc/os-release"; then
+elif [ "${ID:-}" = "debian" ]; then
 
     echo "[02] Debian detected"
 
-    sudo chroot "$CHROOT" apt-get update
+    sudo chroot chroot apt-get update
 
 else
 
-    echo "ERROR: Unsupported base distribution."
-    cat "$CHROOT/etc/os-release"
+    echo "ERROR: Unsupported base: ${ID:-unknown}"
     exit 1
 
 fi
 
-# ==========================================================
-# Locale
-# ==========================================================
+# ==========================================
+# Locales
+# ==========================================
+
+echo "[02] Installing locales..."
 
 if [ "$EDITION" = "legacy" ]; then
 
-    sudo chroot "$CHROOT" apt-get install -y \
-        locales \
-        keyboard-configuration
+    sudo chroot chroot apt-get install -y \
+        locales
 
 else
 
-    sudo chroot "$CHROOT" apt-get install -y \
+    sudo chroot chroot apt-get install -y \
         locales \
         language-pack-ar \
-        language-pack-fr \
-        keyboard-configuration
+        language-pack-fr
 
 fi
 
-sudo tee "$CHROOT/etc/locale.gen" >/dev/null <<EOF
+sudo tee chroot/etc/locale.gen >/dev/null <<EOF
 ar_DZ.UTF-8 UTF-8
 en_US.UTF-8 UTF-8
 fr_FR.UTF-8 UTF-8
 EOF
 
-sudo chroot "$CHROOT" locale-gen
+sudo chroot chroot locale-gen
 
-sudo tee "$CHROOT/etc/default/locale" >/dev/null <<EOF
-LANG=en_US.UTF-8
-LANGUAGE=en_US:en
-EOF
+echo "LANG=en_US.UTF-8" | \
+    sudo tee chroot/etc/default/locale >/dev/null
 
-# ==========================================================
-# Common desktop / Live / Installer packages
-# ==========================================================
+# ==========================================
+# Common Desktop Packages
+# ==========================================
 
-COMMON_PKGS=(
-    initramfs-tools
+COMMON_PKGS="
+initramfs-tools
 
-    xserver-xorg
-    xserver-xorg-core
-    xserver-xorg-video-all
-    x11-xserver-utils
-    xinit
-    xauth
-    mesa-utils
+xserver-xorg
+xinit
+x11-xserver-utils
+xauth
 
-    lightdm
-    lightdm-gtk-greeter
+lightdm
+lightdm-gtk-greeter
 
-    policykit-1
-    pkexec
+enlightenment
+terminology
 
-    xdg-utils
-    gvfs
-    gvfs-backends
+dbus-x11
+"
 
-    enlightenment
-    terminology
-
-    network-manager
-    dbus-x11
-    udisks2
-
-    parted
-    dosfstools
-    e2fsprogs
-    btrfs-progs
-    gdisk
-
-    rsync
-    cryptsetup
-
-    calamares
-    calamares-settings-debian
-
-    zram-tools
-)
-
-# ==========================================================
-# Edition-specific packages
-# ==========================================================
+# ==========================================
+# Edition Packages
+# ==========================================
 
 case "$EDITION" in
 
     pro)
 
-        PKGS=(
-            "${COMMON_PKGS[@]}"
+        PKGS="
+        linux-image-generic-hwe-22.04
+        casper
+        ubuntu-minimal
 
-            linux-image-generic-hwe-22.04
+        $COMMON_PKGS
 
-            casper
-            ubuntu-minimal
+        network-manager
+        earlyoom
 
-            xserver-xorg-video-all
-
-            earlyoom
-        )
+        calamares
+        "
 
         ;;
 
     lite)
 
-        PKGS=(
-            "${COMMON_PKGS[@]}"
+        PKGS="
+        linux-image-generic-hwe-22.04
+        casper
+        ubuntu-minimal
 
-            linux-image-generic-hwe-22.04
+        $COMMON_PKGS
 
-            casper
-            ubuntu-minimal
+        network-manager
 
-            xserver-xorg-video-all
-        )
+        calamares
+        "
 
         ;;
 
     legacy)
 
-        PKGS=(
-            "${COMMON_PKGS[@]}"
+        PKGS="
+        linux-image-686-pae
 
-            linux-image-686-pae
+        $COMMON_PKGS
 
-            grub-pc
-            grub-pc-bin
-            grub-efi-ia32-bin
-        )
+        network-manager
+        "
+
+        ;;
+
+    *)
+
+        echo "ERROR: Unknown edition: $EDITION"
+        exit 1
 
         ;;
 
 esac
 
-# ==========================================================
-# Install
-# ==========================================================
+# ==========================================
+# Install Packages
+# ==========================================
 
 echo
-echo "[02] Installing:"
-printf '  %s\n' "${PKGS[@]}"
+echo "[02] Installing packages:"
+echo "$PKGS"
 echo
 
-sudo chroot "$CHROOT" apt-get install \
+sudo chroot chroot apt-get install \
     -y \
     --no-install-recommends \
-    "${PKGS[@]}"
+    $PKGS
 
-# ==========================================================
-# Verify critical components
-# ==========================================================
+# ==========================================
+# Verify Desktop
+# ==========================================
 
-echo "[02] Verifying critical packages..."
+echo "[02] Verifying desktop environment..."
 
-sudo chroot "$CHROOT" test -x /usr/bin/Xorg
-sudo chroot "$CHROOT" test -x /usr/sbin/lightdm
-sudo chroot "$CHROOT" test -x /usr/bin/calamares
-sudo chroot "$CHROOT" test -x /usr/sbin/zramswap
-sudo chroot "$CHROOT" test -f /usr/share/xsessions/enlightenment.desktop
+REQUIRED_PKGS="
+lightdm
+lightdm-gtk-greeter
+xserver-xorg
+enlightenment
+terminology
+"
 
-echo "[02] Critical packages verified."
+for PKG in $REQUIRED_PKGS; do
 
-# ==========================================================
-# Initramfs
-# ==========================================================
+    if ! sudo chroot chroot dpkg -s "$PKG" >/dev/null 2>&1; then
+
+        echo "ERROR: Required package missing: $PKG"
+        exit 1
+
+    fi
+
+done
+
+# ==========================================
+# Verify Xorg
+# ==========================================
+
+if [ ! -x chroot/usr/bin/Xorg ]; then
+
+    echo "ERROR: Xorg executable missing"
+    exit 1
+
+fi
+
+echo "[02] Xorg OK"
+
+# ==========================================
+# Verify Enlightenment Session
+# ==========================================
+
+if [ ! -f chroot/usr/share/xsessions/enlightenment.desktop ]; then
+
+    echo "ERROR: Enlightenment session missing:"
+    echo "       chroot/usr/share/xsessions/enlightenment.desktop"
+
+    exit 1
+
+fi
+
+echo "[02] Enlightenment session OK"
+
+# ==========================================
+# Verify LightDM Greeter
+# ==========================================
+
+if [ ! -f chroot/usr/share/xgreeters/lightdm-gtk-greeter.desktop ]; then
+
+    echo "ERROR: LightDM GTK greeter missing"
+    exit 1
+
+fi
+
+echo "[02] LightDM greeter OK"
+
+# ==========================================
+# Verify Calamares
+# ==========================================
+
+if [ "$EDITION" != "legacy" ]; then
+
+    if [ ! -x chroot/usr/bin/calamares ]; then
+
+        echo "ERROR: Calamares missing for $EDITION"
+        exit 1
+
+    fi
+
+    echo "[02] Calamares OK"
+
+fi
+
+# ==========================================
+# Enable LightDM
+# ==========================================
+
+echo "[02] Enabling LightDM..."
+
+sudo chroot chroot systemctl enable lightdm.service \
+    >/dev/null 2>&1 || true
+
+# ==========================================
+# Rebuild Initramfs
+# ==========================================
 
 echo "[02] Rebuilding initramfs..."
 
-sudo chroot "$CHROOT" update-initramfs -c -k all || true
-sudo chroot "$CHROOT" update-initramfs -u -k all
+sudo chroot chroot update-initramfs -c -k all || \
+sudo chroot chroot update-initramfs -u -k all
 
-# ==========================================================
-# Remove Snap / Flatpak
-# ==========================================================
+# ==========================================
+# Verify Initramfs
+# ==========================================
 
-REMOVE_PKGS=(
-    snapd
-    flatpak
-)
+if ! find chroot/boot \
+    -maxdepth 1 \
+    -type f \
+    -name 'initrd.img-*' \
+    | grep -q .; then
 
-sudo chroot "$CHROOT" apt-get purge -y \
-    "${REMOVE_PKGS[@]}" || true
+    echo "ERROR: No initramfs generated"
+    exit 1
 
-# ==========================================================
-# Package cleanup
-# ==========================================================
+fi
 
-sudo chroot "$CHROOT" apt-get clean
+echo "[02] Initramfs OK"
 
-echo "[02] Package installation completed."
+# ==========================================
+# Cleanup
+# ==========================================
+
+echo "[02] Cleaning unwanted packages..."
+
+sudo chroot chroot apt-get purge -y \
+    snapd \
+    flatpak \
+    cups \
+    || true
+
+sudo chroot chroot apt-get autoremove -y
+
+sudo chroot chroot apt-get clean
+
+# ==========================================
+# Final Report
+# ==========================================
+
+echo
+echo "=========================================="
+echo " Gamma Linux Package Stage Completed"
+echo " Edition : $EDITION"
+echo " Base    : ${PRETTY_NAME:-unknown}"
+echo " Xorg    : OK"
+echo " LightDM : OK"
+echo " Greeter : OK"
+echo " E17/E25 : OK"
+if [ "$EDITION" != "legacy" ]; then
+echo " Calamares: OK"
+fi
+echo " Initramfs: OK"
+echo "=========================================="
+echo
