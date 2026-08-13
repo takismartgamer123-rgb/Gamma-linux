@@ -49,6 +49,8 @@ sudo mkdir -p \
     "$EFI_DIR" \
     "$GRUB_DIR"
 
+sudo chmod -R 755 "$ISO_DIR/EFI" "$ISO_DIR/boot"
+
 sudo rm -f \
     "$EFI_DIR/BOOTX64.EFI" \
     "$EFI_DIR/BOOTIA32.EFI" \
@@ -98,7 +100,7 @@ EOF
 
 echo "[06] Building x86_64 EFI..."
 
-grub-mkstandalone \
+sudo grub-mkstandalone \
     -O x86_64-efi \
     --modules="normal linux search search_fs_file fat iso9660" \
     -o "$EFI_DIR/BOOTX64.EFI" \
@@ -114,7 +116,7 @@ sudo cp \
 
 echo "[06] Building IA32 EFI..."
 
-if grub-mkstandalone \
+if sudo grub-mkstandalone \
     -O i386-efi \
     --modules="normal linux search search_fs_file fat iso9660" \
     -o "$EFI_DIR/BOOTIA32.EFI" \
@@ -157,26 +159,26 @@ fi
 
 echo "[06] Creating EFI System Partition image..."
 
-dd if=/dev/zero \
+sudo dd if=/dev/zero \
     of="$GRUB_DIR/efi.img" \
     bs=1M \
     count=16 \
     status=none
 
-mkfs.vfat \
+sudo mkfs.vfat \
     -F 32 \
     "$GRUB_DIR/efi.img" >/dev/null
 
-mmd -i "$GRUB_DIR/efi.img" ::/EFI
-mmd -i "$GRUB_DIR/efi.img" ::/EFI/BOOT
+sudo mmd -i "$GRUB_DIR/efi.img" ::/EFI
+sudo mmd -i "$GRUB_DIR/efi.img" ::/EFI/BOOT
 
-mcopy \
+sudo mcopy \
     -i "$GRUB_DIR/efi.img" \
     "$EFI_DIR/BOOTX64.EFI" \
     ::/EFI/BOOT/
 
 if [ -f "$EFI_DIR/BOOTIA32.EFI" ]; then
-    mcopy \
+    sudo mcopy \
         -i "$GRUB_DIR/efi.img" \
         "$EFI_DIR/BOOTIA32.EFI" \
         ::/EFI/BOOT/
@@ -188,7 +190,7 @@ fi
 
 echo "[06] Verifying EFI image..."
 
-mdir -i "$GRUB_DIR/efi.img" ::/EFI/BOOT >/dev/null
+sudo mdir -i "$GRUB_DIR/efi.img" ::/EFI/BOOT >/dev/null
 
 echo
 echo "========================================="
