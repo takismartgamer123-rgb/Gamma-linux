@@ -219,6 +219,19 @@ fi
 
 sudo umount "$VERIFY_MOUNT"
 sudo losetup -d "$VERIFY_LOOP"
+# ==========================================
+# Restore workspace ownership
+# ==========================================
+
+echo "[06] Restoring ISO workspace ownership..."
+
+sudo chown -R "$(id -u):$(id -g)" "$ISO_DIR"
+
+# Ensure directories remain traversable
+find "$ISO_DIR" -type d -exec chmod u+rwx,go+rx {} +
+find "$ISO_DIR" -type f -exec chmod u+rw,go+r {} +
+
+echo "[06] ISO workspace ownership restored."
 
 echo
 echo "========================================="
