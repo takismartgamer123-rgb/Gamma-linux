@@ -54,8 +54,12 @@ mkdir -p \
 # Ensure files and directories under ISO_DIR are readable and directories are searchable/executable
 # but do not change ownership — this lets non-root runs of the script (and subsequent cp/cat)
 # write files into the directories.
-if [ -d "$ISO_DIR" ]; then
-    chmod -R a+rX "$ISO_DIR" || true
+if [ ! -w "$ISO_DIR" ]; then
+    echo "ERROR: ISO workspace is not writable:"
+    echo "       $ISO_DIR"
+    echo
+    ls -ld "$ISO_DIR"
+    exit 1
 fi
 
 rm -f "$ISO"
