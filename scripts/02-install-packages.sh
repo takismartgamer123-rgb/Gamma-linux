@@ -92,6 +92,7 @@ xserver-xorg
 xinit
 x11-xserver-utils
 xauth
+calamares
 
 lightdm
 lightdm-gtk-greeter
