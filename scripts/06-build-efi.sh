@@ -34,7 +34,7 @@ esac
 # Dependencies
 # ==========================================
 
-for CMD in grub-mkstandalone mkfs.vfat; do
+for CMD in grub-mkstandalone mkfs.vfat mcopy mmd; do
     if ! command -v "$CMD" >/dev/null 2>&1; then
         echo "ERROR: Required command missing: $CMD"
         exit 1
@@ -42,14 +42,12 @@ for CMD in grub-mkstandalone mkfs.vfat; do
 done
 
 # ==========================================
-# Prepare directories
+# Prepare
 # ==========================================
 
 sudo mkdir -p \
     "$EFI_DIR" \
     "$GRUB_DIR"
-
-sudo chmod -R 755 "$ISO_DIR/EFI" "$ISO_DIR/boot"
 
 sudo rm -f \
     "$EFI_DIR/BOOTX64.EFI" \
@@ -59,21 +57,21 @@ sudo rm -f \
     "$GRUB_DIR/efi.img"
 
 # ==========================================
-# Validate kernel + initramfs
+# Validate Live files
 # ==========================================
 
 VMLINUX="$ISO_DIR/$LIVE_DIR/vmlinuz"
 INITRD="$ISO_DIR/$LIVE_DIR/initrd.lz"
 
-if [ ! -f "$VMLINUX" ]; then
+[ -s "$VMLINUX" ] || {
     echo "ERROR: Missing kernel: $VMLINUX"
     exit 1
-fi
+}
 
-if [ ! -f "$INITRD" ]; then
+[ -s "$INITRD" ] || {
     echo "ERROR: Missing initramfs: $INITRD"
     exit 1
-fi
+}
 
 # ==========================================
 # GRUB configuration
@@ -95,7 +93,7 @@ menuentry "Gamma Linux v2.7 ${EDITION} - Safe Graphics" {
 EOF
 
 # ==========================================
-# Build x86_64 EFI
+# x86_64 EFI
 # ==========================================
 
 echo "[06] Building x86_64 EFI..."
@@ -111,7 +109,7 @@ sudo cp \
     "$EFI_DIR/grubx64.efi"
 
 # ==========================================
-# Build IA32 EFI
+# IA32 EFI
 # ==========================================
 
 echo "[06] Building IA32 EFI..."
@@ -131,107 +129,110 @@ else
     IA32_STATUS="unavailable"
 
     if [ "$EDITION" = "legacy" ]; then
-        echo "ERROR: IA32 EFI is required for legacy edition."
+        echo "ERROR: IA32 EFI is required for Legacy."
         exit 1
     fi
 
-    echo "WARNING: Could not build IA32 EFI."
+    echo "WARNING: IA32 EFI unavailable."
 fi
 
 # ==========================================
-# Verify EFI executables
+# Verify EFI binaries
 # ==========================================
 
-if [ ! -s "$EFI_DIR/BOOTX64.EFI" ]; then
-    echo "ERROR: BOOTX64.EFI is missing or empty."
+[ -s "$EFI_DIR/BOOTX64.EFI" ] || {
+    echo "ERROR: BOOTX64.EFI missing."
     exit 1
-fi
+}
 
 if [ "$EDITION" = "legacy" ] &&
    [ ! -s "$EFI_DIR/BOOTIA32.EFI" ]; then
-    echo "ERROR: BOOTIA32.EFI is missing or empty."
+    echo "ERROR: BOOTIA32.EFI missing for Legacy."
     exit 1
 fi
 
 # ==========================================
 # Create EFI System Partition image
 # ==========================================
+#
+# Keep this well below the El Torito EFI
+# maximum of 65535 x 512-byte blocks.
+#
+# 16 MiB = 32768 x 512-byte blocks.
+#
+# ==========================================
 
 echo "[06] Creating EFI System Partition image..."
 
-# Increased size from 16MB to 550MB to avoid FAT32 minimum cluster requirements
-sudo dd if=/dev/zero \
+sudo dd \
+    if=/dev/zero \
     of="$GRUB_DIR/efi.img" \
     bs=1M \
-    count=550 \
+    count=16 \
     status=none
 
-# Format with explicit FAT32 parameters
 sudo mkfs.vfat \
     -F 32 \
-    -s 8 \
     "$GRUB_DIR/efi.img" >/dev/null
 
-# Create EFI directory structure using fuse-based mounting for better reliability
-EFI_MOUNT=$(mktemp -d)
-trap "sudo umount '$EFI_MOUNT' 2>/dev/null || true; rmdir '$EFI_MOUNT' 2>/dev/null || true" EXIT
+# ==========================================
+# Populate EFI image
+# ==========================================
 
-# Use loop device to mount and populate
-LOOP_DEV=$(sudo losetup -f)
-sudo losetup "$LOOP_DEV" "$GRUB_DIR/efi.img"
+EFI_MOUNT="$(mktemp -d)"
+LOOP_DEV=""
+
+cleanup_efi() {
+    sync || true
+
+    if mountpoint -q "$EFI_MOUNT" 2>/dev/null; then
+        sudo umount "$EFI_MOUNT" 2>/dev/null || true
+    fi
+
+    if [ -n "$LOOP_DEV" ]; then
+        sudo losetup -d "$LOOP_DEV" 2>/dev/null || true
+    fi
+
+    rmdir "$EFI_MOUNT" 2>/dev/null || true
+}
+
+trap cleanup_efi EXIT
+
+LOOP_DEV="$(sudo losetup --find --show "$GRUB_DIR/efi.img")"
+
 sudo mount "$LOOP_DEV" "$EFI_MOUNT"
 
-# Create directories
-sudo mkdir -p "$EFI_MOUNT/EFI/BOOT"
+sudo mkdir -p \
+    "$EFI_MOUNT/EFI/BOOT"
 
-# Copy EFI binaries
-sudo cp "$EFI_DIR/BOOTX64.EFI" "$EFI_MOUNT/EFI/BOOT/"
+sudo cp \
+    "$EFI_DIR/BOOTX64.EFI" \
+    "$EFI_MOUNT/EFI/BOOT/"
 
-if [ -f "$EFI_DIR/BOOTIA32.EFI" ]; then
-    sudo cp "$EFI_DIR/BOOTIA32.EFI" "$EFI_MOUNT/EFI/BOOT/"
+if [ -s "$EFI_DIR/BOOTIA32.EFI" ]; then
+    sudo cp \
+        "$EFI_DIR/BOOTIA32.EFI" \
+        "$EFI_MOUNT/EFI/BOOT/"
 fi
 
-# Sync and unmount
 sudo sync
-sudo umount "$EFI_MOUNT"
-sudo losetup -d "$LOOP_DEV"
 
-# ==========================================
-# Final verification
-# ==========================================
+cleanup_efi
+trap - EXIT
 
-echo "[06] Verifying EFI image..."
-
-# Verify the image can be mounted
-VERIFY_MOUNT=$(mktemp -d)
-trap "sudo umount '$VERIFY_MOUNT' 2>/dev/null || true; rmdir '$VERIFY_MOUNT' 2>/dev/null || true" EXIT
-
-VERIFY_LOOP=$(sudo losetup -f)
-sudo losetup "$VERIFY_LOOP" "$GRUB_DIR/efi.img"
-sudo mount "$VERIFY_LOOP" "$VERIFY_MOUNT"
-
-if [ ! -f "$VERIFY_MOUNT/EFI/BOOT/BOOTX64.EFI" ]; then
-    echo "ERROR: BOOTX64.EFI not found in EFI image"
-    sudo umount "$VERIFY_MOUNT" || true
-    sudo losetup -d "$VERIFY_LOOP" || true
-    exit 1
-fi
-
-sudo umount "$VERIFY_MOUNT"
-sudo losetup -d "$VERIFY_LOOP"
 # ==========================================
 # Restore workspace ownership
 # ==========================================
 
-echo "[06] Restoring ISO workspace ownership..."
+sudo chown -R \
+    "$(id -u):$(id -g)" \
+    "$ISO_DIR"
 
-sudo chown -R "$(id -u):$(id -g)" "$ISO_DIR"
+# ==========================================
+# Final report
+# ==========================================
 
-# Ensure directories remain traversable
-find "$ISO_DIR" -type d -exec chmod u+rwx,go+rx {} +
-find "$ISO_DIR" -type f -exec chmod u+rw,go+r {} +
-
-echo "[06] ISO workspace ownership restored."
+EFI_SIZE="$(stat -c '%s' "$GRUB_DIR/efi.img")"
 
 echo
 echo "========================================="
@@ -240,4 +241,5 @@ echo " Edition : $EDITION"
 echo " x86_64  : available"
 echo " IA32    : $IA32_STATUS"
 echo " ESP     : $GRUB_DIR/efi.img"
+echo " ESP size: $EFI_SIZE bytes"
 echo "========================================="
