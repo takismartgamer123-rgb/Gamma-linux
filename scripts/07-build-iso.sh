@@ -9,6 +9,7 @@ ISO_DIR="$ROOT/iso"
 OUTPUT_DIR="$ROOT/output"
 
 ISO="$OUTPUT_DIR/gamma-${EDITION}.iso"
+EFI_IMAGE="$ISO_DIR/boot/grub/efi.img"
 
 echo "[07] Building Gamma Linux ISO ($EDITION)"
 
@@ -35,37 +36,37 @@ esac
 # Dependencies
 # ==========================================
 
-for CMD in xorriso cp; do
-    if ! command -v "$CMD" >/dev/null 2>&1; then
+for CMD in xorriso cp mkdir rm stat du; do
+    command -v "$CMD" >/dev/null 2>&1 || {
         echo "ERROR: Required command missing: $CMD"
         exit 1
-    fi
+    }
 done
 
 # ==========================================
 # Prepare
 # ==========================================
 
-# Create the required directories as the invoking user (avoid sudo inside scripts)
-mkdir -p \
-    "$OUTPUT_DIR" \
-    "$ISO_DIR/boot/isolinux"
+mkdir -p "$OUTPUT_DIR"
 
-# Ensure files and directories under ISO_DIR are readable and directories are searchable/executable
-# but do not change ownership — this lets non-root runs of the script (and subsequent cp/cat)
-# write files into the directories.
-if [ ! -w "$ISO_DIR" ]; then
-    echo "ERROR: ISO workspace is not writable:"
+[ -d "$ISO_DIR" ] || {
+    echo "ERROR: ISO directory missing: $ISO_DIR"
+    exit 1
+}
+
+[ -w "$ISO_DIR" ] || {
+    echo "ERROR: ISO directory is not writable:"
     echo "       $ISO_DIR"
-    echo
     ls -ld "$ISO_DIR"
     exit 1
-fi
+}
+
+mkdir -p "$ISO_DIR/boot/isolinux"
 
 rm -f "$ISO"
 
 # ==========================================
-# BIOS boot files
+# BIOS boot dependencies
 # ==========================================
 
 echo "[07] Preparing BIOS boot..."
@@ -77,13 +78,15 @@ BIOS_FILES=(
     "/usr/lib/syslinux/modules/bios/libcom32.c32"
     "/usr/lib/syslinux/modules/bios/libutil.c32"
     "/usr/lib/syslinux/modules/bios/libmenu.c32"
+    "/usr/lib/ISOLINUX/isohdpfx.bin"
 )
 
 for FILE in "${BIOS_FILES[@]}"; do
-    if [ ! -f "$FILE" ]; then
-        echo "ERROR: BIOS boot file missing: $FILE"
+    [ -s "$FILE" ] || {
+        echo "ERROR: Missing BIOS dependency:"
+        echo "       $FILE"
         exit 1
-    fi
+    }
 done
 
 cp /usr/lib/ISOLINUX/isolinux.bin \
@@ -137,8 +140,12 @@ REQUIRED_FILES=(
     "$ISO_DIR/$LIVE_DIR/vmlinuz"
     "$ISO_DIR/$LIVE_DIR/initrd.lz"
     "$ISO_DIR/$LIVE_DIR/filesystem.squashfs"
-    "$ISO_DIR/boot/grub/efi.img"
+
+    "$EFI_IMAGE"
     "$ISO_DIR/EFI/BOOT/BOOTX64.EFI"
+
+    "$ISO_DIR/boot/grub/grub.cfg"
+
     "$ISO_DIR/boot/isolinux/isolinux.bin"
     "$ISO_DIR/boot/isolinux/ldlinux.c32"
     "$ISO_DIR/boot/isolinux/vesamenu.c32"
@@ -146,24 +153,32 @@ REQUIRED_FILES=(
     "$ISO_DIR/boot/isolinux/libutil.c32"
     "$ISO_DIR/boot/isolinux/libmenu.c32"
     "$ISO_DIR/boot/isolinux/isolinux.cfg"
-    "$ISO_DIR/boot/grub/grub.cfg"
 )
 
 for FILE in "${REQUIRED_FILES[@]}"; do
-    if [ ! -s "$FILE" ]; then
-        echo "ERROR: Missing or empty file:"
+    [ -s "$FILE" ] || {
+        echo "ERROR: Missing or empty:"
         echo "       $FILE"
         exit 1
-    fi
+    }
 done
 
 if [ "$EDITION" = "legacy" ] &&
    [ ! -s "$ISO_DIR/EFI/BOOT/BOOTIA32.EFI" ]; then
-    echo "ERROR: Legacy edition requires BOOTIA32.EFI."
+    echo "ERROR: Legacy requires BOOTIA32.EFI."
     exit 1
 fi
 
-echo "[07] Pre-build QA passed."
+EFI_SIZE="$(stat -c '%s' "$EFI_IMAGE")"
+
+if [ "$EFI_SIZE" -gt 33553920 ]; then
+    echo "ERROR: EFI image is larger than the El Torito limit."
+    echo "       Size: $EFI_SIZE bytes"
+    exit 1
+fi
+
+echo "[07] EFI image: $EFI_SIZE bytes"
+echo "[07] Pre-build QA: PASS"
 
 # ==========================================
 # Build ISO
@@ -186,35 +201,33 @@ xorriso -as mkisofs \
     -eltorito-alt-boot \
     -e boot/grub/efi.img \
     -no-emul-boot \
-    -append_partition 2 0xef boot/grub/efi.img \
+    -append_partition 2 0xef "$EFI_IMAGE" \
     -o "$ISO" \
     "$ISO_DIR"
 
 # ==========================================
-# Verify ISO exists
+# Verify ISO
 # ==========================================
 
-if [ ! -s "$ISO" ]; then
+[ -s "$ISO" ] || {
     echo "ERROR: ISO was not created."
     exit 1
-fi
-
-# ==========================================
-# ISO inspection
-# ==========================================
+}
 
 echo
-echo "[07] ISO El Torito report..."
+echo "[07] ===== El Torito report ====="
+
 xorriso -indev "$ISO" \
     -report_el_torito plain
 
 echo
-echo "[07] ISO system-area report..."
+echo "[07] ===== System Area report ====="
+
 xorriso -indev "$ISO" \
     -report_system_area plain
 
 # ==========================================
-# ISO internal QA
+# Internal ISO QA
 # ==========================================
 
 echo
@@ -224,7 +237,9 @@ ISO_FILES=(
     "/${LIVE_DIR}/vmlinuz"
     "/${LIVE_DIR}/initrd.lz"
     "/${LIVE_DIR}/filesystem.squashfs"
+
     "/boot/grub/efi.img"
+
     "/boot/isolinux/isolinux.bin"
     "/boot/isolinux/vesamenu.c32"
     "/boot/isolinux/isolinux.cfg"
@@ -232,18 +247,19 @@ ISO_FILES=(
 
 for FILE in "${ISO_FILES[@]}"; do
     if ! xorriso -indev "$ISO" -ls "$FILE" >/dev/null 2>&1; then
-        echo "ERROR: ISO is missing: $FILE"
+        echo "ERROR: ISO is missing:"
+        echo "       $FILE"
         exit 1
     fi
 done
 
-echo "[07] ISO contents verified."
+echo "[07] ISO contents: PASS"
 
 # ==========================================
 # Report
 # ==========================================
 
-SIZE=$(du -h "$ISO" | awk '{print $1}')
+SIZE="$(du -h "$ISO" | awk '{print $1}')"
 
 echo
 echo "======================================="
