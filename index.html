@@ -1,0 +1,2733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Gamma Linux 2.7 Warden</title>
+
+<meta
+    name="description"
+    content="Gamma Linux 2.7 Warden — lightweight, free, open-source Linux built to revive old PCs."
+>
+
+<style>
+:root {
+    --bg: #05050a;
+    --bg2: #080814;
+    --card: #0c0c18;
+
+    --blue: #2196ff;
+    --blue2: #42a5ff;
+
+    --purple: #8b5cf6;
+    --purple2: #a78bfa;
+
+    --accent: #6c63ff;
+
+    --danger: #ff4d67;
+    --warning: #ffb020;
+    --success: #22c55e;
+
+    --text: #b8b8c8;
+    --muted: #77778a;
+    --light: #ffffff;
+
+    --border: #1b1b2b;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    background:
+        radial-gradient(
+            900px 500px at 15% -10%,
+            rgba(33,150,255,.12),
+            transparent 60%
+        ),
+        radial-gradient(
+            900px 500px at 90% 0%,
+            rgba(139,92,246,.12),
+            transparent 60%
+        ),
+        var(--bg);
+
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    line-height: 1.7;
+}
+
+a {
+    color: inherit;
+}
+
+code {
+    color: var(--blue2);
+}
+
+nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+
+    background: rgba(5,5,10,.88);
+    backdrop-filter: blur(14px);
+
+    border-bottom: 1px solid var(--border);
+
+    z-index: 999;
+
+    padding: 12px 20px;
+
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    gap: 8px 14px;
+}
+
+nav a {
+    color: var(--text);
+    text-decoration: none;
+
+    font-weight: 700;
+
+    padding: 6px 10px;
+
+    border-radius: 8px;
+
+    transition: .2s;
+}
+
+nav a:hover {
+    color: var(--light);
+    background: rgba(108,99,255,.12);
+}
+
+/* =========================
+   HERO
+========================= */
+
+.hero {
+    min-height: 90vh;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    text-align: center;
+
+    padding:
+        clamp(130px,20vw,180px)
+        20px
+        clamp(70px,12vw,110px);
+
+    background:
+        radial-gradient(
+            900px 500px at 50% 0%,
+            rgba(33,150,255,.14),
+            transparent 65%
+        ),
+        radial-gradient(
+            700px 500px at 50% 20%,
+            rgba(139,92,246,.12),
+            transparent 65%
+        );
+}
+
+.hero h1 {
+    margin: 0;
+
+    color: var(--light);
+
+    font-size:
+        clamp(2.7rem,9vw,5.5rem);
+
+    letter-spacing: 4px;
+
+    text-shadow:
+        0 0 35px rgba(33,150,255,.25),
+        0 0 55px rgba(139,92,246,.18);
+}
+
+.hero .version {
+    margin: 14px 0 8px;
+
+    font-size:
+        clamp(1.1rem,3vw,1.5rem);
+
+    font-weight: 800;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--blue2),
+            var(--purple2)
+        );
+
+    -webkit-background-clip: text;
+    background-clip: text;
+
+    color: transparent;
+}
+
+.hero .tagline {
+    color: var(--muted);
+
+    font-size:
+        clamp(1rem,2.5vw,1.2rem);
+
+    margin-bottom: 30px;
+}
+
+.hero-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+.btn {
+    display: inline-block;
+
+    padding: 13px 25px;
+
+    margin: 7px;
+
+    border-radius: 12px;
+
+    font-weight: 900;
+
+    text-decoration: none;
+
+    border: 1px solid transparent;
+
+    cursor: pointer;
+
+    transition: .2s;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.btn.primary {
+    background:
+        linear-gradient(
+            135deg,
+            var(--blue),
+            var(--purple)
+        );
+
+    color: white;
+
+    box-shadow:
+        0 8px 30px rgba(33,150,255,.18);
+}
+
+.btn.ghost {
+    background: transparent;
+
+    border-color: var(--purple);
+
+    color: var(--purple2);
+}
+
+.btn.vote {
+    background: var(--warning);
+    color: #090909;
+}
+
+.btn.review {
+    background: #111126;
+    border-color: var(--blue);
+    color: var(--blue2);
+}
+
+/* =========================
+   LAYOUT
+========================= */
+
+.container {
+    max-width: 1200px;
+
+    margin: 0 auto;
+
+    padding:
+        0
+        clamp(16px,4vw,28px);
+}
+
+section {
+    padding:
+        clamp(65px,10vw,100px)
+        0;
+
+    border-top:
+        1px solid var(--border);
+}
+
+section.alt {
+    background: var(--bg2);
+}
+
+h2 {
+    text-align: center;
+
+    color: var(--light);
+
+    font-size:
+        clamp(1.9rem,5vw,2.8rem);
+
+    margin:
+        0 0 45px;
+}
+
+h3 {
+    color: var(--light);
+}
+
+/* =========================
+   CARDS
+========================= */
+
+.grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(270px,1fr)
+        );
+
+    gap: 22px;
+}
+
+.card {
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.025),
+            rgba(255,255,255,.008)
+        ),
+        var(--card);
+
+    border:
+        1px solid var(--border);
+
+    border-radius: 18px;
+
+    padding:
+        clamp(20px,4vw,30px);
+
+    transition: .25s;
+}
+
+.card:hover {
+    border-color:
+        rgba(108,99,255,.6);
+
+    transform:
+        translateY(-4px);
+
+    box-shadow:
+        0 12px 35px
+        rgba(0,0,0,.25);
+}
+
+.icon {
+    font-size: 2.3rem;
+}
+
+.tag {
+    display: inline-block;
+
+    padding: 5px 11px;
+
+    border-radius: 30px;
+
+    background:
+        rgba(108,99,255,.10);
+
+    color:
+        var(--purple2);
+
+    border:
+        1px solid
+        rgba(139,92,246,.25);
+
+    font-size: .85rem;
+
+    font-weight: 800;
+}
+
+/* =========================
+   QUOTE
+========================= */
+
+.quote {
+    margin-top: 40px;
+
+    padding:
+        clamp(20px,4vw,30px);
+
+    border-left:
+        5px solid var(--purple);
+
+    border-radius: 10px;
+
+    background: var(--card);
+
+    color: var(--light);
+
+    font-style: italic;
+
+    text-align: center;
+}
+    <!-- ======================================================
+     OUR STORY
+====================================================== -->
+
+<section id="story">
+
+<div class="container">
+
+<h2>🧬 The Story Behind Gamma Linux</h2>
+
+<div class="story-intro">
+
+<p>
+Gamma Linux did not begin as a plan to build another Linux
+distribution.
+</p>
+
+<p>
+It began with a simple observation:
+<strong>
+a lightweight desktop could make old hardware feel alive again.
+</strong>
+</p>
+
+</div>
+
+
+<div class="story-timeline">
+
+
+<div class="story-step">
+
+<div class="story-number">1</div>
+
+<h3>🌱 It Started With Bodhi Linux</h3>
+
+<p>
+The journey began while using
+<strong>Bodhi Linux</strong>.
+</p>
+
+<p>
+What immediately stood out was
+<strong>Moksha</strong> — lightweight, responsive and surprisingly
+fast even on modest hardware.
+</p>
+
+</div>
+
+
+<div class="story-step">
+
+<div class="story-number">2</div>
+
+<h3>⚡ Then I Saw How Light It Could Be</h3>
+
+<p>
+Moksha was using roughly
+<strong>330 MB of RAM</strong>
+while still feeling extremely responsive.
+</p>
+
+<p>
+It did not feel like a system struggling to survive.
+It simply
+<strong>flew.</strong>
+</p>
+
+</div>
+
+
+<div class="story-step">
+
+<div class="story-number">3</div>
+
+<h3>🤔 One Question Changed Everything</h3>
+
+<p>
+A simple question appeared:
+</p>
+
+<div class="story-highlight">
+
+<div class="story-question">
+"What if I pushed this idea even further?"
+</div>
+
+<p>
+What if an operating system could be designed from the beginning
+around old hardware, limited memory and efficiency?
+</p>
+
+</div>
+
+</div>
+
+
+<div class="story-step">
+
+<div class="story-number">4</div>
+
+<h3>🛡️ WardenOS</h3>
+
+<p>
+The experiment became more serious and eventually became
+<strong>WardenOS</strong>.
+</p>
+
+<p>
+It was no longer just about trying to make something lightweight.
+It became an attempt to build a system around a simple philosophy:
+<strong>old hardware still deserves a useful life.</strong>
+</p>
+
+</div>
+
+
+<div class="story-step">
+
+<div class="story-number">5</div>
+
+<h3>🟣 Gamma Linux</h3>
+
+<p>
+WardenOS evolved into what would become
+<strong>Gamma Linux</strong>.
+</p>
+
+<p>
+The project grew beyond a lightweight desktop experiment into a
+complete distribution with its own editions, build system,
+packages, ISO releases and development ecosystem.
+</p>
+
+</div>
+
+
+<div class="story-step">
+
+<div class="story-number">6</div>
+
+<h3>🚀 From Experiment to 2.7 Warden</h3>
+
+<p>
+What started with curiosity eventually reached
+<strong>Gamma Linux 2.7 — Warden</strong>.
+</p>
+
+<p>
+The project now focuses on lightweight computing, old hardware,
+minimalism, performance and giving users control over what they
+install.
+</p>
+
+</div>
+
+
+</div>
+
+
+<div class="story-highlight">
+
+<div class="story-question">
+From one lightweight desktop...
+</div>
+
+<p class="story-motto">
+No PC deserves to die.
+</p>
+
+<span class="story-origin">
+Gamma Linux — Reviving Every Computer.
+</span>
+
+</div>
+
+</div>
+
+</section>
+
+/* =========================
+   REQUIREMENTS
+========================= */
+
+.requirements {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(230px,1fr)
+        );
+
+    gap: 18px;
+}
+
+.requirement {
+    padding: 22px;
+
+    background: var(--card);
+
+    border:
+        1px solid var(--border);
+
+    border-radius: 15px;
+}
+
+.requirement strong {
+    color: var(--light);
+}
+
+/* =========================
+   WARNING
+========================= */
+
+.warning {
+    background:
+        rgba(255,176,32,.06);
+
+    border-left:
+        6px solid var(--warning);
+
+    border-radius: 14px;
+
+    padding:
+        clamp(20px,4vw,30px);
+
+    margin-bottom: 30px;
+}
+
+.warning h3 {
+    color: #ffd166;
+}
+
+.danger {
+    background:
+        rgba(255,77,103,.06);
+
+    border-left:
+        6px solid var(--danger);
+
+    border-radius: 14px;
+
+    padding:
+        clamp(20px,4vw,30px);
+}
+
+/* =========================
+   COMPARISON
+========================= */
+
+.table-wrap {
+    overflow-x: auto;
+
+    border:
+        1px solid var(--border);
+
+    border-radius: 15px;
+}
+
+table {
+    width: 100%;
+
+    min-width: 700px;
+
+    border-collapse: collapse;
+
+    background: var(--card);
+}
+
+th,
+td {
+    padding: 14px 16px;
+
+    text-align: left;
+
+    border-bottom:
+        1px solid var(--border);
+}
+
+th {
+    background: #080810;
+
+    color: var(--light);
+}
+
+.gamma {
+    color: var(--blue2);
+
+    font-weight: 900;
+}
+
+/* =========================
+   FORMS
+========================= */
+
+.form-card {
+    max-width: 850px;
+
+    margin: 0 auto;
+
+    background: var(--card);
+
+    border:
+        1px solid var(--border);
+
+    border-radius: 18px;
+
+    padding:
+        clamp(20px,4vw,35px);
+}
+
+.form-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(230px,1fr)
+        );
+
+    gap: 15px;
+}
+
+label {
+    display: block;
+
+    color: var(--light);
+
+    font-weight: 700;
+
+    margin-bottom: 6px;
+}
+
+input,
+textarea,
+select {
+    width: 100%;
+
+    padding: 12px 14px;
+
+    border-radius: 10px;
+
+    border:
+        1px solid var(--border);
+
+    background: #06060d;
+
+    color: var(--light);
+
+    outline: none;
+
+    font: inherit;
+}
+
+textarea {
+    min-height: 130px;
+
+    resize: vertical;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--purple);
+}
+
+/* =========================
+   ROADMAP
+========================= */
+
+.timeline {
+    position: relative;
+
+    max-width: 900px;
+
+    margin: auto;
+}
+
+.timeline-item {
+    padding:
+        20px 25px;
+
+    margin:
+        18px 0;
+
+    border-left:
+        4px solid var(--purple);
+
+    background: var(--card);
+
+    border-radius: 0 14px 14px 0;
+}
+
+.timeline-item.done {
+    border-left-color:
+        var(--success);
+}
+
+.timeline-item.current {
+    border-left-color:
+        var(--blue);
+
+    box-shadow:
+        0 0 25px
+        rgba(33,150,255,.08);
+}
+
+.timeline-item h3 {
+    margin-top: 0;
+}
+
+/* =========================
+   INSTALL
+========================= */
+
+.install-step {
+    position: relative;
+
+    padding-left: 55px;
+}
+
+.install-number {
+    position: absolute;
+
+    left: 0;
+    top: 0;
+
+    width: 38px;
+    height: 38px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--blue),
+            var(--purple)
+        );
+
+    color: white;
+
+    font-weight: 900;
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+footer {
+    padding:
+        60px 20px;
+
+    background: #030308;
+
+    border-top:
+        1px solid var(--border);
+
+    text-align: center;
+}
+
+.footer-links {
+    display: flex;
+
+    justify-content: center;
+
+    flex-wrap: wrap;
+
+    gap: 18px;
+
+    margin-bottom: 25px;
+}
+
+.footer-links a {
+    color: var(--muted);
+
+    text-decoration: none;
+}
+
+.footer-links a:hover {
+    color: var(--blue2);
+}
+
+.copy {
+    color: #55556a;
+
+    font-size: .9rem;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 650px) {
+
+    nav {
+        justify-content: flex-start;
+
+        overflow-x: auto;
+
+        flex-wrap: nowrap;
+    }
+
+    nav a {
+        white-space: nowrap;
+    }
+
+    .hero h1 {
+        letter-spacing: 1px;
+    }
+
+    .btn {
+        width: 100%;
+
+        max-width: 330px;
+    }
+
+    table {
+        font-size: .85rem;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ======================================================
+     NAV
+====================================================== -->
+
+<nav>
+    <a href="#home">Home</a>
+    <a href="#story">Our Story</a>
+    <a href="#whats-new">What's New</a>
+    <a href="#features">Features</a>
+    <a href="#requirements">Requirements</a>
+    <a href="#compare">Gamma VS Others</a>
+    <a href="#download">Download</a>
+    <a href="#install">How to Install</a>
+    <a href="#bugs">Have a Bug?</a>
+    <a href="#feedback">Feedback</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#source">Source</a>
+</nav>
+
+
+<!-- ======================================================
+     HERO
+====================================================== -->
+
+<section class="hero" id="home">
+
+    <h1>GAMMA LINUX</h1>
+
+    <div class="version">
+        v2.7 — Warden
+    </div>
+
+    <div class="tagline">
+        Fast. Lightweight. Free. Built to revive old PCs.
+    </div>
+
+    <div class="hero-buttons">
+
+        <a href="#download" class="btn primary">
+            ⬇️ Get Gamma Linux
+        </a>
+
+        <a href="#whats-new" class="btn ghost">
+            🔥 What's New
+        </a>
+
+    </div>
+
+    <div class="container">
+
+        <div class="quote">
+            "No PC deserves to die."
+            <br>
+            Gamma Linux — Reviving Every Computer.
+        </div>
+
+    </div>
+
+</section>
+    <!-- ======================================================
+     OUR STORY
+====================================================== -->
+
+<section id="story">
+
+<div class="container">
+
+<h2>🧬 The Story Behind Gamma Linux</h2>
+
+<div class="story-intro">
+
+<p>
+Gamma Linux did not begin as a plan to build another Linux
+distribution.
+</p>
+
+<p>
+It began with a simple observation:
+<strong>
+a lightweight desktop could make old hardware feel alive again.
+</strong>
+</p>
+
+</div>
+
+
+<div class="story-timeline">
+
+
+<div class="story-step">
+
+<div class="story-number">1</div>
+
+<h3>🌱 It Started With Bodhi Linux</h3>
+
+<p>
+The journey began while using
+<strong>Bodhi Linux</strong>.
+</p>
+
+<p>
+What immediately stood out was
+<strong>Moksha</strong> — lightweight, responsive and surprisingly
+fast even on modest hardware.
+</p>
+
+</div>
+
+
+<div class="story-step">
+
+<div class="story-number">2</div>
+
+<h3>⚡ Then I Saw How Light It Could Be</h3>
+
+<p>
+Moksha was using roughly
+<strong>330 MB of RAM</strong>
+while still feeling extremely responsive.
+</p>
+
+<p>
+It did not feel like a system struggling to survive.
+It simply
+<strong>flew.</strong>
+</p>
+
+</div>
+
+
+<div class="story-step">
+
+<div class="story-number">3</div>
+
+<h3>🤔 One Question Changed Everything</h3>
+
+<p>
+A simple question appeared:
+</p>
+
+<div class="story-highlight">
+
+<div class="story-question">
+"What if I pushed this idea even further?"
+</div>
+
+<p>
+What if an operating system could be designed from the beginning
+around old hardware, limited memory and efficiency?
+</p>
+
+</div>
+
+</div>
+
+
+<div class="story-step">
+
+<div class="story-number">4</div>
+
+<h3>🛡️ WardenOS</h3>
+
+<p>
+The experiment became more serious and eventually became
+<strong>WardenOS</strong>.
+</p>
+
+<p>
+It was no longer just about trying to make something lightweight.
+It became an attempt to build a system around a simple philosophy:
+<strong>old hardware still deserves a useful life.</strong>
+</p>
+
+</div>
+
+
+<div class="story-step">
+
+<div class="story-number">5</div>
+
+<h3>🟣 Gamma Linux</h3>
+
+<p>
+WardenOS evolved into what would become
+<strong>Gamma Linux</strong>.
+</p>
+
+<p>
+The project grew beyond a lightweight desktop experiment into a
+complete distribution with its own editions, build system,
+packages, ISO releases and development ecosystem.
+</p>
+
+</div>
+
+
+<div class="story-step">
+
+<div class="story-number">6</div>
+
+<h3>🚀 From Experiment to 2.7 Warden</h3>
+
+<p>
+What started with curiosity eventually reached
+<strong>Gamma Linux 2.7 — Warden</strong>.
+</p>
+
+<p>
+The project now focuses on lightweight computing, old hardware,
+minimalism, performance and giving users control over what they
+install.
+</p>
+
+</div>
+
+
+</div>
+
+
+<div class="story-highlight">
+
+<div class="story-question">
+From one lightweight desktop...
+</div>
+
+<p class="story-motto">
+No PC deserves to die.
+</p>
+
+<span class="story-origin">
+Gamma Linux — Reviving Every Computer.
+</span>
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     WHAT'S NEW
+====================================================== -->
+
+<section id="whats-new" class="alt">
+
+<div class="container">
+
+<h2>🚀 What's New in v2.7 — Warden</h2>
+
+<div class="grid">
+
+<div class="card">
+
+<div class="icon">🛡️</div>
+
+<h3>Warden Build System</h3>
+
+<p>
+The v2.7 build pipeline has been reorganized into a cleaner,
+more deterministic multi-stage system.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">💾</div>
+
+<h3>Pre-Tuned ZRAM</h3>
+
+<p>
+Gamma Linux now ships with edition-specific ZRAM tuning prepared
+directly inside the installed system.
+</p>
+
+<p>
+The goal is simple:
+<strong>better memory behavior before the user installs anything.</strong>
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">🖥️</div>
+
+<h3>Calamares Installer</h3>
+
+<p>
+Gamma Linux includes a graphical Calamares installer directly
+inside the live environment.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">🌐</div>
+
+<h3>BIOS + UEFI</h3>
+
+<p>
+The ISO is designed around hybrid boot support with BIOS and UEFI
+boot paths.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">🧹</div>
+
+<h3>0 Bloat Policy</h3>
+
+<p>
+No forced browser.
+No Snap.
+No Flatpak.
+No telemetry by design.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">🧪</div>
+
+<h3>Boot QA</h3>
+
+<p>
+Gamma ISO builds are tested through automated structure,
+boot-record and QEMU boot checks.
+</p>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     FEATURES
+====================================================== -->
+
+<section id="features">
+
+<div class="container">
+
+<h2>⚡ Core Features</h2>
+
+<div class="grid">
+
+<div class="card">
+
+<div class="icon">👻</div>
+
+<h3>0 Bloat Skeleton</h3>
+
+<p>
+Gamma starts from a minimal base instead of forcing a large
+collection of applications onto every installation.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">🧠</div>
+
+<h3>Memory First</h3>
+
+<p>
+Edition-specific ZRAM and kernel tuning are prepared before the
+system reaches the user's desktop.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">🛡️</div>
+
+<h3>Privacy by Design</h3>
+
+<p>
+Gamma does not intentionally add telemetry or background tracking
+to the base distribution.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">🔧</div>
+
+<h3>Old Hardware Friendly</h3>
+
+<p>
+The project is specifically focused on extending the useful life
+of older computers.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">🖥️</div>
+
+<h3>Enlightenment Desktop</h3>
+
+<p>
+A lightweight graphical environment forms the current Gamma
+desktop foundation.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">📦</div>
+
+<h3>Installer Included</h3>
+
+<p>
+The live system provides a graphical installation path using
+Calamares.
+</p>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     REQUIREMENTS
+====================================================== -->
+
+<section id="requirements" class="alt">
+
+<div class="container">
+
+<h2>💻 System Requirements</h2>
+
+<p style="text-align:center; max-width:800px; margin:0 auto 35px;">
+Gamma is designed to run on old hardware, but "minimum" and
+"recommended" are not the same thing.
+</p>
+
+
+<div class="requirements">
+
+<div class="requirement">
+
+<strong>Legacy-32</strong>
+
+<br><br>
+
+CPU:
+32-bit x86
+
+<br>
+
+RAM:
+<strong>512 MB minimum</strong>
+
+<br>
+
+Storage:
+<strong>8 GB+</strong>
+
+<br>
+
+Architecture:
+<strong>i386</strong>
+
+</div>
+
+
+<div class="requirement">
+
+<strong>Lite-Ghost</strong>
+
+<br><br>
+
+CPU:
+64-bit x86
+
+<br>
+
+RAM:
+<strong>1 GB minimum</strong>
+
+<br>
+
+Storage:
+<strong>10 GB+</strong>
+
+<br>
+
+Architecture:
+<strong>amd64</strong>
+
+</div>
+
+
+<div class="requirement">
+
+<strong>Pro-MaxMini</strong>
+
+<br><br>
+
+CPU:
+64-bit x86
+
+<br>
+
+RAM:
+<strong>2 GB minimum</strong>
+
+<br>
+
+Storage:
+<strong>15 GB+</strong>
+
+<br>
+
+Architecture:
+<strong>amd64</strong>
+
+</div>
+
+</div>
+
+
+<div class="quote">
+
+<strong>Reality check:</strong>
+
+These are practical targets, not promises of perfect performance
+on every machine. RAM usage, graphics hardware, storage speed and
+desktop workload can significantly affect the experience.
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     GAMMA VS OTHERS
+====================================================== -->
+
+<section id="compare">
+
+<div class="container">
+
+<h2>⚔️ Gamma VS Others</h2>
+
+<p style="text-align:center; max-width:850px; margin:0 auto 35px;">
+
+No fake benchmark numbers.
+No "Gamma is faster than everything" marketing.
+
+This comparison focuses on the project's actual philosophy and
+design choices.
+
+</p>
+
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>Feature</th>
+
+<th>Windows</th>
+
+<th>Typical Lightweight Linux</th>
+
+<th class="gamma">Gamma Linux</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td>Open Source Base</td>
+
+<td>❌</td>
+
+<td>✅</td>
+
+<td class="gamma">✅</td>
+
+</tr>
+
+<tr>
+
+<td>Forced Browser</td>
+
+<td>Usually included</td>
+
+<td>Depends on distro</td>
+
+<td class="gamma">Not required</td>
+
+</tr>
+
+<tr>
+
+<td>Snap / Flatpak</td>
+
+<td>—</td>
+
+<td>Depends on distro</td>
+
+<td class="gamma">Not part of the base policy</td>
+
+</tr>
+
+<tr>
+
+<td>Telemetry Philosophy</td>
+
+<td>Platform dependent</td>
+
+<td>Usually configurable</td>
+
+<td class="gamma">No intentional Gamma telemetry</td>
+
+</tr>
+
+<tr>
+
+<td>Old Hardware Focus</td>
+
+<td>Limited by Windows support</td>
+
+<td>Often supported</td>
+
+<td class="gamma">Core project goal</td>
+
+</tr>
+
+<tr>
+
+<td>32-bit Edition</td>
+
+<td>❌ Modern Windows</td>
+
+<td>Rare today</td>
+
+<td class="gamma">✅ Legacy-32</td>
+
+</tr>
+
+<tr>
+
+<td>Pre-Tuned ZRAM</td>
+
+<td>❌</td>
+
+<td>Depends</td>
+
+<td class="gamma">✅ Edition-specific</td>
+
+</tr>
+
+<tr>
+
+<td>Installer</td>
+
+<td>Windows Setup</td>
+
+<td>Depends</td>
+
+<td class="gamma">Calamares</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+
+<div class="quote">
+
+Gamma is not trying to win by putting the biggest number on a
+benchmark table.
+
+<strong>
+The goal is to give old hardware another useful life.
+</strong>
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     DOWNLOAD
+====================================================== -->
+
+<section id="download" class="alt">
+
+<div class="container">
+
+<h2>💿 Download Gamma Linux 2.7</h2>
+
+<div class="grid">
+
+
+<div class="card" style="text-align:center;">
+
+<h3>🛡️ Legacy-32</h3>
+
+<span class="tag">
+512 MB+ RAM · 32-bit
+</span>
+
+<p>
+For older 32-bit x86 machines.
+</p>
+
+<a
+    href="https://github.com/takismartgamer123-rgb/Gamma-linux/releases"
+    class="btn primary"
+    target="_blank"
+>
+📥 Releases
+</a>
+
+</div>
+
+
+<div class="card" style="text-align:center;">
+
+<h3>👻 Lite-Ghost</h3>
+
+<span class="tag">
+1 GB+ RAM · 64-bit
+</span>
+
+<p>
+For low-resource modern x86-64 machines.
+</p>
+
+<a
+    href="https://github.com/takismartgamer123-rgb/Gamma-linux/releases"
+    class="btn primary"
+    target="_blank"
+>
+📥 Releases
+</a>
+
+</div>
+
+
+<div class="card" style="text-align:center;">
+
+<h3>🔥 Pro-MaxMini</h3>
+
+<span class="tag">
+2 GB+ RAM · 64-bit
+</span>
+
+<p>
+For machines with more resources and heavier workloads.
+</p>
+
+<a
+    href="https://github.com/takismartgamer123-rgb/Gamma-linux/releases"
+    class="btn primary"
+    target="_blank"
+>
+📥 Releases
+</a>
+
+</div>
+
+
+</div>
+
+
+<p style="text-align:center; margin-top:30px;">
+
+Always verify the SHA256 checksum supplied with the release.
+
+</p>
+
+</div>
+
+</section>
+
+<!-- ======================================================
+     HOW TO INSTALL
+====================================================== -->
+
+<section id="install">
+
+<div class="container">
+
+<h2>🛠️ How to Install</h2>
+
+<div class="warning">
+
+<h3>⚠️ Windows Fast Startup — Read This First</h3>
+
+<p>
+If Windows is installed on the same computer and you plan to
+dual-boot, <strong>disable Windows Fast Startup before installing
+Gamma Linux.</strong>
+</p>
+
+<p>
+Windows Fast Startup uses hibernation-related mechanisms instead
+of performing a completely fresh shutdown. Leaving it enabled can
+cause problems when Linux accesses Windows partitions.
+</p>
+
+<p>
+<strong>Open Command Prompt as Administrator in Windows</strong>
+and run:
+</p>
+
+<pre>powercfg /h off</pre>
+
+<p>
+This disables hibernation and therefore disables Fast Startup.
+After running the command, perform a complete Windows shutdown
+before booting the Gamma Linux USB.
+</p>
+
+</div>
+
+
+<div class="danger">
+
+<h3>🥀 A Lesson From My Own Installation</h3>
+
+<p>
+I personally forgot to disable Windows Fast Startup before
+installing Bodhi Linux.
+</p>
+
+<p>
+The result was a damaged Windows boot environment: the
+<strong>BCD / boot configuration was affected</strong> and Windows
+required recovery work afterward.
+</p>
+
+<p>
+This is why Gamma Linux puts this warning directly in the
+installation guide.
+</p>
+
+<p>
+<strong>
+Don't skip this step if Windows is important to you.
+</strong>
+</p>
+
+</div>
+
+
+<div class="grid">
+
+<div class="card install-step">
+
+<div class="install-number">1</div>
+
+<h3>Prepare Windows</h3>
+
+<p>
+If dual-booting, boot into Windows first.
+Open an Administrator Command Prompt and run:
+</p>
+
+<pre>powercfg /h off</pre>
+
+<p>
+Then completely shut down Windows.
+</p>
+
+</div>
+
+
+<div class="card install-step">
+
+<div class="install-number">2</div>
+
+<h3>Create the USB</h3>
+
+<p>
+Write the Gamma Linux ISO to a USB drive using a tool such as
+<strong>Rufus</strong> or <strong>Ventoy</strong>.
+</p>
+
+<p>
+For older systems, verify whether the machine boots through
+Legacy BIOS or UEFI before choosing the appropriate configuration.
+</p>
+
+</div>
+
+
+<div class="card install-step">
+
+<div class="install-number">3</div>
+
+<h3>Boot Gamma Linux</h3>
+
+<p>
+Restart the computer and open the firmware boot menu.
+Common keys include:
+</p>
+
+<p>
+<strong>F12 · F11 · Esc · F8 · F9</strong>
+</p>
+
+<p>
+Select the Gamma Linux USB and start the live environment.
+</p>
+
+</div>
+
+
+<div class="card install-step">
+
+<div class="install-number">4</div>
+
+<h3>Test Before Installing</h3>
+
+<p>
+Use the live environment first.
+Check your keyboard, display, storage, network and general
+hardware compatibility.
+</p>
+
+<p>
+<strong>
+If everything works correctly, continue to installation.
+</strong>
+</p>
+
+</div>
+
+
+<div class="card install-step">
+
+<div class="install-number">5</div>
+
+<h3>Launch Calamares</h3>
+
+<p>
+Open <strong>Install Gamma Linux</strong> from the live desktop.
+The graphical Calamares installer will guide you through:
+</p>
+
+<ul>
+<li>Language and region</li>
+<li>Keyboard layout</li>
+<li>Disk configuration</li>
+<li>User creation</li>
+<li>Bootloader configuration</li>
+<li>Final installation</li>
+</ul>
+
+</div>
+
+
+<div class="card install-step">
+
+<div class="install-number">6</div>
+
+<h3>Reboot</h3>
+
+<p>
+When installation finishes, reboot the computer and remove the
+USB drive when requested.
+</p>
+
+<p>
+Your installed Gamma Linux system should then boot normally.
+</p>
+
+</div>
+
+</div>
+
+
+<div class="quote">
+
+<strong>Recommended:</strong>
+Always test Gamma Linux in Live Mode before installing it.
+Your hardware may behave differently from another machine.
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     HAVE A BUG?
+====================================================== -->
+
+<section id="bugs" class="alt">
+
+<div class="container">
+
+<h2>🐛 Have a Bug?</h2>
+
+<p style="text-align:center; max-width:800px; margin:0 auto 35px;">
+
+Found something broken, strange or unexpected?
+
+<strong>Don't just leave.</strong>
+Tell us what happened so we can investigate it.
+
+</p>
+
+
+<div class="form-card">
+
+<form
+    onsubmit="sendBugReport(event)"
+>
+
+<div class="form-grid">
+
+<div>
+
+<label for="bug-name">
+Your name
+</label>
+
+<input
+    id="bug-name"
+    name="name"
+    type="text"
+    placeholder="Optional"
+>
+
+</div>
+
+
+<div>
+
+<label for="bug-pc">
+PC model
+</label>
+
+<input
+    id="bug-pc"
+    name="pc"
+    type="text"
+    placeholder="Example: Dell Latitude E6430"
+    required
+>
+
+</div>
+
+
+<div>
+
+<label for="bug-cpu">
+CPU
+</label>
+
+<input
+    id="bug-cpu"
+    name="cpu"
+    type="text"
+    placeholder="Example: Intel Core i5-3320M"
+    required
+>
+
+</div>
+
+
+<div>
+
+<label for="bug-ram">
+RAM
+</label>
+
+<input
+    id="bug-ram"
+    name="ram"
+    type="text"
+    placeholder="Example: 4 GB"
+    required
+>
+
+</div>
+
+
+<div>
+
+<label for="bug-storage">
+Storage
+</label>
+
+<input
+    id="bug-storage"
+    name="storage"
+    type="text"
+    placeholder="Example: 500 GB HDD"
+    required
+>
+
+</div>
+
+
+<div>
+
+<label for="bug-edition">
+Gamma Edition
+</label>
+
+<select
+    id="bug-edition"
+    name="edition"
+    required
+>
+
+<option value="">
+Select edition
+</option>
+
+<option>Legacy-32</option>
+<option>Lite-Ghost</option>
+<option>Pro-MaxMini</option>
+
+</select>
+
+</div>
+
+</div>
+
+
+<div style="margin-top:18px;">
+
+<label for="bug-description">
+Describe the bug
+</label>
+
+<textarea
+    id="bug-description"
+    name="description"
+    placeholder="What happened? What did you expect? What happened instead?"
+    required
+></textarea>
+
+</div>
+
+
+<div style="margin-top:18px;">
+
+<label for="bug-photo">
+Photo / screenshot URL
+</label>
+
+<input
+    id="bug-photo"
+    name="photo"
+    type="url"
+    placeholder="Optional — paste an image link if available"
+>
+
+</div>
+
+
+<div style="text-align:center; margin-top:20px;">
+
+<button
+    type="submit"
+    class="btn primary"
+>
+📧 Send Bug Report
+</button>
+
+</div>
+
+</form>
+
+</div>
+
+
+<div class="quote">
+
+<strong>
+Tip:
+</strong>
+
+A photo of the error screen, boot message or broken interface
+can be extremely useful for debugging.
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     FEEDBACK
+====================================================== -->
+
+<section id="feedback">
+
+<div class="container">
+
+<h2>💬 Give a Feedback</h2>
+
+<p style="text-align:center; max-width:800px; margin:0 auto 35px;">
+
+Tell us what you like, what you dislike, what should change,
+or what you want to see in a future Gamma Linux release.
+
+</p>
+
+
+<div class="form-card">
+
+<form
+    onsubmit="sendFeedback(event)"
+>
+
+<div class="form-grid">
+
+<div>
+
+<label for="feedback-name">
+Your name
+</label>
+
+<input
+    id="feedback-name"
+    type="text"
+    placeholder="Optional"
+>
+
+</div>
+
+
+<div>
+
+<label for="feedback-type">
+Feedback type
+</label>
+
+<select
+    id="feedback-type"
+    required
+>
+
+<option value="">
+Select type
+</option>
+
+<option>Suggestion</option>
+<option>Feature Request</option>
+<option>Design Feedback</option>
+<option>Performance Feedback</option>
+<option>Documentation</option>
+<option>General Feedback</option>
+
+</select>
+
+</div>
+
+</div>
+
+
+<div style="margin-top:18px;">
+
+<label for="feedback-message">
+Your feedback
+</label>
+
+<textarea
+    id="feedback-message"
+    placeholder="Tell us what you think..."
+    required
+></textarea>
+
+</div>
+
+
+<div style="text-align:center; margin-top:20px;">
+
+<button
+    type="submit"
+    class="btn primary"
+>
+📧 Send Feedback
+</button>
+
+</div>
+
+</form>
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     ROADMAP
+====================================================== -->
+
+<section id="roadmap" class="alt">
+
+<div class="container">
+
+<h2>🗺️ Gamma Linux Roadmap</h2>
+
+<div class="timeline">
+
+
+<div class="timeline-item done">
+
+<h3>✅ Gamma Linux 2.7 — Warden</h3>
+
+<p>
+Current release.
+</p>
+
+<ul>
+<li>Multi-stage build pipeline</li>
+<li>Pre-tuned ZRAM</li>
+<li>Calamares integration</li>
+<li>BIOS + UEFI boot support</li>
+<li>Automated ISO QA</li>
+<li>Legacy-32 / Lite-Ghost / Pro-MaxMini editions</li>
+<li>Improved installation workflow</li>
+</ul>
+
+</div>
+
+
+<div class="timeline-item current">
+
+<h3>🚧 2.8 — Experimental Hardware Expansion</h3>
+
+<ul>
+<li>Hardware compatibility improvements</li>
+<li>More old-PC testing</li>
+<li>Better graphics fallback handling</li>
+<li>Installer refinements</li>
+<li>Boot reliability improvements</li>
+<li>Expanded documentation</li>
+</ul>
+
+</div>
+
+
+<div class="timeline-item">
+
+<h3>🔮 2.9 — Gamma Ecosystem</h3>
+
+<ul>
+<li>Improved package management experience</li>
+<li>Software archive integration</li>
+<li>Better update workflow</li>
+<li>More Gamma-specific utilities</li>
+<li>Improved recovery tools</li>
+</ul>
+
+</div>
+
+
+<div class="timeline-item">
+
+<h3>🌌 3.0 — Next Generation Gamma</h3>
+
+<ul>
+<li>Modernized desktop architecture</li>
+<li>Wayland experimentation</li>
+<li>Improved hardware abstraction</li>
+<li>More modular system architecture</li>
+<li>Expanded architecture support</li>
+</ul>
+
+</div>
+
+
+<div class="timeline-item">
+
+<h3>🧪 Long-Term — Gamma Everywhere</h3>
+
+<ul>
+<li>More legacy hardware profiles</li>
+<li>Additional architectures where practical</li>
+<li>Better recovery and rescue tooling</li>
+<li>Community-driven hardware database</li>
+<li>Expanded documentation and testing</li>
+</ul>
+
+</div>
+
+
+</div>
+
+
+<div class="quote">
+
+<strong>
+The roadmap is a direction, not a promise.
+</strong>
+
+Gamma is developed around real hardware, real testing and
+available time. Features may move, change or be replaced.
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     SOURCE
+====================================================== -->
+
+<section id="source">
+
+<div class="container">
+
+<h2>🔓 Source Code</h2>
+
+<div
+    class="card"
+    style="
+        text-align:center;
+        border:2px solid var(--purple);
+    "
+>
+
+<div class="icon">📂</div>
+
+<h3>Gamma Linux is Open Source</h3>
+
+<p>
+
+The Gamma Linux build system, configuration files and
+development work are publicly available.
+
+</p>
+
+<p>
+
+<strong>
+Inspect it. Fork it. Improve it.
+</strong>
+
+</p>
+
+
+<a
+    href="https://github.com/takismartgamer123-rgb/Gamma-linux"
+    class="btn primary"
+    target="_blank"
+>
+⭐ View Gamma Linux on GitHub
+</a>
+
+
+<a
+    href="https://github.com/takismartgamer123-rgb/Gamma-linux/blob/main/LICENCE.md"
+    class="btn ghost"
+    target="_blank"
+>
+📜 License
+</a>
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     COMMUNITY / REVIEW
+====================================================== -->
+
+<section id="review" class="alt">
+
+<div class="container">
+
+<h2>🔎 Want to Review Gamma?</h2>
+
+<div class="card" style="text-align:center;">
+
+<div class="icon">🎥</div>
+
+<h3>Independent Reviews Welcome</h3>
+
+<p>
+
+If you are a YouTuber, Linux creator, hardware tester,
+developer, journalist or experienced Linux user, you are
+welcome to independently review Gamma Linux.
+
+</p>
+
+<p>
+
+<strong>
+No paid review. No scripted praise. No required opinion.
+</strong>
+
+</p>
+
+<p>
+
+Use it on your own hardware, test it honestly and publish
+whatever conclusion you reach.
+
+</p>
+
+
+<a
+    href="mailto:takismartgamer123@gmail.com?subject=Gamma%20Linux%202.7%20Warden%20Review%20Request"
+    class="btn review"
+>
+📧 Request a Review
+</a>
+
+</div>
+
+
+<div class="quote">
+
+<strong>
+Even a critical review can help Gamma improve.
+</strong>
+
+We would rather receive an honest technical review than
+artificial praise.
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     DISTROWATCH
+====================================================== -->
+
+<section id="vote">
+
+<div class="container">
+
+<h2>📢 Support Gamma Linux</h2>
+
+<div class="card" style="text-align:center;">
+
+<div class="icon">🗳️</div>
+
+<h3>Vote for Gamma Linux</h3>
+
+<p>
+
+If you have tried Gamma Linux and believe the project deserves
+more visibility, you can vote for it on DistroWatch.
+
+</p>
+
+<a
+    href="https://distrowatch.com/dwres-mobile.php?waitingdistro=1101&resource=links#new"
+    class="btn vote"
+    target="_blank"
+>
+📢 Vote on DistroWatch
+</a>
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- ======================================================
+     FOOTER
+====================================================== -->
+
+<footer>
+
+<div class="footer-links">
+
+<a href="#home">Home</a>
+
+<a href="#download">Download</a>
+
+<a href="#bugs">Report Bug</a>
+
+<a href="#feedback">Feedback</a>
+
+<a href="#roadmap">Roadmap</a>
+
+<a href="#source">Source</a>
+
+<a
+    href="https://github.com/takismartgamer123-rgb/Gamma-linux"
+    target="_blank"
+>
+GitHub
+</a>
+
+</div>
+
+
+<div class="copy">
+
+<strong>
+Gamma Linux 2.7 — Warden
+</strong>
+
+<br>
+
+"No PC deserves to die."
+
+<br><br>
+
+GPL v3 · Made in Algeria 🇩🇿
+
+<br>
+
+© Gamma Linux
+
+</div>
+
+</footer>
+
+
+<!-- ======================================================
+     EMAIL FUNCTIONS
+====================================================== -->
+
+<script>
+
+function sendBugReport(event) {
+
+    event.preventDefault();
+
+    const name =
+        document.getElementById("bug-name").value.trim();
+
+    const pc =
+        document.getElementById("bug-pc").value.trim();
+
+    const cpu =
+        document.getElementById("bug-cpu").value.trim();
+
+    const ram =
+        document.getElementById("bug-ram").value.trim();
+
+    const storage =
+        document.getElementById("bug-storage").value.trim();
+
+    const edition =
+        document.getElementById("bug-edition").value;
+
+    const description =
+        document.getElementById("bug-description").value.trim();
+
+    const photo =
+        document.getElementById("bug-photo").value.trim();
+
+
+    const subject =
+        "Gamma Linux 2.7 Warden — Bug Report";
+
+
+    const body =
+`Gamma Linux 2.7 Warden — Bug Report
+
+User:
+${name || "Not provided"}
+
+PC Model:
+${pc}
+
+CPU:
+${cpu}
+
+RAM:
+${ram}
+
+Storage:
+${storage}
+
+Gamma Edition:
+${edition}
+
+Bug Description:
+${description}
+
+Photo / Screenshot:
+${photo || "Not provided"}
+
+--------------------------------------------------
+
+Sent from the Gamma Linux website.
+`;
+
+
+    window.location.href =
+        "mailto:takismartgamer123@gmail.com" +
+        "?subject=" +
+        encodeURIComponent(subject) +
+        "&body=" +
+        encodeURIComponent(body);
+}
+
+
+function sendFeedback(event) {
+
+    event.preventDefault();
+
+    const name =
+        document.getElementById("feedback-name").value.trim();
+
+    const type =
+        document.getElementById("feedback-type").value;
+
+    const message =
+        document.getElementById("feedback-message").value.trim();
+
+
+    const subject =
+        "Gamma Linux 2.7 Warden — Feedback";
+
+
+    const body =
+`Gamma Linux 2.7 Warden — Feedback
+
+User:
+${name || "Not provided"}
+
+Feedback Type:
+${type}
+
+Feedback:
+${message}
+
+--------------------------------------------------
+
+Sent from the Gamma Linux website.
+`;
+
+
+    window.location.href =
+        "mailto:takismartgamer123@gmail.com" +
+        "?subject=" +
+        encodeURIComponent(subject) +
+        "&body=" +
+        encodeURIComponent(body);
+}
+
+</script>
+
+</body>
+</html>
