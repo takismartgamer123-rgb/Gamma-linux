@@ -87,12 +87,15 @@ echo "LANG=en_US.UTF-8" | \
 
 COMMON_PKGS="
 initramfs-tools
+acpi
+nano
 
 xserver-xorg
 xinit
 x11-xserver-utils
 xauth
 calamares
+zram-tools
 
 lightdm
 lightdm-gtk-greeter
