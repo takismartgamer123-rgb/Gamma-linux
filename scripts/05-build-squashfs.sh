@@ -24,18 +24,39 @@ esac
 TARGET="$ISO_DIR/$LIVE_DIR"
 SQUASHFS="$TARGET/filesystem.squashfs"
 
-echo "[05] Building SquashFS ($EDITION)"
+echo
+echo "=========================================================="
+echo "        GAMMA LINUX — SQUASHFS BEAST BUILDER"
+echo "=========================================================="
+echo " Edition : $EDITION"
+echo " Root    : $CHROOT"
+echo " Output  : $SQUASHFS"
+echo "=========================================================="
+echo
+
+# ==========================================================
+# Check required tools
+# ==========================================================
+
+for CMD in mksquashfs find sed sort tail du awk sudo lsinitramfs; do
+    if ! command -v "$CMD" >/dev/null 2>&1; then
+        echo "ERROR: Required command not found: $CMD"
+        exit 1
+    fi
+done
 
 # ==========================================================
 # Prepare
 # ==========================================================
+
+echo "[05] Preparing output directory..."
 
 sudo mkdir -p "$TARGET"
 
 sudo rm -f "$SQUASHFS"
 
 # ==========================================================
-# Clean runtime state
+# Clean runtime/build state
 # ==========================================================
 
 echo "[05] Cleaning temporary state..."
@@ -46,17 +67,42 @@ sudo rm -rf \
     "$CHROOT/var/cache/apt/archives/"* \
     2>/dev/null || true
 
-# Do not ship build-machine identity into the Live image.
-sudo truncate -s 0 "$CHROOT/etc/machine-id" 2>/dev/null || true
-sudo rm -f "$CHROOT/var/lib/dbus/machine-id" 2>/dev/null || true
+# Remove build-machine identity
+echo "[05] Removing machine identity..."
 
-# Runtime directories are recreated at boot.
+sudo truncate -s 0 "$CHROOT/etc/machine-id" 2>/dev/null || true
+
+sudo rm -f \
+    "$CHROOT/var/lib/dbus/machine-id" \
+    2>/dev/null || true
+
+# Runtime directories are recreated at boot
+echo "[05] Cleaning runtime directories..."
+
 sudo rm -rf \
     "$CHROOT/run/"* \
     2>/dev/null || true
 
 # ==========================================================
-# Find matching kernel + initramfs
+# Remove unnecessary package indexes/cache
+# ==========================================================
+
+echo "[05] Cleaning package metadata..."
+
+sudo rm -rf \
+    "$CHROOT/var/lib/apt/lists/"* \
+    2>/dev/null || true
+
+# Remove common leftover logs
+echo "[05] Cleaning logs..."
+
+sudo find "$CHROOT/var/log" \
+    -type f \
+    -exec truncate -s 0 {} \; \
+    2>/dev/null || true
+
+# ==========================================================
+# Find newest kernel
 # ==========================================================
 
 echo "[05] Selecting kernel/initramfs pair..."
@@ -92,8 +138,10 @@ if [ ! -f "$INITRD" ]; then
     exit 1
 fi
 
+echo
 echo "[05] Kernel : $KERNEL_VERSION"
 echo "[05] Initrd : initrd.img-$KERNEL_VERSION"
+echo
 
 # ==========================================================
 # Verify Casper
@@ -106,8 +154,11 @@ if [ "$EDITION" != "legacy" ]; then
     if ! sudo lsinitramfs "$INITRD" |
         grep -q "scripts/casper"; then
 
+        echo
         echo "ERROR: initramfs does not contain Casper."
         echo "Make sure casper is installed in script 02."
+        echo
+
         exit 1
     fi
 
@@ -116,40 +167,66 @@ if [ "$EDITION" != "legacy" ]; then
 fi
 
 # ==========================================================
-# Build SquashFS
+# SquashFS — EXTREME COMPRESSION
 # ==========================================================
 
-echo "[05] Compressing filesystem..."
+echo
+echo "=========================================================="
+echo "             EXTREME SQUASHFS COMPRESSION"
+echo "=========================================================="
+echo
+echo "[05] Algorithm : XZ"
+echo "[05] Block     : 1 MiB"
+echo "[05] Mode      : Maximum compression"
+echo "[05] Threads   : Automatic"
+echo
+echo "WARNING:"
+echo "This can be CPU-intensive and MUCH slower than ZSTD."
+echo "The goal is minimum filesystem size."
+echo
+
+START_TIME="$(date +%s)"
 
 sudo mksquashfs \
     "$CHROOT" \
     "$SQUASHFS" \
-    -comp zstd \
-    -Xcompression-level 19 \
+    -comp xz \
     -b 1M \
     -noappend \
+    -no-xattrs \
+    -no-fragments \
     -e dev \
     -e proc \
     -e sys \
     -e run
 
+END_TIME="$(date +%s)"
+
+BUILD_TIME=$((END_TIME - START_TIME))
+
 # ==========================================================
-# Copy kernel + matching initramfs
+# Copy kernel + initramfs
 # ==========================================================
 
-echo "[05] Copying kernel and initramfs..."
+echo
+echo "[05] Copying kernel..."
 
 sudo cp \
     "$VMLINUX" \
     "$TARGET/vmlinuz"
+
+echo "[05] Copying initramfs..."
 
 sudo cp \
     "$INITRD" \
     "$TARGET/initrd.lz"
 
 # ==========================================================
-# Verify
+# Verify output
 # ==========================================================
+
+echo
+echo "[05] Verifying output..."
 
 for FILE in \
     "$TARGET/vmlinuz" \
@@ -157,22 +234,39 @@ for FILE in \
     "$TARGET/filesystem.squashfs"
 do
     if [ ! -s "$FILE" ]; then
-        echo "ERROR: Missing output: $FILE"
+        echo
+        echo "ERROR: Missing or empty output:"
+        echo "$FILE"
         exit 1
     fi
 done
 
 # ==========================================================
-# Report
+# Size report
 # ==========================================================
 
-SIZE="$(du -h "$SQUASHFS" | awk '{print $1}')"
+SQUASH_SIZE_BYTES="$(stat -c '%s' "$SQUASHFS")"
+
+SQUASH_SIZE="$(du -h "$SQUASHFS" | awk '{print $1}')"
 
 echo
-echo "========================================="
-echo " SquashFS completed successfully"
-echo " Edition : $EDITION"
-echo " Live Dir: $LIVE_DIR"
-echo " Kernel  : $KERNEL_VERSION"
-echo " Size    : $SIZE"
-echo "========================================="
+echo "=========================================================="
+echo "          GAMMA SQUASHFS BEAST COMPLETED"
+echo "=========================================================="
+echo
+echo " Edition       : $EDITION"
+echo " Live Dir      : $LIVE_DIR"
+echo " Kernel        : $KERNEL_VERSION"
+echo " Compression   : XZ"
+echo " Block Size    : 1 MiB"
+echo " SquashFS Size : $SQUASH_SIZE"
+echo " Raw Bytes     : $SQUASH_SIZE_BYTES"
+echo " Build Time    : ${BUILD_TIME}s"
+echo
+echo " Output:"
+echo " $SQUASHFS"
+echo
+echo "=========================================================="
+echo "                 GAMMA LINUX 🟣"
+echo "            No PC Deserves To Die"
+echo "=========================================================="
