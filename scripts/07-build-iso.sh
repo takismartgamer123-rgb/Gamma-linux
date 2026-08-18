@@ -11,11 +11,19 @@ OUTPUT_DIR="$ROOT/output"
 ISO="$OUTPUT_DIR/gamma-${EDITION}.iso"
 EFI_IMAGE="$ISO_DIR/boot/grub/efi.img"
 
-echo "[07] Building Gamma Linux ISO ($EDITION)"
+echo
+echo "=========================================================="
+echo "          GAMMA LINUX — ISO BEAST BUILDER"
+echo "=========================================================="
+echo " Edition : $EDITION"
+echo " ISO Dir : $ISO_DIR"
+echo " Output  : $ISO"
+echo "=========================================================="
+echo
 
-# ==========================================
+# ==========================================================
 # Edition configuration
-# ==========================================
+# ==========================================================
 
 case "$EDITION" in
     pro|lite)
@@ -32,32 +40,46 @@ case "$EDITION" in
         ;;
 esac
 
-# ==========================================
+# ==========================================================
 # Dependencies
-# ==========================================
+# ==========================================================
 
-for CMD in xorriso cp mkdir rm stat du; do
+echo "[07] Checking dependencies..."
+
+for CMD in \
+    xorriso \
+    cp \
+    mkdir \
+    rm \
+    stat \
+    du \
+    find \
+    grep \
+    awk
+do
     command -v "$CMD" >/dev/null 2>&1 || {
         echo "ERROR: Required command missing: $CMD"
         exit 1
     }
 done
 
-# ==========================================
+# ==========================================================
 # Prepare
-# ==========================================
+# ==========================================================
+
+echo "[07] Preparing ISO tree..."
 
 mkdir -p "$OUTPUT_DIR"
 
 [ -d "$ISO_DIR" ] || {
-    echo "ERROR: ISO directory missing: $ISO_DIR"
+    echo "ERROR: ISO directory missing:"
+    echo "       $ISO_DIR"
     exit 1
 }
 
 [ -w "$ISO_DIR" ] || {
     echo "ERROR: ISO directory is not writable:"
     echo "       $ISO_DIR"
-    ls -ld "$ISO_DIR"
     exit 1
 }
 
@@ -65,9 +87,9 @@ mkdir -p "$ISO_DIR/boot/isolinux"
 
 rm -f "$ISO"
 
-# ==========================================
+# ==========================================================
 # BIOS boot dependencies
-# ==========================================
+# ==========================================================
 
 echo "[07] Preparing BIOS boot..."
 
@@ -89,27 +111,29 @@ for FILE in "${BIOS_FILES[@]}"; do
     }
 done
 
-cp /usr/lib/ISOLINUX/isolinux.bin \
+cp "/usr/lib/ISOLINUX/isolinux.bin" \
     "$ISO_DIR/boot/isolinux/"
 
-cp /usr/lib/syslinux/modules/bios/ldlinux.c32 \
+cp "/usr/lib/syslinux/modules/bios/ldlinux.c32" \
     "$ISO_DIR/boot/isolinux/"
 
-cp /usr/lib/syslinux/modules/bios/vesamenu.c32 \
+cp "/usr/lib/syslinux/modules/bios/vesamenu.c32" \
     "$ISO_DIR/boot/isolinux/"
 
-cp /usr/lib/syslinux/modules/bios/libcom32.c32 \
+cp "/usr/lib/syslinux/modules/bios/libcom32.c32" \
     "$ISO_DIR/boot/isolinux/"
 
-cp /usr/lib/syslinux/modules/bios/libutil.c32 \
+cp "/usr/lib/syslinux/modules/bios/libutil.c32" \
     "$ISO_DIR/boot/isolinux/"
 
-cp /usr/lib/syslinux/modules/bios/libmenu.c32 \
+cp "/usr/lib/syslinux/modules/bios/libmenu.c32" \
     "$ISO_DIR/boot/isolinux/"
 
-# ==========================================
+# ==========================================================
 # ISOLINUX configuration
-# ==========================================
+# ==========================================================
+
+echo "[07] Writing BIOS boot menu..."
 
 cat > "$ISO_DIR/boot/isolinux/isolinux.cfg" <<EOF
 UI vesamenu.c32
@@ -130,10 +154,11 @@ LABEL safe
     APPEND initrd=/${LIVE_DIR}/initrd.lz ${BOOT} nomodeset
 EOF
 
-# ==========================================
+# ==========================================================
 # Pre-build QA
-# ==========================================
+# ==========================================================
 
+echo
 echo "[07] Running pre-build QA..."
 
 REQUIRED_FILES=(
@@ -157,37 +182,81 @@ REQUIRED_FILES=(
 
 for FILE in "${REQUIRED_FILES[@]}"; do
     [ -s "$FILE" ] || {
+        echo
         echo "ERROR: Missing or empty:"
         echo "       $FILE"
         exit 1
     }
 done
 
-if [ "$EDITION" = "legacy" ] &&
-   [ ! -s "$ISO_DIR/EFI/BOOT/BOOTIA32.EFI" ]; then
-    echo "ERROR: Legacy requires BOOTIA32.EFI."
-    exit 1
+# ==========================================================
+# Legacy IA32 verification
+# ==========================================================
+
+if [ "$EDITION" = "legacy" ]; then
+
+    if [ ! -s "$ISO_DIR/EFI/BOOT/BOOTIA32.EFI" ]; then
+        echo
+        echo "ERROR: Legacy edition requires:"
+        echo "       EFI/BOOT/BOOTIA32.EFI"
+        exit 1
+    fi
+
+    echo "[07] IA32 UEFI boot: PASS"
+
 fi
+
+# ==========================================================
+# EFI image validation
+# ==========================================================
 
 EFI_SIZE="$(stat -c '%s' "$EFI_IMAGE")"
 
 if [ "$EFI_SIZE" -gt 33553920 ]; then
-    echo "ERROR: EFI image is larger than the El Torito limit."
+    echo
+    echo "ERROR: EFI image exceeds El Torito limit."
     echo "       Size: $EFI_SIZE bytes"
     exit 1
 fi
 
 echo "[07] EFI image: $EFI_SIZE bytes"
+
+# ==========================================================
+# SquashFS sanity check
+# ==========================================================
+
+SQUASHFS="$ISO_DIR/$LIVE_DIR/filesystem.squashfs"
+
+echo "[07] Checking SquashFS..."
+
+SQUASH_SIZE="$(stat -c '%s' "$SQUASHFS")"
+
+if [ "$SQUASH_SIZE" -lt 1024 ]; then
+    echo "ERROR: filesystem.squashfs is suspiciously small."
+    exit 1
+fi
+
+echo "[07] SquashFS size: $(du -h "$SQUASHFS" | awk '{print $1}')"
+echo "[07] SquashFS: PASS"
+
+echo
 echo "[07] Pre-build QA: PASS"
 
-# ==========================================
+# ==========================================================
 # Build ISO
-# ==========================================
+# ==========================================================
 
-echo "[07] Creating Hybrid ISO..."
+echo
+echo "=========================================================="
+echo "              CREATING HYBRID ISO"
+echo "=========================================================="
+echo
+
+START_TIME="$(date +%s)"
 
 xorriso -as mkisofs \
     -iso-level 3 \
+    -full-iso9660-filenames \
     -r \
     -J \
     -joliet-long \
@@ -205,14 +274,22 @@ xorriso -as mkisofs \
     -o "$ISO" \
     "$ISO_DIR"
 
-# ==========================================
+END_TIME="$(date +%s)"
+
+BUILD_TIME=$((END_TIME - START_TIME))
+
+# ==========================================================
 # Verify ISO
-# ==========================================
+# ==========================================================
 
 [ -s "$ISO" ] || {
     echo "ERROR: ISO was not created."
     exit 1
 }
+
+# ==========================================================
+# El Torito report
+# ==========================================================
 
 echo
 echo "[07] ===== El Torito report ====="
@@ -220,15 +297,19 @@ echo "[07] ===== El Torito report ====="
 xorriso -indev "$ISO" \
     -report_el_torito plain
 
+# ==========================================================
+# System Area report
+# ==========================================================
+
 echo
 echo "[07] ===== System Area report ====="
 
 xorriso -indev "$ISO" \
     -report_system_area plain
 
-# ==========================================
+# ==========================================================
 # Internal ISO QA
-# ==========================================
+# ==========================================================
 
 echo
 echo "[07] Verifying ISO contents..."
@@ -241,33 +322,56 @@ ISO_FILES=(
     "/boot/grub/efi.img"
 
     "/boot/isolinux/isolinux.bin"
+    "/boot/isolinux/ldlinux.c32"
     "/boot/isolinux/vesamenu.c32"
     "/boot/isolinux/isolinux.cfg"
 )
 
 for FILE in "${ISO_FILES[@]}"; do
-    if ! xorriso -indev "$ISO" -ls "$FILE" >/dev/null 2>&1; then
+
+    if ! xorriso -indev "$ISO" -ls "$FILE" \
+        >/dev/null 2>&1
+    then
+        echo
         echo "ERROR: ISO is missing:"
         echo "       $FILE"
         exit 1
     fi
+
 done
 
 echo "[07] ISO contents: PASS"
 
-# ==========================================
-# Report
-# ==========================================
+# ==========================================================
+# ISO size
+# ==========================================================
 
-SIZE="$(du -h "$ISO" | awk '{print $1}')"
+SIZE_BYTES="$(stat -c '%s' "$ISO")"
+SIZE_HUMAN="$(du -h "$ISO" | awk '{print $1}')"
+
+# ==========================================================
+# Final report
+# ==========================================================
 
 echo
-echo "======================================="
-echo " Gamma Linux ISO READY"
-echo " Edition : $EDITION"
-echo " Size    : $SIZE"
-echo " File    : $ISO"
-echo " BIOS    : ISOLINUX"
-echo " UEFI    : EFI System Partition"
-echo " Hybrid  : yes"
-echo "======================================="
+echo "=========================================================="
+echo "              GAMMA LINUX ISO READY"
+echo "=========================================================="
+echo
+echo " Edition       : $EDITION"
+echo " Size          : $SIZE_HUMAN"
+echo " Raw Bytes     : $SIZE_BYTES"
+echo " File          : $ISO"
+echo " BIOS          : ISOLINUX"
+echo " UEFI          : GRUB EFI"
+echo " Hybrid        : YES"
+echo " Build Time    : ${BUILD_TIME}s"
+echo
+echo " SquashFS:"
+echo "   Compression : handled by [05]"
+echo "   Algorithm   : XZ"
+echo
+echo "=========================================================="
+echo "              NO PC DESERVES TO DIE"
+echo "                 GAMMA LINUX 🟣"
+echo "=========================================================="
