@@ -121,10 +121,7 @@ FEEDBACK & CONTACT
 --------------------------------------------------
 
 Send general feedback, questions, or media to: takismartgamer123@gmail.com
-
-Join the community channels in the main repo for announcements and support. Links:
-- Telegram: https://t.me/GammaLinuxDZ
-- Messenger community: https://m.me/j/AbahTOn_gqLy8R3k/?send_source=gc%3Acopy_invite_link_t
+• founder@mail.gamma-linux.is-local.org
 
 --------------------------------------------------
 ROADMAP
