@@ -889,6 +889,192 @@ footer {
     font-size: .9rem;
 }
 
+
+/* =========================
+   GITHUB LIVE STATS
+========================= */
+
+.github-stats {
+    margin-top: 42px;
+    width: min(1100px, 100%);
+}
+
+.github-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.github-stat {
+    min-height: 120px;
+    padding: 20px 16px;
+    text-align: center;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.025),
+            rgba(255,255,255,.008)
+        ),
+        rgba(12,12,24,.82);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    transition: .25s;
+}
+
+.github-stat:hover {
+    border-color: rgba(108,99,255,.6);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0,0,0,.22);
+}
+
+.github-stat-icon {
+    font-size: 1.65rem;
+    margin-bottom: 5px;
+}
+
+.github-stat-value {
+    display: block;
+    color: var(--light);
+    font-size: clamp(1.25rem, 3vw, 1.7rem);
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.github-stat-label {
+    display: block;
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: .86rem;
+    font-weight: 700;
+}
+
+.github-stat-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.github-stats-status {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: .78rem;
+    text-align: center;
+}
+
+.github-stats-status.error {
+    color: var(--warning);
+}
+
+@media (max-width: 800px) {
+    .github-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+
+/* =========================
+   COMMUNITY TESTING
+========================= */
+
+.section-intro {
+    max-width: 760px;
+    margin: 0 auto 36px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.8;
+}
+
+.eyebrow {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--purple2);
+    font-size: .78rem;
+    font-weight: 900;
+    letter-spacing: .14em;
+    text-align: center;
+}
+
+.community-milestone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    max-width: 720px;
+    margin: 30px auto 0;
+    padding: 18px 22px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: rgba(255,255,255,.025);
+    color: var(--muted);
+    text-align: left;
+}
+
+.community-milestone strong,
+.community-milestone span {
+    display: block;
+}
+
+.community-milestone strong {
+    color: var(--light);
+    margin-bottom: 3px;
+}
+
+.milestone-icon {
+    font-size: 1.8rem;
+}
+
+
+
+/* =========================
+   COMMUNITY TESTING
+========================= */
+
+.section-intro {
+    max-width: 760px;
+    margin: 0 auto 36px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.8;
+}
+
+.eyebrow {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--purple2);
+    font-size: .78rem;
+    font-weight: 900;
+    letter-spacing: .14em;
+    text-align: center;
+}
+
+.community-milestone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    max-width: 720px;
+    margin: 30px auto 0;
+    padding: 18px 22px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: rgba(255,255,255,.025);
+    color: var(--muted);
+    text-align: left;
+}
+
+.community-milestone strong,
+.community-milestone span {
+    display: block;
+}
+
+.community-milestone strong {
+    color: var(--light);
+    margin-bottom: 3px;
+}
+
+.milestone-icon {
+    font-size: 1.8rem;
+}
+
 /* =========================
    MOBILE
 ========================= */
@@ -985,7 +1171,86 @@ footer {
     </div>
 
 </section>
-    <!-- ======================================================
+
+<!-- ======================================================
+     GITHUB LIVE STATS
+====================================================== -->
+
+<section id="github-stats" class="alt">
+    <div class="container">
+
+        <h2>📊 Gamma Linux on GitHub</h2>
+
+        <div class="github-stats">
+            <div class="github-stats-grid">
+
+                <a
+                    id="github-stars-link"
+                    class="github-stat-link"
+                    href="https://github.com/takismartgamer123-rgb/Gamma-linux"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <div class="github-stat">
+                        <div class="github-stat-icon">⭐</div>
+                        <span class="github-stat-value" id="github-stars">—</span>
+                        <span class="github-stat-label">Stars</span>
+                    </div>
+                </a>
+
+                <a
+                    id="github-forks-link"
+                    class="github-stat-link"
+                    href="https://github.com/takismartgamer123-rgb/Gamma-linux/forks"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <div class="github-stat">
+                        <div class="github-stat-icon">🍴</div>
+                        <span class="github-stat-value" id="github-forks">—</span>
+                        <span class="github-stat-label">Forks</span>
+                    </div>
+                </a>
+
+                <a
+                    id="github-downloads-link"
+                    class="github-stat-link"
+                    href="https://github.com/takismartgamer123-rgb/Gamma-linux/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <div class="github-stat">
+                        <div class="github-stat-icon">📥</div>
+                        <span class="github-stat-value" id="github-downloads">—</span>
+                        <span class="github-stat-label">Total ISO Downloads</span>
+                    </div>
+                </a>
+
+                <a
+                    id="github-release-link"
+                    class="github-stat-link"
+                    href="https://github.com/takismartgamer123-rgb/Gamma-linux/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <div class="github-stat">
+                        <div class="github-stat-icon">🚀</div>
+                        <span class="github-stat-value" id="github-release">—</span>
+                        <span class="github-stat-label">Latest Release</span>
+                    </div>
+                </a>
+
+            </div>
+
+            <div id="github-stats-status" class="github-stats-status">
+                Loading live GitHub data…
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- ======================================================
      OUR STORY
 ====================================================== -->
 
@@ -2445,6 +2710,112 @@ Inspect it. Fork it. Improve it.
 </section>
 
 
+
+<!-- ======================================================
+     COMMUNITY TESTING
+====================================================== -->
+
+<section id="community-testing">
+
+<div class="container">
+
+<span class="eyebrow">REAL-WORLD TESTING</span>
+
+<h2>🧪 Community Testing</h2>
+
+<p class="section-intro">
+Gamma Linux is tested on real machines by real people.
+Every installation and every piece of feedback helps shape the project.
+</p>
+
+<div class="feature-grid">
+
+<div class="card">
+
+<div class="icon">💻</div>
+
+<h3>Thom — 2 Real Computers</h3>
+
+<p>
+A special thank you to <strong>Thom (@tkn)</strong> from
+LinuxCommunity for taking Gamma Linux beyond the developer's
+machine and testing it on real hardware.
+</p>
+
+<p>
+After working through several installation and compatibility
+issues, Thom successfully got Gamma Linux installed on
+<strong>two different computers</strong>.
+</p>
+
+<p>
+That's exactly the kind of real-world testing Gamma needs:
+old hardware, unexpected problems, honest feedback and
+actual installations.
+</p>
+
+<a
+    href="https://linuxcommunity.io/t/i-built-gamma-linux-to-give-old-pcs-another-life/11298"
+    class="btn primary"
+    target="_blank"
+    rel="noopener noreferrer"
+>
+💬 Read the LinuxCommunity topic
+</a>
+
+</div>
+
+
+<div class="card">
+
+<div class="icon">❤️</div>
+
+<h3>Thank You, Thom!</h3>
+
+<p>
+Thank you for taking the time to test Gamma, report problems,
+try different machines and keep investigating when the first
+attempts didn't work.
+</p>
+
+<p>
+Your feedback is not just a comment on a forum — it is part of
+Gamma Linux's real development and testing history.
+</p>
+
+<p>
+<strong>
+Thank you for testing Gamma. Thank you for the feedback.
+And thank you for giving old hardware another chance.
+</strong>
+</p>
+
+</div>
+
+</div>
+
+
+<div class="community-milestone">
+
+<span class="milestone-icon">🚀</span>
+
+<div>
+
+<strong>Community milestone</strong>
+
+<span>
+Thom has tested Gamma Linux on two different computers.
+</span>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+
 <!-- ======================================================
      COMMUNITY / REVIEW
 ====================================================== -->
@@ -2549,6 +2920,7 @@ more visibility, you can vote for it on DistroWatch.
 </section>
 
 
+
 <!-- ======================================================
      FOOTER
 ====================================================== -->
@@ -2607,6 +2979,154 @@ GPL v3 · Made in Algeria 🇩🇿
 ====================================================== -->
 
 <script>
+
+/* =========================================================
+   GITHUB LIVE STATS
+   Public GitHub REST API — no token required
+========================================================= */
+
+const GAMMA_GITHUB_API =
+    "https://api.github.com/repos/takismartgamer123-rgb/Gamma-linux";
+
+const GAMMA_GITHUB_HEADERS = {
+    "Accept": "application/vnd.github+json"
+};
+
+function formatGithubNumber(value) {
+    return Number(value || 0).toLocaleString();
+}
+
+function setGithubStatus(message, isError = false) {
+    const status = document.getElementById("github-stats-status");
+
+    if (!status) return;
+
+    status.textContent = message;
+    status.classList.toggle("error", isError);
+}
+
+async function fetchAllGammaReleases() {
+    const releases = [];
+    let page = 1;
+
+    while (true) {
+        const response = await fetch(
+            `${GAMMA_GITHUB_API}/releases?per_page=100&page=${page}`,
+            {
+                headers: GAMMA_GITHUB_HEADERS
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`GitHub releases API returned ${response.status}`);
+        }
+
+        const batch = await response.json();
+
+        releases.push(...batch);
+
+        if (batch.length < 100) {
+            break;
+        }
+
+        page++;
+    }
+
+    return releases;
+}
+
+async function loadGithubStats() {
+    try {
+        setGithubStatus("Loading live GitHub data…");
+
+        const [repositoryResponse, latestReleaseResponse, releases] =
+            await Promise.all([
+                fetch(GAMMA_GITHUB_API, {
+                    headers: GAMMA_GITHUB_HEADERS
+                }),
+                fetch(`${GAMMA_GITHUB_API}/releases/latest`, {
+                    headers: GAMMA_GITHUB_HEADERS
+                }),
+                fetchAllGammaReleases()
+            ]);
+
+        if (!repositoryResponse.ok) {
+            throw new Error(
+                `GitHub repository API returned ${repositoryResponse.status}`
+            );
+        }
+
+        if (!latestReleaseResponse.ok) {
+            throw new Error(
+                `GitHub latest release API returned ${latestReleaseResponse.status}`
+            );
+        }
+
+        const repository = await repositoryResponse.json();
+        const latestRelease = await latestReleaseResponse.json();
+
+        /*
+         * Count only ISO release assets.
+         * This prevents source archives, checksums and other files
+         * from inflating the public ISO download counter.
+         */
+        const totalIsoDownloads = releases.reduce((total, release) => {
+            const isoDownloads = (release.assets || [])
+                .filter(asset =>
+                    asset.state === "uploaded" &&
+                    asset.name.toLowerCase().endsWith(".iso")
+                )
+                .reduce(
+                    (sum, asset) => sum + Number(asset.download_count || 0),
+                    0
+                );
+
+            return total + isoDownloads;
+        }, 0);
+
+        document.getElementById("github-stars").textContent =
+            formatGithubNumber(repository.stargazers_count);
+
+        document.getElementById("github-forks").textContent =
+            formatGithubNumber(repository.forks_count);
+
+        document.getElementById("github-downloads").textContent =
+            formatGithubNumber(totalIsoDownloads);
+
+        document.getElementById("github-release").textContent =
+            latestRelease.tag_name || latestRelease.name || "—";
+
+        document.getElementById("github-release-link").href =
+            latestRelease.html_url ||
+            "https://github.com/takismartgamer123-rgb/Gamma-linux/releases";
+
+        setGithubStatus(
+            `Live data from GitHub · Updated ${new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit"
+            })}`
+        );
+
+    } catch (error) {
+        console.error("Gamma GitHub stats error:", error);
+
+        /*
+         * Keep the site usable if GitHub is temporarily unavailable,
+         * rate-limited, or blocked by a network.
+         */
+        document.getElementById("github-stars").textContent = "—";
+        document.getElementById("github-forks").textContent = "—";
+        document.getElementById("github-downloads").textContent = "—";
+        document.getElementById("github-release").textContent = "—";
+
+        setGithubStatus(
+            "GitHub statistics are temporarily unavailable.",
+            true
+        );
+    }
+}
+
+loadGithubStats();
 
 function sendBugReport(event) {
 
