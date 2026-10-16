@@ -399,181 +399,7 @@ h3 {
      OUR STORY
 ====================================================== -->
 
-<section id="story">
 
-<div class="container">
-
-<h2>🧬 The Story Behind Gamma Linux</h2>
-
-<div class="story-intro">
-
-<p>
-Gamma Linux did not begin as a plan to build another Linux
-distribution.
-</p>
-
-<p>
-It began with a simple observation:
-<strong>
-a lightweight desktop could make old hardware feel alive again.
-</strong>
-</p>
-
-</div>
-
-
-<div class="story-timeline">
-
-
-<div class="story-step">
-
-<div class="story-number">1</div>
-
-<h3>🌱 It Started With Bodhi Linux</h3>
-
-<p>
-The journey began while using
-<strong>Bodhi Linux</strong>.
-</p>
-
-<p>
-What immediately stood out was
-<strong>Moksha</strong> — lightweight, responsive and surprisingly
-fast even on modest hardware.
-</p>
-
-</div>
-
-
-<div class="story-step">
-
-<div class="story-number">2</div>
-
-<h3>⚡ Then I Saw How Light It Could Be</h3>
-
-<p>
-Moksha was using roughly
-<strong>330 MB of RAM</strong>
-while still feeling extremely responsive.
-</p>
-
-<p>
-It did not feel like a system struggling to survive.
-It simply
-<strong>flew.</strong>
-</p>
-
-</div>
-
-
-<div class="story-step">
-
-<div class="story-number">3</div>
-
-<h3>🤔 One Question Changed Everything</h3>
-
-<p>
-A simple question appeared:
-</p>
-
-<div class="story-highlight">
-
-<div class="story-question">
-"What if I pushed this idea even further?"
-</div>
-
-<p>
-What if an operating system could be designed from the beginning
-around old hardware, limited memory and efficiency?
-</p>
-
-</div>
-
-</div>
-
-
-<div class="story-step">
-
-<div class="story-number">4</div>
-
-<h3>🛡️ WardenOS</h3>
-
-<p>
-The experiment became more serious and eventually became
-<strong>WardenOS</strong>.
-</p>
-
-<p>
-It was no longer just about trying to make something lightweight.
-It became an attempt to build a system around a simple philosophy:
-<strong>old hardware still deserves a useful life.</strong>
-</p>
-
-</div>
-
-
-<div class="story-step">
-
-<div class="story-number">5</div>
-
-<h3>🟣 Gamma Linux</h3>
-
-<p>
-WardenOS evolved into what would become
-<strong>Gamma Linux</strong>.
-</p>
-
-<p>
-The project grew beyond a lightweight desktop experiment into a
-complete distribution with its own editions, build system,
-packages, ISO releases and development ecosystem.
-</p>
-
-</div>
-
-
-<div class="story-step">
-
-<div class="story-number">6</div>
-
-<h3>🚀 From Experiment to 2.7 Warden</h3>
-
-<p>
-What started with curiosity eventually reached
-<strong>Gamma Linux 2.7 — Warden</strong>.
-</p>
-
-<p>
-The project now focuses on lightweight computing, old hardware,
-minimalism, performance and giving users control over what they
-install.
-</p>
-
-</div>
-
-
-</div>
-
-
-<div class="story-highlight">
-
-<div class="story-question">
-From one lightweight desktop...
-</div>
-
-<p class="story-motto">
-No PC deserves to die.
-</p>
-
-<span class="story-origin">
-Gamma Linux — Reviving Every Computer.
-</span>
-
-</div>
-
-</div>
-
-</section>
 
 /* =========================
    REQUIREMENTS
@@ -1107,6 +933,50 @@ footer {
         font-size: .85rem;
     }
 }
+
+
+/* =========================
+   DISTROWATCH TOP VOTE CARD
+========================= */
+.vote-top {
+    padding: 92px 20px 0;
+    background: radial-gradient(600px 220px at 50% 0%, rgba(139, 92, 246, .13), transparent 75%);
+}
+
+.vote-top-card {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    background: linear-gradient(135deg, rgba(139, 92, 246, .12), rgba(33, 150, 255, .05)), var(--card);
+    border: 1px solid rgba(139, 92, 246, .4);
+    border-radius: 18px;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, .2);
+}
+
+.vote-top-info { display: flex; align-items: center; gap: 15px; }
+.vote-top-icon { font-size: 2.1rem; }
+.vote-top h2 { text-align: left; font-size: 1.1rem; margin: 0; color: var(--light); }
+.vote-top p { color: var(--muted); font-size: .85rem; margin: 2px 0; }
+.vote-top-count { display: block; color: var(--purple2); font-size: 1.65rem; font-weight: 900; line-height: 1.3; }
+.vote-top-status { color: var(--muted); font-size: .72rem; }
+.vote-top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vote-top-actions .btn { margin: 0; padding: 10px 15px; font-size: .85rem; width: auto; }
+.vote-top-refresh { background: transparent; color: var(--purple2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 13px; cursor: pointer; font: inherit; }
+.vote-top-refresh:disabled { opacity: .5; cursor: wait; }
+
+@media (max-width: 650px) {
+    .vote-top { padding: 86px 14px 0; }
+    .vote-top-card { padding: 16px; gap: 14px; }
+    .vote-top-info { align-items: flex-start; }
+    .vote-top-actions { width: 100%; }
+    .vote-top-actions .btn { flex: 1; text-align: center; width: auto; }
+}
+
 </style>
 </head>
 
@@ -1130,6 +1000,26 @@ footer {
     <a href="#roadmap">Roadmap</a>
     <a href="#source">Source</a>
 </nav>
+
+<!-- DISTROWATCH COMMUNITY VOTES -->
+<section class="vote-top" aria-label="DistroWatch community votes">
+    <div class="vote-top-card">
+        <div class="vote-top-info">
+            <div class="vote-top-icon" aria-hidden="true">🗳️</div>
+            <div>
+                <h2>Support Gamma Linux 🇩🇿</h2>
+                <p>DistroWatch community votes</p>
+                <span class="vote-top-count" id="dw-votes">— votes</span>
+                <div class="vote-top-status" id="dw-status" role="status" aria-live="polite">Loading vote count…</div>
+            </div>
+        </div>
+        <div class="vote-top-actions">
+            <a href="https://distrowatch.com/dwres-mobile.php?waitingdistro=1101&amp;resource=links#new" class="btn vote" target="_blank" rel="noopener noreferrer">🗳️ Vote for Gamma</a>
+            <button class="vote-top-refresh" id="dw-refresh" type="button" aria-label="Refresh DistroWatch vote count" title="Refresh vote count">↻</button>
+        </div>
+    </div>
+</section>
+
 
 
 <!-- ======================================================
@@ -2883,45 +2773,6 @@ artificial praise.
 
 
 <!-- ======================================================
-     DISTROWATCH
-====================================================== -->
-
-<section id="vote">
-
-<div class="container">
-
-<h2>📢 Support Gamma Linux</h2>
-
-<div class="card" style="text-align:center;">
-
-<div class="icon">🗳️</div>
-
-<h3>Vote for Gamma Linux</h3>
-
-<p>
-
-If you have tried Gamma Linux and believe the project deserves
-more visibility, you can vote for it on DistroWatch.
-
-</p>
-
-<a
-    href="https://distrowatch.com/dwres-mobile.php?waitingdistro=1101&resource=links#new"
-    class="btn vote"
-    target="_blank"
->
-📢 Vote on DistroWatch
-</a>
-
-</div>
-
-</div>
-
-</section>
-
-
-
-<!-- ======================================================
      FOOTER
 ====================================================== -->
 
@@ -3246,6 +3097,56 @@ Sent from the Gamma Linux website.
         "&body=" +
         encodeURIComponent(body);
 }
+
+
+
+/* =========================================================
+   DISTROWATCH COMMUNITY VOTE COUNTER
+   Uses a public HTML-fetch proxy; this may be unavailable if
+   the proxy or DistroWatch changes its response format.
+========================================================= */
+async function refreshDistroWatchVotes() {
+    const countEl = document.getElementById('dw-votes');
+    const statusEl = document.getElementById('dw-status');
+    const button = document.getElementById('dw-refresh');
+    if (!countEl || !statusEl || !button) return;
+
+    button.disabled = true;
+    statusEl.textContent = 'Updating vote count…';
+
+    try {
+        const target = 'https://distrowatch.com/new';
+        const proxyUrl = 'https://corx.envx.cn/fetch?url=' + encodeURIComponent(target) + '&corx-key=corx_wurhkSx9Z5GkXBs85bu8iyqJ-963qATW';
+        const response = await fetch(proxyUrl, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Vote service returned HTTP ' + response.status);
+
+        const html = await response.text();
+        let match = html.match(/<input\s+type=["']?hidden["']?\s+name=["']?waitingdistro["']?\s+value=["']?1101["']?[^>]*>[\s\S]*?<input\s+type=["']?hidden["']?\s+name=["']?resource["']?\s+value=["']?links["']?[^>]*>[\s\S]*?(\d[\d,]*)\s+votes?/i);
+
+        if (!match) {
+            const marker = /name=["']?waitingdistro["']?\s+value=["']?1101\b/i.exec(html);
+            if (marker) {
+                const nearby = html.slice(marker.index, marker.index + 6000);
+                match = nearby.match(/(\d[\d,]*)\s+votes?/i);
+            }
+        }
+        if (!match) throw new Error('Could not locate Gamma vote count in DistroWatch response');
+
+        const votes = Number(match[1].replace(/,/g, ''));
+        if (!Number.isFinite(votes)) throw new Error('Invalid vote count');
+        countEl.textContent = votes.toLocaleString() + ' votes';
+        statusEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (error) {
+        console.warn('DistroWatch vote counter:', error);
+        statusEl.textContent = 'Vote count temporarily unavailable';
+    } finally {
+        button.disabled = false;
+    }
+}
+
+document.getElementById('dw-refresh')?.addEventListener('click', refreshDistroWatchVotes);
+refreshDistroWatchVotes();
+setInterval(refreshDistroWatchVotes, 5000);
 
 </script>
 
