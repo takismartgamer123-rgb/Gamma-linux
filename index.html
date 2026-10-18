@@ -3115,7 +3115,7 @@ async function refreshDistroWatchVotes() {
     statusEl.textContent = 'Updating vote count…';
 
     try {
-        const target = 'https://distrowatch.com/dwres.php?waitingdistro&resource=links#new';
+        const target = 'https://distrowatch.com/dwres.php?waitingdistro=ID&resource=links#new';
         const proxyUrl = 'https://corx.envx.cn/fetch?url=' + encodeURIComponent(target) + '&corx-key=corx_wurhkSx9Z5GkXBs85bu8iyqJ-963qATW';
         const response = await fetch(proxyUrl, { cache: 'no-store' });
         if (!response.ok) throw new Error('Vote service returned HTTP ' + response.status);
