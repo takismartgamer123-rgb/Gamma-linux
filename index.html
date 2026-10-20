@@ -976,7 +976,9 @@ footer {
     .vote-top-actions { width: 100%; }
     .vote-top-actions .btn { flex: 1; text-align: center; width: auto; }
 }
-
+.dw-goal-wrap{width:100%;height:14px;background:#222;border-radius:20px;overflow:hidden;margin:8px 0}
+#dw-goal-bar{height:100%;width:0%;background:linear-gradient(90deg,#00ff88,#00ccff);transition:width 1s ease}
+#dw-goal-text{font-size:13px;opacity:.8}
 </style>
 </head>
 
@@ -1018,6 +1020,8 @@ footer {
             <button class="vote-top-refresh" id="dw-refresh" type="button" aria-label="Refresh DistroWatch vote count" title="Refresh vote count">↻</button>
         </div>
     </div>
+    <div class="dw-goal-wrap"><div id="dw-goal-bar"></div></div>
+<div id="dw-goal-text">-- / --</div>
 </section>
 
 
@@ -3105,49 +3109,71 @@ Sent from the Gamma Linux website.
    Uses a public HTML-fetch proxy; this may be unavailable if
    the proxy or DistroWatch changes its response format.
 ========================================================= */
-async function refreshDistroWatchVotes() {
-    const countEl = document.getElementById('dw-votes');
-    const statusEl = document.getElementById('dw-status');
-    const button = document.getElementById('dw-refresh');
-    if (!countEl || !statusEl || !button) return;
+const PROXY_KEY = 'corx_wurhkSx9Z5GkXBs85bu8iyqJ-963qATW';
+const TARGET = 'https://distrowatch.com/dwres-mobile.php?waitingdistro=0&resource=links#new';
 
-    button.disabled = true;
-    statusEl.textContent = 'Updating vote count…';
-
-    try {
-        const target = 'https://distrowatch.com/dwres.php?waitingdistro=0&resource=links#new';
-        const proxyUrl = 'https://corx.envx.cn/fetch?url=' + encodeURIComponent(target) + '&corx-key=corx_wurhkSx9Z5GkXBs85bu8iyqJ-963qATW';
-        const response = await fetch(proxyUrl, { cache: 'no-store' });
-        if (!response.ok) throw new Error('Vote service returned HTTP ' + response.status);
-
-        const html = await response.text();
-        let match = html.match(/<input\s+type=["']?hidden["']?\s+name=["']?waitingdistro["']?\s+value=["']?1101["']?[^>]*>[\s\S]*?<input\s+type=["']?hidden["']?\s+name=["']?resource["']?\s+value=["']?links["']?[^>]*>[\s\S]*?(\d[\d,]*)\s+votes?/i);
-
-        if (!match) {
-            const marker = /name=["']?waitingdistro["']?\s+value=["']?1101\b/i.exec(html);
-            if (marker) {
-                const nearby = html.slice(marker.index, marker.index + 6000);
-                match = nearby.match(/(\d[\d,]*)\s+votes?/i);
-            }
-        }
-        if (!match) throw new Error('Could not locate Gamma vote count in DistroWatch response');
-
-        const votes = Number(match[1].replace(/,/g, ''));
-        if (!Number.isFinite(votes)) throw new Error('Invalid vote count');
-        countEl.textContent = votes.toLocaleString() + ' votes';
-        statusEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (error) {
-        console.warn('DistroWatch vote counter:', error);
-        statusEl.textContent = 'Vote count temporarily unavailable';
-    } finally {
-        button.disabled = false;
-    }
+function extractGammaVotes(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const links = [...doc.querySelectorAll('a[href]')];
+  const link = links.find(a => {
+    try { const u = new URL(a.href); return u.hostname === 'gamma-linux.is-local.org' && a.textContent.trim().toLowerCase() === 'gamma linux'; } 
+    catch { return false; }
+  });
+  if (!link) throw new Error('Gamma link not found');
+  const row = link.closest('tr');
+  if (row) {
+    const m = row.textContent.replace(/\s+/g,' ').trim().match(/\b([\d,]+)\s+votes?\b/i);
+    if (m) return Number(m[1].replace(/,/g,''));
+  }
+  const pos = html.indexOf(link.outerHTML);
+  if (pos >= 0) {
+    const section = html.slice(pos, html.indexOf('</tr>', pos) > 0 ? html.indexOf('</tr>', pos) : pos+5000);
+    const m = section.match(/\b([\d,]+)\s+votes?\b/i);
+    if (m) return Number(m[1].replace(/,/g,''));
+  }
+  throw new Error('Vote count not found');
 }
 
+function getNextGoal(v) {
+  const goals = [100,200,300,400,500,750,1000,1500,2000,3000,5000];
+  for (let g of goals) if (v < g) return g;
+  return Math.ceil((v+1)/1000)*1000;
+}
+
+async function refreshDistroWatchVotes() {
+  const countEl = document.getElementById('dw-votes');
+  const statusEl = document.getElementById('dw-status');
+  const button = document.getElementById('dw-refresh');
+  const bar = document.getElementById('dw-goal-bar');
+  const gText = document.getElementById('dw-goal-text');
+  if (!countEl || !statusEl || !button) return;
+  button.disabled = true;
+  statusEl.textContent = 'Updating...';
+  try {
+    const proxyUrl = 'https://corx.envx.cn/fetch?url=' + encodeURIComponent(TARGET) + '&corx-key=' + encodeURIComponent(PROXY_KEY);
+    const r = await fetch(proxyUrl, {cache:'no-store'});
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const html = await r.text();
+    const votes = extractGammaVotes(html);
+    
+    countEl.textContent = votes.toLocaleString() + ' votes';
+    statusEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    
+    // Goal bar auto
+    const nextGoal = getNextGoal(votes);
+    const percent = Math.min(100, (votes / nextGoal) * 100);
+    if (bar) bar.style.width = percent.toFixed(1) + '%';
+    if (gText) gText.textContent = `${votes} / ${nextGoal} - ${percent.toFixed(1)}%`;
+
+  } catch (e) {
+    statusEl.textContent = 'Vote count temporarily unavailable';
+  } finally {
+    button.disabled = false;
+  }
+}
 document.getElementById('dw-refresh')?.addEventListener('click', refreshDistroWatchVotes);
 refreshDistroWatchVotes();
-setInterval(refreshDistroWatchVotes, 7000);
-
+setInterval(refreshDistroWatchVotes, 15000);
 </script>
 </body>
 </html>
