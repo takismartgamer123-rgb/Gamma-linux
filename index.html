@@ -976,9 +976,55 @@ footer {
     .vote-top-actions { width: 100%; }
     .vote-top-actions .btn { flex: 1; text-align: center; width: auto; }
 }
-.dw-goal-wrap{width:100%;height:14px;background:#222;border-radius:20px;overflow:hidden;margin:8px 0}
-#dw-goal-bar{height:100%;width:0%;background:linear-gradient(90deg,#00ff88,#00ccff);transition:width 1s ease}
-#dw-goal-text{font-size:13px;opacity:.8}
+
+
+
+/* Single-file multilingual controls */
+#gamma-language-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 4px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: rgba(108,99,255,.08);
+}
+#gamma-language-switcher button {
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: .82rem;
+    font-weight: 800;
+    padding: 5px 8px;
+    cursor: pointer;
+    transition: background .2s, color .2s;
+}
+#gamma-language-switcher button[aria-pressed="true"] {
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    color: #fff;
+}
+#gamma-language-switcher button:focus-visible {
+    outline: 2px solid var(--purple2);
+    outline-offset: 2px;
+}
+html[dir="rtl"] body { text-align: right; }
+html[dir="rtl"] nav { direction: rtl; }
+html[dir="rtl"] code,
+html[dir="rtl"] pre,
+html[dir="rtl"] .github-stat-value,
+html[dir="rtl"] .vote-top-count { direction: ltr; unicode-bidi: isolate; }
+html[dir="rtl"] input[type="url"],
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] code,
+html[dir="rtl"] pre { text-align: left; }
+@media (max-width: 560px) {
+    #gamma-language-switcher { margin: 2px 0; }
+    #gamma-language-switcher button { padding: 4px 7px; }
+}
+
 </style>
 </head>
 
@@ -1020,8 +1066,6 @@ footer {
             <button class="vote-top-refresh" id="dw-refresh" type="button" aria-label="Refresh DistroWatch vote count" title="Refresh vote count">↻</button>
         </div>
     </div>
-    <div class="dw-goal-wrap"><div id="dw-goal-bar"></div></div>
-<div id="dw-goal-text">-- / --</div>
 </section>
 
 
@@ -2856,7 +2900,8 @@ function setGithubStatus(message, isError = false) {
 
     if (!status) return;
 
-    status.textContent = message;
+    status.dataset.gammaMessage = message;
+    status.textContent = (typeof gammaTranslate === "function") ? gammaTranslate(message) : message;
     status.classList.toggle("error", isError);
 }
 
@@ -3012,40 +3057,39 @@ function sendBugReport(event) {
         document.getElementById("bug-photo").value.trim();
 
 
-    const subject =
-        "Gamma Linux 2.7 Warden — Bug Report";
+    const subject = gammaTranslate("Gamma Linux 2.7 Warden — Bug Report");
 
 
     const body =
-`Gamma Linux 2.7 Warden — Bug Report
+`${gammaTranslate("Gamma Linux 2.7 Warden — Bug Report")}
 
-User:
-${name || "Not provided"}
+${gammaTranslate("User:")}
+${name || gammaTranslate("Not provided")}
 
-PC Model:
+${gammaTranslate("PC Model:")}
 ${pc}
 
-CPU:
+${gammaTranslate("CPU")}:
 ${cpu}
 
-RAM:
+${gammaTranslate("RAM")}:
 ${ram}
 
-Storage:
+${gammaTranslate("Storage")}:
 ${storage}
 
-Gamma Edition:
+${gammaTranslate("Gamma Edition:")}
 ${edition}
 
-Bug Description:
+${gammaTranslate("Bug Description:")}
 ${description}
 
-Photo / Screenshot:
-${photo || "Not provided"}
+${gammaTranslate("Photo / Screenshot:")}
+${photo || gammaTranslate("Not provided")}
 
 --------------------------------------------------
 
-Sent from the Gamma Linux website.
+${gammaTranslate("Sent from the Gamma Linux website.")}
 `;
 
 
@@ -3072,25 +3116,24 @@ function sendFeedback(event) {
         document.getElementById("feedback-message").value.trim();
 
 
-    const subject =
-        "Gamma Linux 2.7 Warden — Feedback";
+    const subject = gammaTranslate("Gamma Linux 2.7 Warden — Feedback");
 
 
     const body =
-`Gamma Linux 2.7 Warden — Feedback
+`${gammaTranslate("Gamma Linux 2.7 Warden — Feedback")}
 
-User:
-${name || "Not provided"}
+${gammaTranslate("User:")}
+${name || gammaTranslate("Not provided")}
 
-Feedback Type:
+${gammaTranslate("Feedback Type:")}
 ${type}
 
-Feedback:
+${gammaTranslate("Feedback:")}
 ${message}
 
 --------------------------------------------------
 
-Sent from the Gamma Linux website.
+${gammaTranslate("Sent from the Gamma Linux website.")}
 `;
 
 
@@ -3109,71 +3152,231 @@ Sent from the Gamma Linux website.
    Uses a public HTML-fetch proxy; this may be unavailable if
    the proxy or DistroWatch changes its response format.
 ========================================================= */
-const PROXY_KEY = 'corx_wurhkSx9Z5GkXBs85bu8iyqJ-963qATW';
-const TARGET = 'https://distrowatch.com/dwres-mobile.php?waitingdistro=1101&resource=links#new';
-
-function extractGammaVotes(html) {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const links = [...doc.querySelectorAll('a[href]')];
-  const link = links.find(a => {
-    try { const u = new URL(a.href); return u.hostname === 'gamma-linux.is-local.org' && a.textContent.trim().toLowerCase() === 'gamma linux'; } 
-    catch { return false; }
-  });
-  if (!link) throw new Error('Gamma link not found');
-  const row = link.closest('tr');
-  if (row) {
-    const m = row.textContent.replace(/\s+/g,' ').trim().match(/\b([\d,]+)\s+votes?\b/i);
-    if (m) return Number(m[1].replace(/,/g,''));
-  }
-  const pos = html.indexOf(link.outerHTML);
-  if (pos >= 0) {
-    const section = html.slice(pos, html.indexOf('</tr>', pos) > 0 ? html.indexOf('</tr>', pos) : pos+5000);
-    const m = section.match(/\b([\d,]+)\s+votes?\b/i);
-    if (m) return Number(m[1].replace(/,/g,''));
-  }
-  throw new Error('Vote count not found');
-}
-
-function getNextGoal(v) {
-  const goals = [100,200,300,400,500,750,1000,1500,2000,3000,5000];
-  for (let g of goals) if (v < g) return g;
-  return Math.ceil((v+1)/1000)*1000;
+function setDistroWatchStatus(message) {
+    const el = document.getElementById('dw-status');
+    if (!el) return;
+    el.dataset.gammaMessage = message;
+    el.textContent = (typeof gammaTranslate === 'function') ? gammaTranslate(message) : message;
 }
 
 async function refreshDistroWatchVotes() {
-  const countEl = document.getElementById('dw-votes');
-  const statusEl = document.getElementById('dw-status');
-  const button = document.getElementById('dw-refresh');
-  const bar = document.getElementById('dw-goal-bar');
-  const gText = document.getElementById('dw-goal-text');
-  if (!countEl || !statusEl || !button) return;
-  button.disabled = true;
-  statusEl.textContent = 'Updating...';
-  try {
-    const proxyUrl = 'https://corx.envx.cn/fetch?url=' + encodeURIComponent(TARGET) + '&corx-key=' + encodeURIComponent(PROXY_KEY);
-    const r = await fetch(proxyUrl, {cache:'no-store'});
-    if (!r.ok) throw new Error('HTTP '+r.status);
-    const html = await r.text();
-    const votes = extractGammaVotes(html);
-    
-    countEl.textContent = votes.toLocaleString() + ' votes';
-    statusEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    
-    // Goal bar auto
-    const nextGoal = getNextGoal(votes);
-    const percent = Math.min(100, (votes / nextGoal) * 100);
-    if (bar) bar.style.width = percent.toFixed(1) + '%';
-    if (gText) gText.textContent = `${votes} / ${nextGoal} - ${percent.toFixed(1)}%`;
+    const countEl = document.getElementById('dw-votes');
+    const statusEl = document.getElementById('dw-status');
+    const button = document.getElementById('dw-refresh');
+    if (!countEl || !statusEl || !button) return;
 
-  } catch (e) {
-    statusEl.textContent = 'Vote count temporarily unavailable';
-  } finally {
-    button.disabled = false;
-  }
+    button.disabled = true;
+    setDistroWatchStatus('Updating vote count…');
+
+    try {
+        const target = 'https://distrowatch.com/new';
+        const proxyUrl = 'https://corx.envx.cn/fetch?url=' + encodeURIComponent(target) + '&corx-key=corx_wurhkSx9Z5GkXBs85bu8iyqJ-963qATW';
+        const response = await fetch(proxyUrl, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Vote service returned HTTP ' + response.status);
+
+        const html = await response.text();
+        let match = html.match(/<input\s+type=["']?hidden["']?\s+name=["']?waitingdistro["']?\s+value=["']?1101["']?[^>]*>[\s\S]*?<input\s+type=["']?hidden["']?\s+name=["']?resource["']?\s+value=["']?links["']?[^>]*>[\s\S]*?(\d[\d,]*)\s+votes?/i);
+
+        if (!match) {
+            const marker = /name=["']?waitingdistro["']?\s+value=["']?1101\b/i.exec(html);
+            if (marker) {
+                const nearby = html.slice(marker.index, marker.index + 6000);
+                match = nearby.match(/(\d[\d,]*)\s+votes?/i);
+            }
+        }
+        if (!match) throw new Error('Could not locate Gamma vote count in DistroWatch response');
+
+        const votes = Number(match[1].replace(/,/g, ''));
+        if (!Number.isFinite(votes)) throw new Error('Invalid vote count');
+        window.gammaLastVotes = votes;
+        if (typeof gammaUpdateVoteLabel === 'function') gammaUpdateVoteLabel();
+        else countEl.textContent = votes.toLocaleString() + ' votes';
+        setDistroWatchStatus('Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } catch (error) {
+        console.warn('DistroWatch vote counter:', error);
+        setDistroWatchStatus('Vote count temporarily unavailable');
+    } finally {
+        button.disabled = false;
+    }
 }
+
 document.getElementById('dw-refresh')?.addEventListener('click', refreshDistroWatchVotes);
 refreshDistroWatchVotes();
-setInterval(refreshDistroWatchVotes, 15000);
+setInterval(refreshDistroWatchVotes, 10 * 60 * 1000);
+
 </script>
+
+
+<!-- ======================================================
+     SINGLE-FILE INTERNATIONALIZATION: EN / FR / AR
+     No external translation files or libraries required.
+====================================================== -->
+<script>
+(() => {
+    'use strict';
+
+    const translations = {"Home":["Accueil","الرئيسية"],"Our Story":["Notre histoire","قصتنا"],"What's New":["Nouveautés","ما الجديد"],"Features":["Fonctionnalités","المميزات"],"Requirements":["Configuration requise","المتطلبات"],"Gamma VS Others":["Gamma face aux autres","Gamma مقارنةً بالأنظمة الأخرى"],"Download":["Télécharger","تحميل"],"How to Install":["Installation","كيفية التثبيت"],"Have a Bug?":["Un problème ?","هل وجدت خللًا؟"],"Feedback":["Avis","ملاحظات"],"Roadmap":["Feuille de route","خارطة الطريق"],"Source":["Code source","الشيفرة المصدرية"],"Support Gamma Linux 🇩🇿":["Soutenir Gamma Linux 🇩🇿","ادعم Gamma Linux 🇩🇿"],"DistroWatch community votes":["Votes de la communauté DistroWatch","تصويتات مجتمع DistroWatch"],"— votes":["— votes","— صوت"],"Loading vote count…":["Chargement des votes…","جارٍ تحميل عدد الأصوات…"],"🗳️ Vote for Gamma":["🗳️ Voter pour Gamma","🗳️ صوّت لـ Gamma"],"Fast. Lightweight. Free. Built to revive old PCs.":["Rapide. Léger. Libre. Conçu pour redonner vie aux vieux PC.","سريع. خفيف. مجاني. صُمّم لإحياء الحواسيب القديمة."],"⬇️ Get Gamma Linux":["⬇️ Télécharger Gamma Linux","⬇️ احصل على Gamma Linux"],"🔥 What's New":["🔥 Nouveautés","🔥 ما الجديد"],"\"No PC deserves to die.\"":["« Aucun PC ne mérite de mourir. »","« لا يستحق أي حاسوب أن ينتهي عمره. »"],"Gamma Linux — Reviving Every Computer.":["Gamma Linux — redonner vie à chaque ordinateur.","Gamma Linux — إحياء كل حاسوب."],"📊 Gamma Linux on GitHub":["📊 Gamma Linux sur GitHub","📊 Gamma Linux على GitHub"],"Stars":["Étoiles","نجوم"],"Forks":["Forks","تفرعات"],"Total ISO Downloads":["Téléchargements ISO au total","إجمالي تنزيلات ISO"],"Latest Release":["Dernière version","أحدث إصدار"],"Loading live GitHub data…":["Chargement des données GitHub…","جارٍ تحميل بيانات GitHub المباشرة…"],"🧬 The Story Behind Gamma Linux":["🧬 L’histoire de Gamma Linux","🧬 القصة وراء Gamma Linux"],"Gamma Linux did not begin as a plan to build another Linux distribution.":["Gamma Linux n’a pas commencé par le projet de créer une autre distribution Linux.","لم تبدأ Gamma Linux بخطة لإنشاء توزيعة Linux أخرى."],"It began with a simple observation:":["Tout est parti d’une simple observation :","بدأت الفكرة بملاحظة بسيطة:"],"a lightweight desktop could make old hardware feel alive again.":["un environnement de bureau léger pouvait redonner vie à du matériel ancien.","يمكن لبيئة مكتب خفيفة أن تعيد الحياة إلى العتاد القديم."],"🌱 It Started With Bodhi Linux":["🌱 Tout a commencé avec Bodhi Linux","🌱 البداية كانت مع Bodhi Linux"],"The journey began while using":["L’aventure a commencé en utilisant","بدأت الرحلة أثناء استخدام"],"What immediately stood out was":["Ce qui m’a tout de suite marqué, c’était","ما لفت انتباهي مباشرة هو"],"— lightweight, responsive and surprisingly fast even on modest hardware.":["— léger, réactif et étonnamment rapide, même sur du matériel modeste.","— خفيف وسريع الاستجابة، وبأداء مفاجئ حتى على عتاد متواضع."],"⚡ Then I Saw How Light It Could Be":["⚡ J’ai ensuite découvert à quel point il pouvait être léger","⚡ ثم اكتشفت مدى خفته"],"Moksha was using roughly":["Moksha utilisait environ","كان Moksha يستهلك قرابة"],"while still feeling extremely responsive.":["tout en restant extrêmement réactif.","مع الحفاظ على سرعة استجابة ممتازة."],"It did not feel like a system struggling to survive. It simply":["Le système ne semblait pas lutter pour survivre. Il","لم يكن النظام يبدو وكأنه يكافح للبقاء؛ بل كان"],"flew.":["filait.","سريعًا للغاية."],"🤔 One Question Changed Everything":["🤔 Une question a tout changé","🤔 سؤال واحد غيّر كل شيء"],"A simple question appeared:":["Une question simple s’est imposée :","ظهر سؤال بسيط:"],"\"What if I pushed this idea even further?\"":["« Et si je poussais cette idée encore plus loin ? »","« ماذا لو طوّرت هذه الفكرة أكثر؟ »"],"What if an operating system could be designed from the beginning around old hardware, limited memory and efficiency?":["Et si un système était conçu dès le départ pour le matériel ancien, la mémoire limitée et l’efficacité ?","ماذا لو صُمّم نظام التشغيل منذ البداية ليلائم العتاد القديم والذاكرة المحدودة والكفاءة؟"],"The experiment became more serious and eventually became":["L’expérience est devenue plus sérieuse et a finalement donné naissance à","أصبحت التجربة أكثر جدية، وتحولت في النهاية إلى"],"It was no longer just about trying to make something lightweight. It became an attempt to build a system around a simple philosophy:":["Il ne s’agissait plus seulement de créer quelque chose de léger, mais de construire un système autour d’une philosophie simple :","لم يعد الأمر مجرد محاولة لصنع نظام خفيف، بل أصبح مشروعًا لبناء نظام حول فلسفة بسيطة:"],"old hardware still deserves a useful life.":["le matériel ancien mérite encore une vie utile.","العتاد القديم ما زال يستحق حياةً مفيدة."],"WardenOS evolved into what would become":["WardenOS a évolué pour devenir","تطوّر WardenOS ليصبح"],"The project grew beyond a lightweight desktop experiment into a complete distribution with its own editions, build system, packages, ISO releases and development ecosystem.":["Le projet a dépassé le simple environnement léger pour devenir une distribution complète, avec ses éditions, son système de construction, ses paquets, ses ISO et son écosystème de développement.","تجاوز المشروع تجربة بيئة مكتب خفيفة ليصبح توزيعة متكاملة بإصداراتها ونظام بنائها وحزمها وملفات ISO وبيئة تطويرها."],"🚀 From Experiment to 2.7 Warden":["🚀 De l’expérience à la version 2.7 Warden","🚀 من تجربة إلى 2.7 Warden"],"What started with curiosity eventually reached":["Ce qui a commencé par curiosité a finalement abouti à","ما بدأ بدافع الفضول وصل في النهاية إلى"],"The project now focuses on lightweight computing, old hardware, minimalism, performance and giving users control over what they install.":["Le projet se concentre désormais sur l’informatique légère, le matériel ancien, le minimalisme, les performances et le contrôle laissé aux utilisateurs sur ce qu’ils installent.","يركّز المشروع الآن على الحوسبة الخفيفة والعتاد القديم والبساطة والأداء ومنح المستخدم التحكم فيما يثبّته."],"From one lightweight desktop...":["D’un simple bureau léger…","من بيئة مكتب خفيفة واحدة…"],"🚀 What's New in v2.7 — Warden":["🚀 Nouveautés de la v2.7 — Warden","🚀 جديد الإصدار v2.7 — Warden"],"Warden Build System":["Système de construction Warden","نظام البناء Warden"],"The v2.7 build pipeline has been reorganized into a cleaner, more deterministic multi-stage system.":["La chaîne de construction de la v2.7 a été réorganisée en plusieurs étapes, pour un processus plus propre et prévisible.","أُعيد تنظيم عملية بناء الإصدار 2.7 إلى مراحل متعددة أكثر وضوحًا وقابلية للتوقع."],"Pre-Tuned ZRAM":["ZRAM préconfigurée","ZRAM مضبوطة مسبقًا"],"Gamma Linux now ships with edition-specific ZRAM tuning prepared directly inside the installed system.":["Gamma Linux inclut désormais un réglage de ZRAM adapté à chaque édition, intégré directement au système installé.","تأتي Gamma Linux الآن بإعدادات ZRAM مخصصة لكل إصدار ومضمّنة داخل النظام المثبّت."],"The goal is simple:":["L’objectif est simple :","الهدف بسيط:"],"better memory behavior before the user installs anything.":["une meilleure gestion de la mémoire dès le départ.","تحسين استخدام الذاكرة قبل أن يثبّت المستخدم أي شيء."],"Calamares Installer":["Installateur Calamares","مثبّت Calamares"],"Gamma Linux includes a graphical Calamares installer directly inside the live environment.":["Gamma Linux intègre l’installateur graphique Calamares dans l’environnement live.","تتضمن Gamma Linux مثبّت Calamares الرسومي داخل البيئة الحية مباشرة."],"BIOS + UEFI":["BIOS + UEFI","BIOS + UEFI"],"The ISO is designed around hybrid boot support with BIOS and UEFI boot paths.":["L’ISO est conçue pour démarrer en mode hybride, avec les chemins de démarrage BIOS et UEFI.","صُمّم ملف ISO لدعم الإقلاع الهجين عبر BIOS وUEFI."],"0 Bloat Policy":["Politique zéro superflu","سياسة بلا حشو"],"No forced browser. No Snap. No Flatpak. No telemetry by design.":["Aucun navigateur imposé. Pas de Snap. Pas de Flatpak. Pas de télémétrie par conception.","لا متصفح مفروض، ولا Snap ولا Flatpak، ولا تتبّع تشخيصي مدمج عمدًا."],"Boot QA":["Contrôle qualité du démarrage","اختبار جودة الإقلاع"],"Gamma ISO builds are tested through automated structure, boot-record and QEMU boot checks.":["Les ISO de Gamma sont vérifiées automatiquement : structure, enregistrements de démarrage et tests de démarrage avec QEMU.","تُختبر ملفات ISO الخاصة بـ Gamma آليًا من حيث البنية وسجلات الإقلاع واختبارات الإقلاع عبر QEMU."],"⚡ Core Features":["⚡ Fonctionnalités principales","⚡ الميزات الأساسية"],"0 Bloat Skeleton":["Base sans superflu","نظام أساسي بلا حشو"],"Gamma starts from a minimal base instead of forcing a large collection of applications onto every installation.":["Gamma part d’une base minimale au lieu d’imposer une grande collection d’applications à chaque installation.","تنطلق Gamma من قاعدة بسيطة بدل فرض مجموعة كبيرة من التطبيقات على كل تثبيت."],"Memory First":["La mémoire avant tout","الذاكرة أولًا"],"Edition-specific ZRAM and kernel tuning are prepared before the system reaches the user's desktop.":["Les réglages ZRAM et noyau propres à chaque édition sont préparés avant l’arrivée sur le bureau.","تُجهّز إعدادات ZRAM والنواة لكل إصدار قبل وصول النظام إلى سطح المكتب."],"Privacy by Design":["Confidentialité dès la conception","الخصوصية من أساس التصميم"],"Gamma does not intentionally add telemetry or background tracking to the base distribution.":["Gamma n’ajoute volontairement ni télémétrie ni suivi en arrière-plan à la distribution de base.","لا تضيف Gamma عمدًا أدوات قياس أو تتبّعًا في الخلفية إلى التوزيعة الأساسية."],"Old Hardware Friendly":["Adapté au matériel ancien","ملائم للعتاد القديم"],"The project is specifically focused on extending the useful life of older computers.":["Le projet vise précisément à prolonger la durée de vie utile des anciens ordinateurs.","يركّز المشروع تحديدًا على إطالة العمر المفيد للحواسيب القديمة."],"Enlightenment Desktop":["Bureau Enlightenment","سطح مكتب Enlightenment"],"A lightweight graphical environment forms the current Gamma desktop foundation.":["Un environnement graphique léger constitue actuellement la base du bureau Gamma.","تشكل بيئة رسومية خفيفة أساس سطح مكتب Gamma الحالي."],"Installer Included":["Installateur inclus","المثبّت مضمّن"],"The live system provides a graphical installation path using Calamares.":["Le système live propose une installation graphique avec Calamares.","يوفّر النظام الحي طريقة تثبيت رسومية باستخدام Calamares."],"💻 System Requirements":["💻 Configuration requise","💻 متطلبات النظام"],"Gamma is designed to run on old hardware, but \"minimum\" and \"recommended\" are not the same thing.":["Gamma est conçue pour fonctionner sur du matériel ancien, mais la configuration « minimale » diffère de la configuration « recommandée ».","صُممت Gamma للعمل على العتاد القديم، لكن «الحد الأدنى» لا يعني «الموصى به»."],"CPU: 32-bit x86":["Processeur : x86 32 bits","المعالج: x86 ‏32-بت"],"CPU: 64-bit x86":["Processeur : x86 64 bits","المعالج: x86 ‏64-بت"],"RAM:":["Mémoire RAM :","الذاكرة RAM:"],"512 MB minimum":["512 Mo minimum","512 ميغابايت كحد أدنى"],"1 GB minimum":["1 Go minimum","1 غيغابايت كحد أدنى"],"2 GB minimum":["2 Go minimum","2 غيغابايت كحد أدنى"],"Storage:":["Stockage :","التخزين:"],"Architecture:":["Architecture :","المعمارية:"],"Reality check:":["À retenir :","ملاحظة مهمة:"],"These are practical targets, not promises of perfect performance on every machine. RAM usage, graphics hardware, storage speed and desktop workload can significantly affect the experience.":["Ce sont des objectifs réalistes, pas une garantie de performances parfaites sur chaque machine. La RAM, le processeur graphique, le stockage et la charge du bureau peuvent changer sensiblement l’expérience.","هذه أهداف عملية وليست ضمانًا لأداء مثالي على كل جهاز. تؤثر الذاكرة والرسوميات وسرعة التخزين وحمل سطح المكتب في التجربة."],"⚔️ Gamma VS Others":["⚔️ Gamma face aux autres","⚔️ Gamma مقارنةً بالأنظمة الأخرى"],"No fake benchmark numbers. No \"Gamma is faster than everything\" marketing. This comparison focuses on the project's actual philosophy and design choices.":["Pas de chiffres de benchmark inventés ni de slogans affirmant que Gamma est plus rapide que tout. La comparaison porte sur la philosophie et les choix réels du projet.","لا أرقام أداء مزيفة ولا ادعاء بأن Gamma أسرع من الجميع. تركّز المقارنة على فلسفة المشروع وخيارات تصميمه الفعلية."],"Feature":["Critère","الميزة"],"Windows":["Windows","Windows"],"Typical Lightweight Linux":["Distribution Linux légère typique","توزيعة Linux خفيفة معتادة"],"Open Source Base":["Base open source","قاعدة مفتوحة المصدر"],"Forced Browser":["Navigateur imposé","متصفح مفروض"],"Usually included":["Généralement inclus","غالبًا مضمّن"],"Depends on distro":["Selon la distribution","حسب التوزيعة"],"Not required":["Non imposé","غير مطلوب"],"Snap / Flatpak":["Snap / Flatpak","Snap / Flatpak"],"Not part of the base policy":["Ne fait pas partie de la politique de base","ليسا ضمن سياسة النظام الأساسية"],"Telemetry Philosophy":["Politique de télémétrie","سياسة جمع بيانات الاستخدام"],"Platform dependent":["Dépend de la plateforme","تعتمد على المنصة"],"Usually configurable":["Généralement configurable","يمكن ضبطها عادةً"],"No intentional Gamma telemetry":["Aucune télémétrie ajoutée volontairement par Gamma","لا تضيف Gamma تتبّعًا عمدًا"],"Old Hardware Focus":["Priorité au matériel ancien","التركيز على العتاد القديم"],"Limited by Windows support":["Limité par la prise en charge de Windows","محدود بدعم Windows"],"Often supported":["Souvent pris en charge","غالبًا مدعوم"],"Core project goal":["Objectif central du projet","هدف المشروع الأساسي"],"32-bit Edition":["Édition 32 bits","إصدار 32-بت"],"❌ Modern Windows":["❌ Windows moderne","❌ Windows الحديث"],"Rare today":["Rare aujourd’hui","نادر حاليًا"],"✅ Legacy-32":["✅ Legacy-32","✅ Legacy-32"],"Depends":["Cela dépend","حسب الحالة"],"✅ Edition-specific":["✅ Selon l’édition","✅ حسب الإصدار"],"Installer":["Installateur","المثبّت"],"Windows Setup":["Installation Windows","مثبّت Windows"],"Calamares":["Calamares","Calamares"],"Gamma is not trying to win by putting the biggest number on a benchmark table.":["Gamma ne cherche pas à gagner en affichant le plus gros chiffre dans un tableau de benchmark.","لا تحاول Gamma الفوز بمجرد وضع أكبر رقم في جدول اختبارات الأداء."],"The goal is to give old hardware another useful life.":["L’objectif est d’offrir une nouvelle vie utile au matériel ancien.","الهدف هو منح العتاد القديم فرصة أخرى لحياة مفيدة."],"💿 Download Gamma Linux 2.7":["💿 Télécharger Gamma Linux 2.7","💿 تحميل Gamma Linux 2.7"],"512 MB+ RAM · 32-bit":["RAM : 512 Mo ou plus · 32 bits","ذاكرة 512 ميغابايت فأكثر · 32-بت"],"For older 32-bit x86 machines.":["Pour les anciennes machines x86 32 bits.","للأجهزة القديمة بمعمارية x86 ‏32-بت."],"📥 Releases":["📥 Versions","📥 الإصدارات"],"1 GB+ RAM · 64-bit":["RAM : 1 Go ou plus · 64 bits","ذاكرة 1 غيغابايت فأكثر · 64-بت"],"For low-resource modern x86-64 machines.":["Pour les machines x86-64 modernes à ressources limitées.","للأجهزة الحديثة x86-64 ذات الموارد المحدودة."],"2 GB+ RAM · 64-bit":["RAM : 2 Go ou plus · 64 bits","ذاكرة 2 غيغابايت فأكثر · 64-بت"],"For machines with more resources and heavier workloads.":["Pour les machines plus puissantes et les tâches plus exigeantes.","للأجهزة ذات الموارد الأكبر والأعمال الأكثر تطلبًا."],"Always verify the SHA256 checksum supplied with the release.":["Vérifiez toujours la somme de contrôle SHA256 fournie avec la version téléchargée.","تحقّق دائمًا من بصمة SHA256 المرفقة مع الإصدار."],"🛠️ How to Install":["🛠️ Comment installer","🛠️ طريقة التثبيت"],"⚠️ Windows Fast Startup — Read This First":["⚠️ Démarrage rapide de Windows — à lire avant tout","⚠️ بدء التشغيل السريع في Windows — اقرأ هذا أولًا"],"If Windows is installed on the same computer and you plan to dual-boot,":["Si Windows est installé sur le même ordinateur et que vous souhaitez un double démarrage,","إذا كان Windows مثبتًا على الحاسوب نفسه وتريد الإقلاع المزدوج،"],"disable Windows Fast Startup before installing Gamma Linux.":["désactivez le démarrage rapide de Windows avant d’installer Gamma Linux.","عطّل بدء التشغيل السريع في Windows قبل تثبيت Gamma Linux."],"Windows Fast Startup uses hibernation-related mechanisms instead of performing a completely fresh shutdown. Leaving it enabled can cause problems when Linux accesses Windows partitions.":["Le démarrage rapide de Windows utilise des mécanismes liés à l’hibernation au lieu d’un arrêt complet. S’il reste activé, Linux peut rencontrer des problèmes en accédant aux partitions Windows.","يستخدم بدء التشغيل السريع آليات مرتبطة بالإسبات بدل إيقاف كامل. وقد يسبب تركه مفعّلًا مشاكل عند وصول Linux إلى أقسام Windows."],"Open Command Prompt as Administrator in Windows":["Ouvrez l’invite de commandes Windows en tant qu’administrateur","افتح موجه أوامر Windows بصلاحيات المسؤول"],"and run:":["puis exécutez :","ثم نفّذ الأمر:"],"This disables hibernation and therefore disables Fast Startup. After running the command, perform a complete Windows shutdown before booting the Gamma Linux USB.":["Cette commande désactive l’hibernation et donc le démarrage rapide. Après l’avoir exécutée, arrêtez complètement Windows avant de démarrer sur la clé USB Gamma Linux.","يعطّل هذا الأمر الإسبات وبالتالي بدء التشغيل السريع. بعد تنفيذه، أوقف Windows إيقافًا كاملًا قبل الإقلاع من USB الخاص بـ Gamma Linux."],"🥀 A Lesson From My Own Installation":["🥀 Une leçon tirée de ma propre installation","🥀 درس من تجربتي الشخصية في التثبيت"],"I personally forgot to disable Windows Fast Startup before installing Bodhi Linux.":["J’ai moi-même oublié de désactiver le démarrage rapide de Windows avant d’installer Bodhi Linux.","نسيت شخصيًا تعطيل بدء التشغيل السريع في Windows قبل تثبيت Bodhi Linux."],"The result was a damaged Windows boot environment: the":["Résultat : l’environnement de démarrage de Windows a été endommagé :","كانت النتيجة تضرر بيئة إقلاع Windows:"],"BCD / boot configuration was affected":["la configuration BCD / de démarrage a été touchée","تأثر إعداد الإقلاع BCD"],"and Windows required recovery work afterward.":["et Windows a ensuite nécessité une réparation.","واحتاج Windows بعدها إلى عملية إصلاح."],"This is why Gamma Linux puts this warning directly in the installation guide.":["C’est pourquoi Gamma Linux place cet avertissement directement dans le guide d’installation.","لهذا تضع Gamma Linux هذا التحذير مباشرة في دليل التثبيت."],"Don't skip this step if Windows is important to you.":["Ne sautez pas cette étape si Windows compte pour vous.","لا تتجاوز هذه الخطوة إذا كان Windows مهمًا بالنسبة إليك."],"Prepare Windows":["Préparer Windows","تحضير Windows"],"If dual-booting, boot into Windows first. Open an Administrator Command Prompt and run:":["Pour un double démarrage, démarrez d’abord Windows. Ouvrez l’invite de commandes en tant qu’administrateur et exécutez :","للإقلاع المزدوج، أقلع إلى Windows أولًا. افتح موجه الأوامر كمسؤول ونفّذ الأمر التالي:"],"Then completely shut down Windows.":["Ensuite, arrêtez complètement Windows.","بعدها أوقف Windows إيقافًا كاملًا."],"Create the USB":["Créer la clé USB","إنشاء USB للإقلاع"],"Write the Gamma Linux ISO to a USB drive using a tool such as":["Écrivez l’ISO de Gamma Linux sur une clé USB à l’aide d’un outil comme","اكتب ملف ISO الخاص بـ Gamma Linux على USB باستخدام أداة مثل"],"or":["ou","أو"],"For older systems, verify whether the machine boots through Legacy BIOS or UEFI before choosing the appropriate configuration.":["Sur les anciens systèmes, vérifiez si la machine démarre en BIOS Legacy ou en UEFI avant de choisir la configuration adaptée.","في الأجهزة القديمة، تحقّق مما إذا كان الإقلاع عبر BIOS التقليدي أو UEFI قبل اختيار الإعداد المناسب."],"Boot Gamma Linux":["Démarrer Gamma Linux","الإقلاع إلى Gamma Linux"],"Restart the computer and open the firmware boot menu. Common keys include:":["Redémarrez l’ordinateur et ouvrez le menu de démarrage du firmware. Les touches courantes sont :","أعد تشغيل الحاسوب وافتح قائمة الإقلاع الخاصة بالـ firmware. من المفاتيح الشائعة:"],"Select the Gamma Linux USB and start the live environment.":["Sélectionnez la clé USB Gamma Linux et lancez l’environnement live.","اختر USB الخاص بـ Gamma Linux وابدأ البيئة الحية."],"Test Before Installing":["Tester avant l’installation","اختبر قبل التثبيت"],"Use the live environment first. Check your keyboard, display, storage, network and general hardware compatibility.":["Commencez par l’environnement live. Vérifiez le clavier, l’écran, le stockage, le réseau et la compatibilité générale du matériel.","استخدم البيئة الحية أولًا. اختبر لوحة المفاتيح والشاشة والتخزين والشبكة وتوافق العتاد عمومًا."],"If everything works correctly, continue to installation.":["Si tout fonctionne correctement, poursuivez l’installation.","إذا كان كل شيء يعمل بشكل صحيح، انتقل إلى التثبيت."],"Launch Calamares":["Lancer Calamares","تشغيل Calamares"],"Open":["Ouvrez","افتح"],"Install Gamma Linux":["Installer Gamma Linux","تثبيت Gamma Linux"],"from the live desktop. The graphical Calamares installer will guide you through:":["depuis le bureau live. L’installateur graphique Calamares vous guidera à travers les étapes suivantes :","من سطح المكتب الحي. سيرشدك مثبّت Calamares الرسومي خلال الخطوات التالية:"],"Language and region":["Langue et région","اللغة والمنطقة"],"Keyboard layout":["Disposition du clavier","تخطيط لوحة المفاتيح"],"Disk configuration":["Configuration du disque","إعداد القرص"],"User creation":["Création du compte utilisateur","إنشاء المستخدم"],"Bootloader configuration":["Configuration du chargeur de démarrage","إعداد محمّل الإقلاع"],"Final installation":["Installation finale","التثبيت النهائي"],"Reboot":["Redémarrer","إعادة التشغيل"],"When installation finishes, reboot the computer and remove the USB drive when requested.":["À la fin de l’installation, redémarrez l’ordinateur et retirez la clé USB lorsque cela est demandé.","بعد انتهاء التثبيت، أعد تشغيل الحاسوب وانزع USB عند طلب ذلك."],"Your installed Gamma Linux system should then boot normally.":["Votre système Gamma Linux installé devrait alors démarrer normalement.","يفترض أن يقلع نظام Gamma Linux المثبّت بشكل طبيعي بعد ذلك."],"Recommended:":["Recommandation :","موصى به:"],"Always test Gamma Linux in Live Mode before installing it. Your hardware may behave differently from another machine.":["Testez toujours Gamma Linux en mode live avant de l’installer. Votre matériel peut se comporter différemment de celui d’une autre machine.","اختبر Gamma Linux دائمًا في الوضع الحي قبل تثبيته؛ فقد يتصرف عتادك بشكل مختلف عن جهاز آخر."],"🐛 Have a Bug?":["🐛 Un bug à signaler ?","🐛 هل وجدت خللًا؟"],"Found something broken, strange or unexpected?":["Vous avez trouvé un problème, un comportement étrange ou inattendu ?","وجدت شيئًا معطّلًا أو غريبًا أو غير متوقع؟"],"Don't just leave.":["Ne partez pas sans le signaler.","ما تخليش المشكلة بلا تبليغ."],"Tell us what happened so we can investigate it.":["Décrivez-nous le problème pour que nous puissions l’examiner.","أخبرنا بما حدث حتى نتمكن من التحقيق في المشكلة."],"Your name":["Votre nom","اسمك"],"PC model":["Modèle du PC","طراز الحاسوب"],"CPU":["Processeur","المعالج"],"RAM":["RAM","الذاكرة"],"Storage":["Stockage","التخزين"],"Gamma Edition":["Édition Gamma","إصدار Gamma"],"Select edition":["Choisir une édition","اختر الإصدار"],"Describe the bug":["Décrivez le problème","اشرح الخلل"],"Photo / screenshot URL":["Lien de la photo / capture d’écran","رابط صورة / لقطة شاشة"],"📧 Send Bug Report":["📧 Envoyer le rapport de bug","📧 إرسال تقرير الخلل"],"Tip:":["Conseil :","نصيحة:"],"A photo of the error screen, boot message or broken interface can be extremely useful for debugging.":["Une photo de l’écran d’erreur, du message de démarrage ou de l’interface défectueuse peut être très utile pour le diagnostic.","يمكن لصورة شاشة الخطأ أو رسالة الإقلاع أو الواجهة المعطوبة أن تساعد كثيرًا في التشخيص."],"💬 Give a Feedback":["💬 Donner votre avis","💬 أرسل ملاحظاتك"],"Tell us what you like, what you dislike, what should change, or what you want to see in a future Gamma Linux release.":["Dites-nous ce que vous aimez, ce qui vous déplaît, ce qui devrait changer ou ce que vous aimeriez voir dans une prochaine version de Gamma Linux.","أخبرنا بما يعجبك وما لا يعجبك وما ينبغي تغييره أو ما تريد رؤيته في إصدار قادم من Gamma Linux."],"Feedback type":["Type de retour","نوع الملاحظة"],"Select type":["Choisir un type","اختر النوع"],"Suggestion":["Suggestion","اقتراح"],"Feature Request":["Demande de fonctionnalité","طلب ميزة"],"Design Feedback":["Avis sur le design","ملاحظات حول التصميم"],"Performance Feedback":["Avis sur les performances","ملاحظات حول الأداء"],"Documentation":["Documentation","التوثيق"],"General Feedback":["Avis général","ملاحظات عامة"],"Your feedback":["Votre avis","ملاحظاتك"],"📧 Send Feedback":["📧 Envoyer votre avis","📧 إرسال الملاحظات"],"🗺️ Gamma Linux Roadmap":["🗺️ Feuille de route de Gamma Linux","🗺️ خارطة طريق Gamma Linux"],"✅ Gamma Linux 2.7 — Warden":["✅ Gamma Linux 2.7 — Warden","✅ Gamma Linux 2.7 — Warden"],"Current release.":["Version actuelle.","الإصدار الحالي."],"Multi-stage build pipeline":["Chaîne de construction en plusieurs étapes","عملية بناء متعددة المراحل"],"Pre-tuned ZRAM":["ZRAM préconfigurée","ZRAM مضبوطة مسبقًا"],"Calamares integration":["Intégration de Calamares","دمج Calamares"],"BIOS + UEFI boot support":["Prise en charge du démarrage BIOS + UEFI","دعم الإقلاع عبر BIOS وUEFI"],"Automated ISO QA":["Contrôle qualité ISO automatisé","اختبار جودة ISO آليًا"],"Legacy-32 / Lite-Ghost / Pro-MaxMini editions":["Éditions Legacy-32 / Lite-Ghost / Pro-MaxMini","إصدارات Legacy-32 / Lite-Ghost / Pro-MaxMini"],"Improved installation workflow":["Processus d’installation amélioré","تحسين خطوات التثبيت"],"🚧 2.8 — Experimental Hardware Expansion":["🚧 2.8 — Extension expérimentale du matériel pris en charge","🚧 2.8 — توسيع تجريبي لدعم العتاد"],"Hardware compatibility improvements":["Amélioration de la compatibilité matérielle","تحسين توافق العتاد"],"More old-PC testing":["Davantage de tests sur de vieux PC","اختبارات أكثر على الحواسيب القديمة"],"Better graphics fallback handling":["Meilleure gestion des solutions graphiques de secours","تحسين التعامل مع بدائل الرسوميات"],"Installer refinements":["Améliorations de l’installateur","تحسينات المثبّت"],"Boot reliability improvements":["Amélioration de la fiabilité du démarrage","تحسين موثوقية الإقلاع"],"Expanded documentation":["Documentation enrichie","توسيع التوثيق"],"🔮 2.9 — Gamma Ecosystem":["🔮 2.9 — Écosystème Gamma","🔮 2.9 — منظومة Gamma"],"Improved package management experience":["Gestion des paquets améliorée","تحسين تجربة إدارة الحزم"],"Software archive integration":["Intégration d’une archive logicielle","دمج أرشيف للبرامج"],"Better update workflow":["Processus de mise à jour amélioré","تحسين طريقة التحديث"],"More Gamma-specific utilities":["Davantage d’utilitaires propres à Gamma","المزيد من أدوات Gamma الخاصة"],"Improved recovery tools":["Outils de récupération améliorés","تحسين أدوات الاستعادة"],"🌌 3.0 — Next Generation Gamma":["🌌 3.0 — Nouvelle génération de Gamma","🌌 3.0 — الجيل الجديد من Gamma"],"Modernized desktop architecture":["Architecture du bureau modernisée","تحديث بنية سطح المكتب"],"Wayland experimentation":["Expérimentation avec Wayland","تجارب Wayland"],"Improved hardware abstraction":["Abstraction matérielle améliorée","تحسين طبقة تجريد العتاد"],"More modular system architecture":["Architecture système plus modulaire","بنية نظام أكثر قابلية للتقسيم إلى وحدات"],"Expanded architecture support":["Prise en charge élargie des architectures","توسيع دعم المعماريات"],"🧪 Long-Term — Gamma Everywhere":["🧪 À long terme — Gamma partout","🧪 على المدى البعيد — Gamma في كل مكان"],"More legacy hardware profiles":["Davantage de profils pour le matériel ancien","المزيد من ملفات تعريف العتاد القديم"],"Additional architectures where practical":["Autres architectures lorsque cela est réaliste","معماريات إضافية حيث يكون ذلك عمليًا"],"Better recovery and rescue tooling":["Meilleurs outils de récupération et de secours","تحسين أدوات الإنقاذ والاستعادة"],"Community-driven hardware database":["Base de données matérielle alimentée par la communauté","قاعدة بيانات للعتاد بمساهمة المجتمع"],"Expanded documentation and testing":["Documentation et tests élargis","توسيع التوثيق والاختبارات"],"The roadmap is a direction, not a promise.":["Cette feuille de route indique une direction, pas une promesse.","خارطة الطريق توجّه للمشروع وليست وعدًا."],"Gamma is developed around real hardware, real testing and available time. Features may move, change or be replaced.":["Gamma se développe autour de matériel réel, de tests réels et du temps disponible. Les fonctionnalités peuvent évoluer, changer ou être remplacées.","تُطوَّر Gamma بالاعتماد على عتاد حقيقي واختبارات فعلية والوقت المتاح. قد تتغير الميزات أو يتغير ترتيبها أو تُستبدل."],"🔓 Source Code":["🔓 Code source","🔓 الشيفرة المصدرية"],"Gamma Linux is Open Source":["Gamma Linux est open source","Gamma Linux مفتوحة المصدر"],"The Gamma Linux build system, configuration files and development work are publicly available.":["Le système de construction de Gamma Linux, ses fichiers de configuration et son développement sont accessibles publiquement.","نظام بناء Gamma Linux وملفات الإعداد والتطوير متاحة للعموم."],"Inspect it. Fork it. Improve it.":["Étudiez-la. Forkez-la. Améliorez-la.","افحصها، أنشئ نسخة متفرعة منها، وطوّرها."],"⭐ View Gamma Linux on GitHub":["⭐ Voir Gamma Linux sur GitHub","⭐ اعرض Gamma Linux على GitHub"],"📜 License":["📜 Licence","📜 الترخيص"],"REAL-WORLD TESTING":["TESTS EN CONDITIONS RÉELLES","اختبارات في الواقع"],"🧪 Community Testing":["🧪 Tests de la communauté","🧪 اختبارات المجتمع"],"Gamma Linux is tested on real machines by real people. Every installation and every piece of feedback helps shape the project.":["Gamma Linux est testée sur de vraies machines par de vraies personnes. Chaque installation et chaque retour contribuent à façonner le projet.","يختبر أشخاص حقيقيون Gamma Linux على أجهزة حقيقية. كل تثبيت وكل ملاحظة يساهمان في تطوير المشروع."],"Thom — 2 Real Computers":["Thom — 2 ordinateurs réels","Thom — حاسوبان حقيقيان"],"A special thank you to":["Un grand merci à","شكر خاص لـ"],"from LinuxCommunity for taking Gamma Linux beyond the developer's machine and testing it on real hardware.":["de LinuxCommunity, qui a testé Gamma Linux sur du vrai matériel, au-delà de la machine du développeur.","من LinuxCommunity، لاختبار Gamma Linux على عتاد حقيقي خارج جهاز المطوّر."],"After working through several installation and compatibility issues, Thom successfully got Gamma Linux installed on":["Après avoir résolu plusieurs problèmes d’installation et de compatibilité, Thom a réussi à installer Gamma Linux sur","بعد التعامل مع عدة مشاكل في التثبيت والتوافق، نجح Thom في تثبيت Gamma Linux على"],"two different computers":["deux ordinateurs différents","حاسوبين مختلفين"],"That's exactly the kind of real-world testing Gamma needs: old hardware, unexpected problems, honest feedback and actual installations.":["C’est exactement le type de test dont Gamma a besoin : matériel ancien, problèmes inattendus, retours honnêtes et installations réelles.","هذا بالضبط ما تحتاجه Gamma: عتاد قديم، مشاكل غير متوقعة، ملاحظات صادقة وتثبيت فعلي."],"💬 Read the LinuxCommunity topic":["💬 Lire le sujet sur LinuxCommunity","💬 اقرأ موضوع LinuxCommunity"],"Thank You, Thom!":["Merci, Thom !","شكرًا لك يا Thom!"],"Thank you for taking the time to test Gamma, report problems, try different machines and keep investigating when the first attempts didn't work.":["Merci d’avoir pris le temps de tester Gamma, de signaler les problèmes, d’essayer différentes machines et de poursuivre les recherches après les premiers échecs.","شكرًا على تخصيص الوقت لاختبار Gamma والإبلاغ عن المشاكل وتجربتها على أجهزة مختلفة ومواصلة البحث رغم فشل المحاولات الأولى."],"Your feedback is not just a comment on a forum — it is part of Gamma Linux's real development and testing history.":["Votre retour n’est pas qu’un commentaire sur un forum : il fait partie de l’histoire réelle du développement et des tests de Gamma Linux.","ملاحظاتك ليست مجرد تعليق في منتدى، بل هي جزء من تاريخ تطوير Gamma Linux واختبارها فعليًا."],"Thank you for testing Gamma. Thank you for the feedback. And thank you for giving old hardware another chance.":["Merci d’avoir testé Gamma, merci pour vos retours et merci d’offrir une nouvelle chance au matériel ancien.","شكرًا لاختبار Gamma، وشكرًا على ملاحظاتك، وشكرًا لمنح العتاد القديم فرصة أخرى."],"Community milestone":["Étape importante pour la communauté","إنجاز مجتمعي"],"Thom has tested Gamma Linux on two different computers.":["Thom a testé Gamma Linux sur deux ordinateurs différents.","اختبر Thom نظام Gamma Linux على حاسوبين مختلفين."],"🔎 Want to Review Gamma?":["🔎 Envie de tester Gamma ?","🔎 هل تريد مراجعة Gamma؟"],"Independent Reviews Welcome":["Les avis indépendants sont les bienvenus","نرحّب بالمراجعات المستقلة"],"If you are a YouTuber, Linux creator, hardware tester, developer, journalist or experienced Linux user, you are welcome to independently review Gamma Linux.":["Si vous êtes vidéaste YouTube, créateur Linux, testeur matériel, développeur, journaliste ou utilisateur Linux expérimenté, vous pouvez publier un avis indépendant sur Gamma Linux.","إذا كنت صانع محتوى على YouTube أو مهتمًا بـ Linux أو مختبر عتاد أو مطوّرًا أو صحفيًا أو مستخدم Linux خبيرًا، فنرحّب بمراجعتك المستقلة لـ Gamma Linux."],"No paid review. No scripted praise. No required opinion.":["Aucun avis rémunéré. Aucun éloge scénarisé. Aucune opinion imposée.","لا مراجعات مدفوعة، ولا مديح مكتوب مسبقًا، ولا رأي مفروض."],"Use it on your own hardware, test it honestly and publish whatever conclusion you reach.":["Utilisez-la sur votre propre matériel, testez-la honnêtement et publiez votre conclusion, quelle qu’elle soit.","جرّبها على عتادك، واختبرها بصدق، وانشر النتيجة التي تصل إليها."],"📧 Request a Review":["📧 Demander une évaluation","📧 طلب مراجعة"],"Even a critical review can help Gamma improve.":["Même une critique peut aider Gamma à s’améliorer.","حتى المراجعة النقدية يمكن أن تساعد Gamma على التحسن."],"We would rather receive an honest technical review than artificial praise.":["Nous préférons une analyse technique honnête à des éloges artificiels.","نفضّل مراجعة تقنية صادقة على مديح مصطنع."],"Report Bug":["Signaler un bug","الإبلاغ عن خلل"],"GitHub":["GitHub","GitHub"],"GPL v3 · Made in Algeria 🇩🇿":["GPL v3 · Fabriqué en Algérie 🇩🇿","GPL v3 · صُنع في الجزائر 🇩🇿"],"Optional":["Facultatif","اختياري"],"Example: Dell Latitude E6430":["Exemple : Dell Latitude E6430","مثال: Dell Latitude E6430"],"Example: Intel Core i5-3320M":["Exemple : Intel Core i5-3320M","مثال: Intel Core i5-3320M"],"Example: 4 GB":["Exemple : 4 Go","مثال: 4 غيغابايت"],"Example: 500 GB HDD":["Exemple : disque dur de 500 Go","مثال: قرص HDD بسعة 500 غيغابايت"],"What happened? What did you expect? What happened instead?":["Que s’est-il passé ? Qu’attendiez-vous ? Que s’est-il passé à la place ?","ماذا حدث؟ ماذا كنت تتوقع؟ وما الذي حدث بدلًا من ذلك؟"],"Optional — paste an image link if available":["Facultatif — collez un lien vers une image si disponible","اختياري — أضف رابط صورة إن توفر"],"Tell us what you think...":["Dites-nous ce que vous en pensez…","أخبرنا برأيك…"],"Refresh DistroWatch vote count":["Actualiser le nombre de votes DistroWatch","تحديث عدد أصوات DistroWatch"],"Refresh vote count":["Actualiser les votes","تحديث عدد الأصوات"],"Updating vote count…":["Mise à jour du nombre de votes…","جارٍ تحديث عدد الأصوات…"],"Vote count temporarily unavailable":["Nombre de votes temporairement indisponible","عدد الأصوات غير متاح مؤقتًا"],"GitHub statistics are temporarily unavailable.":["Les statistiques GitHub sont temporairement indisponibles.","إحصائيات GitHub غير متاحة مؤقتًا."],"Gamma Linux 2.7 Warden — Bug Report":["Gamma Linux 2.7 Warden — Rapport de bug","Gamma Linux 2.7 Warden — تقرير خلل"],"Gamma Linux 2.7 Warden — Feedback":["Gamma Linux 2.7 Warden — Avis","Gamma Linux 2.7 Warden — ملاحظات"],"Not provided":["Non renseigné","لم يُذكر"],"User:":["Utilisateur :","المستخدم:"],"PC Model:":["Modèle du PC :","طراز الحاسوب:"],"Gamma Edition:":["Édition Gamma :","إصدار Gamma:"],"Bug Description:":["Description du bug :","وصف الخلل:"],"Photo / Screenshot:":["Photo / capture d’écran :","الصورة / لقطة الشاشة:"],"Feedback Type:":["Type de retour :","نوع الملاحظة:"],"Feedback:":["Avis :","الملاحظات:"],"Sent from the Gamma Linux website.":["Envoyé depuis le site web de Gamma Linux.","أُرسلت من موقع Gamma Linux."],"Updated":["Mis à jour","تم التحديث"],"No PC deserves to die.":["Aucun PC ne mérite de mourir.","لا يستحق أي حاسوب أن يموت."],"8 GB+":["8 Go+","8 غيغابايت+"],"10 GB+":["10 Go+","10 غيغابايت+"],"15 GB+":["15 Go+","15 غيغابايت+"],"330 MB of RAM":["330 Mo de RAM","330 ميغابايت من الذاكرة"]};
+    const validLanguages = ['en', 'fr', 'ar'];
+    const localeIndex = { fr: 0, ar: 1 };
+    let currentLanguage = 'en';
+    try {
+        const saved = localStorage.getItem('gamma-site-language');
+        if (validLanguages.includes(saved)) currentLanguage = saved;
+    } catch (_) { /* Storage can be unavailable in private/restricted contexts. */ }
+
+    const normalize = value => String(value).replace(/\s+/g, ' ').trim();
+    const originalTextNodes = [];
+    const originalAttributes = [];
+
+    // Public helper used by the existing GitHub / DistroWatch status messages.
+    window.gammaTranslate = function (englishText) {
+        const text = String(englishText ?? '');
+        if (currentLanguage === 'en') return text;
+        const key = normalize(text);
+        if (Object.prototype.hasOwnProperty.call(translations, key)) {
+            return translations[key][localeIndex[currentLanguage]] || key;
+        }
+        if (text.startsWith('Live data from GitHub · Updated ')) {
+            const time = text.slice('Live data from GitHub · Updated '.length);
+            return currentLanguage === 'fr'
+                ? `Données en direct de GitHub · Mis à jour ${time}`
+                : `بيانات GitHub المباشرة · تم التحديث ${time}`;
+        }
+        if (text.startsWith('Updated ')) {
+            const time = text.slice('Updated '.length);
+            return currentLanguage === 'fr' ? `Mis à jour ${time}` : `تم التحديث ${time}`;
+        }
+        return text;
+    };
+
+    window.gammaUpdateVoteLabel = function () {
+        const count = document.getElementById('dw-votes');
+        if (!count || !Number.isFinite(Number(window.gammaLastVotes))) return;
+        const n = Number(window.gammaLastVotes).toLocaleString(
+            currentLanguage === 'ar' ? 'ar' : currentLanguage === 'fr' ? 'fr-FR' : 'en-US'
+        );
+        const suffix = currentLanguage === 'fr' ? 'votes' : currentLanguage === 'ar' ? 'صوت' : 'votes';
+        count.textContent = `${n} ${suffix}`;
+    };
+
+    window.setDistroWatchStatus = function (englishText) {
+        const status = document.getElementById('dw-status');
+        if (!status) return;
+        status.dataset.gammaMessage = englishText;
+        status.textContent = window.gammaTranslate(englishText);
+    };
+
+    function injectLanguageSwitcher() {
+        const nav = document.querySelector('body > nav, nav');
+        if (!nav || document.getElementById('gamma-language-switcher')) return;
+        const wrap = document.createElement('div');
+        wrap.id = 'gamma-language-switcher';
+        wrap.setAttribute('role', 'group');
+        wrap.setAttribute('aria-label', 'Choose language');
+        const labels = { en: 'EN', fr: 'FR', ar: 'AR' };
+        for (const lang of validLanguages) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = labels[lang];
+            button.dataset.gammaLang = lang;
+            button.setAttribute('aria-label', {en:'English',fr:'Français',ar:'العربية'}[lang]);
+            button.addEventListener('click', () => applyLanguage(lang));
+            wrap.appendChild(button);
+        }
+        nav.insertBefore(wrap, nav.firstChild);
+    }
+
+    function saveOriginals() {
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+                if (node.parentElement && node.parentElement.closest('script, style, template, #gamma-language-switcher')) return NodeFilter.FILTER_REJECT;
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+        let node;
+        while ((node = walker.nextNode())) originalTextNodes.push({node, original: node.nodeValue});
+
+        for (const el of document.querySelectorAll('[placeholder], [title], [aria-label], [alt]')) {
+            for (const attr of ['placeholder', 'title', 'aria-label', 'alt']) {
+                if (el.hasAttribute(attr)) originalAttributes.push({el, attr, original: el.getAttribute(attr)});
+            }
+        }
+    }
+
+    function applyLanguage(lang) {
+        if (!validLanguages.includes(lang)) lang = 'en';
+        currentLanguage = lang;
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+
+        const titles = {
+            en: 'Gamma Linux 2.7 Warden',
+            fr: 'Gamma Linux 2.7 Warden — Léger, rapide et libre',
+            ar: 'Gamma Linux 2.7 Warden — خفيف وسريع ومجاني'
+        };
+        document.title = titles[lang];
+        const description = document.querySelector('meta[name="description"]');
+        if (description) description.content = ({
+            en: 'Gamma Linux 2.7 Warden — lightweight, free, open-source Linux built to revive old PCs.',
+            fr: 'Gamma Linux 2.7 Warden — une distribution Linux légère, libre et open source conçue pour redonner vie aux vieux PC.',
+            ar: 'Gamma Linux 2.7 Warden — توزيعة Linux خفيفة ومجانية ومفتوحة المصدر لإحياء الحواسيب القديمة.'
+        })[lang];
+
+        for (const item of originalTextNodes) {
+            if (!item.node.isConnected) continue;
+            const key = normalize(item.original);
+            if (lang === 'en') {
+                item.node.nodeValue = item.original;
+                continue;
+            }
+            if (Object.prototype.hasOwnProperty.call(translations, key)) {
+                const value = translations[key][localeIndex[lang]];
+                if (value) {
+                    const leading = item.original.match(/^\s*/)[0];
+                    const trailing = item.original.match(/\s*$/)[0];
+                    item.node.nodeValue = leading + value + trailing;
+                } else {
+                    item.node.nodeValue = item.original;
+                }
+            } else {
+                item.node.nodeValue = item.original;
+            }
+        }
+
+        for (const item of originalAttributes) {
+            if (!item.el.isConnected) continue;
+            const key = normalize(item.original);
+            const translated = translations[key];
+            item.el.setAttribute(item.attr, lang === 'en' ? item.original : (translated ? translated[localeIndex[lang]] || item.original : item.original));
+        }
+
+        const switcher = document.getElementById('gamma-language-switcher');
+        if (switcher) {
+            for (const button of switcher.querySelectorAll('button[data-gamma-lang]')) {
+                button.setAttribute('aria-pressed', String(button.dataset.gammaLang === lang));
+            }
+        }
+        try { localStorage.setItem('gamma-site-language', lang); } catch (_) { /* Keep working without storage. */ }
+
+        // Re-apply language to text written asynchronously by the API widgets.
+        const githubStatus = document.getElementById('github-stats-status');
+        if (githubStatus && githubStatus.dataset.gammaMessage) {
+            githubStatus.textContent = window.gammaTranslate(githubStatus.dataset.gammaMessage);
+        }
+        const dwStatus = document.getElementById('dw-status');
+        if (dwStatus && dwStatus.dataset.gammaMessage) {
+            dwStatus.textContent = window.gammaTranslate(dwStatus.dataset.gammaMessage);
+        }
+        window.gammaUpdateVoteLabel();
+    }
+
+    injectLanguageSwitcher();
+    saveOriginals();
+    window.gammaApplyLanguage = applyLanguage;
+    applyLanguage(currentLanguage);
+})();
+</script>
+
 </body>
 </html>
