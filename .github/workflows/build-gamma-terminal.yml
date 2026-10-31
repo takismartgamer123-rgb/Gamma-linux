@@ -2,6 +2,103 @@ name: Gamma Terminal DEB Builder
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/build-gamma-terminal.yml"
+      - "packages/gamma-terminal/**"
+  push:
+    paths:
+      - ".github/workflows/build-gamma-terminal.yml"
+      - "packages/gamma-terminal/**"
 
 permissions:
   contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.deb_arch }} on Debian 12
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - deb_arch: amd64
+            platform: linux/amd64
+          - deb_arch: i386
+            platform: linux/386
+
+    steps:
+      - name: Check out Gamma Linux
+        uses: actions/checkout@v4
+
+      - name: Enable non-native architecture emulation
+        uses: docker/setup-qemu-action@v3
+
+      - name: Validate patch script syntax
+        run: python3 -m py_compile packages/gamma-terminal/apply-gamma-patches.py
+
+      - name: Build Debian package in target architecture
+        env:
+          DEB_ARCH: ${{ matrix.deb_arch }}
+          DOCKER_PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/dist/$DEB_ARCH"
+
+          docker run --rm \
+            --platform "$DOCKER_PLATFORM" \
+            -e DEB_ARCH="$DEB_ARCH" \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /tmp \
+            --entrypoint bash \
+            debian:bookworm -s <<'BUILD_SCRIPT'
+          set -euxo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          test "$(dpkg --print-architecture)" = "$DEB_ARCH"
+
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            cmake \
+            build-essential \
+            pkg-config \
+            debhelper \
+            dpkg-dev \
+            fakeroot \
+            perl \
+            gettext \
+            python3 \
+            git \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libvte-2.91-dev \
+            libx11-dev \
+            libpcre2-dev
+
+          git clone --depth 1 --branch SAKURA_3_8_6 \
+            https://github.com/dabisu/sakura.git sakura-source
+
+          python3 /work/packages/gamma-terminal/apply-gamma-patches.py sakura-source
+          rm -rf sakura-source/debian
+          cp -a /work/packages/gamma-terminal/debian sakura-source/debian
+
+          cd sakura-source
+          dpkg-buildpackage -us -uc -b
+
+          mkdir -p "/work/dist/$DEB_ARCH"
+          cp ../gamma-terminal_*.deb "/work/dist/$DEB_ARCH/"
+          package="$(find "/work/dist/$DEB_ARCH" -maxdepth 1 -name '*.deb' -print -quit)"
+          test -n "$package"
+          actual_arch="$(dpkg-deb -f "$package" Architecture)"
+          test "$actual_arch" = "$DEB_ARCH"
+          dpkg-deb --info "$package"
+          dpkg-deb --contents "$package" | grep -E 'usr/bin/gamma-terminal|gamma-terminal.desktop|gamma-terminal.svg'
+          BUILD_SCRIPT
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gamma-Terminal-DEB-${{ matrix.deb_arch }}
+          path: dist/${{ matrix.deb_arch }}/*.deb
+          if-no-files-found: error
+          retention-days: 30
