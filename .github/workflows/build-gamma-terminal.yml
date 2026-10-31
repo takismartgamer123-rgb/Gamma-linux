@@ -93,7 +93,10 @@ jobs:
           actual_arch="$(dpkg-deb -f "$package" Architecture)"
           test "$actual_arch" = "$DEB_ARCH"
           dpkg-deb --info "$package"
-          dpkg-deb --contents "$package" | grep -E 'usr/bin/gamma-terminal|gamma-terminal.desktop|gamma-terminal.svg'
+          listing="$(dpkg-deb --contents "$package")"
+          printf '%s\\n' "$listing" | grep -F 'usr/bin/gamma-terminal'
+          printf '%s\\n' "$listing" | grep -F 'usr/share/applications/gamma-terminal.desktop'
+          printf '%s\\n' "$listing" | grep -F 'usr/share/pixmaps/gamma-terminal.svg'
           BUILD_SCRIPT
 
       - name: Upload Debian package
