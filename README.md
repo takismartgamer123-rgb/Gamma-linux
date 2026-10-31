@@ -1,179 +1,156 @@
-# Gamma Linux v2.7 — Warden
+# Gamma Linux
 
-Maximum Power, Minimum RAM ♾️
+> **No PC deserves to die.**
+>
+> Lightweight, free and open-source Linux focused on giving older computers another useful life.
+>
+> **Made in Algeria 🇩🇿**
 
-Alpha failed. Beta crashed. Gamma survives. Because no PC deserves to die.
+Gamma Linux is a small, hardware-conscious Linux distribution project. It combines established Debian/Ubuntu bases with Gamma-specific configuration, live-system integration and ISO-building tools.
 
-By: Taki | From Guelma, Algeria
-Special Dedication: Dedicated to my father, Fateh
+- Website: https://gamma-linux.is-local.org/
+- Source code: https://github.com/takismartgamer123-rgb/Gamma-linux
+- Releases: https://github.com/takismartgamer123-rgb/Gamma-linux/releases
+- DistroWatch: https://distrowatch.com/dwres-mobile.php?waitingdistro=1101&resource=links#new
 
---------------------------------------------------
-CRITICAL WARNING — READ THIS BEFORE DUAL-BOOTING WITH WINDOWS
---------------------------------------------------
+## Project status
 
-If you plan to dual-boot alongside Windows 10 or Windows 11, you MUST disable these Windows features BEFORE booting the Gamma Linux USB:
+The latest published GitHub release is named **Gamma Linux v2.7.1 — Warden**. Check the [Releases page](https://github.com/takismartgamer123-rgb/Gamma-linux/releases) for the exact ISO files currently available, release notes and checksums.
 
-- Disable Fast Startup: Control Panel → Power Options → Choose what the power buttons do → Uncheck "Turn on fast startup".
-- Disable Hibernation: Open an Administrator Command Prompt (CMD) and run:
+The repository contains build scripts for three edition targets. A build target being present in the source tree does **not** mean that a ready-to-download ISO for that edition is published. Always check the release assets before downloading.
 
-  powercfg /h off
+## Editions and build targets
 
-Why this matters: When Fast Startup or hibernation is enabled, Windows saves the system state and leaves drives in a hibernated/locked state. Linux mounting or partitioning a hibernated Windows filesystem can cause corruption or irreversible data loss. Disabling hibernation and Fast Startup ensures drives are cleanly unmounted and safe for partitioning and installation.
+| Edition | Base configured by the build scripts | Architecture | Intended direction |
+|---|---|---|---|
+| **Legacy** | Debian 12 Bookworm | i386 | Compatibility with older 32-bit hardware |
+| **Lite** | Ubuntu 22.04 Jammy | amd64 | Lightweight desktop for modest 64-bit systems |
+| **Pro** | Ubuntu 22.04 Jammy | amd64 | A more complete desktop for systems with more resources |
 
---------------------------------------------------
-WHAT IS GAMMA LINUX?
---------------------------------------------------
+These are the base-system settings in the current build scripts. Hardware requirements and included software can change between builds; consult the relevant release notes rather than treating the table as fixed minimum specifications.
 
-Gamma Linux is a lightweight, free, open-source meta-distribution focused on reviving older PCs and offering a minimal, privacy-respecting desktop experience. Version 2.7 — Warden builds on the project's proven foundations and modern base packages while remaining small, focused, and easy to install.
+## Core design
 
-Our mission: breathe practical life back into older hardware while keeping user freedom, transparency, and low resource usage at the core of every decision.
+- **Lightweight by design:** avoid unnecessary services and software.
+- **Older-hardware focus:** keep compatibility and resource use in mind.
+- **Open source:** build scripts and project-specific components are maintained in this repository.
+- **User-respecting defaults:** no Snap or Flatpak is installed by default as part of the project's stated minimal approach.
+- **Hybrid boot media:** the ISO builder prepares BIOS and UEFI boot entries. Legacy builds also check for an IA32 EFI loader.
 
-Key principles
+## Current technical layout
 
-- Ultra-light by default: minimal services and a strict zero-bloat policy.
-- Free and open-source: source and tooling remain open; we welcome community contributions.
-- Compatibility-first: tuned for older CPUs, small RAM footprints, and limited storage.
+The current scripts describe the following build architecture:
 
---------------------------------------------------
-EDITIONS (current)
---------------------------------------------------
+| Component | Current implementation |
+|---|---|
+| Legacy base | Debian Bookworm, i386 |
+| Lite / Pro base | Ubuntu Jammy, amd64 |
+| Legacy live filesystem | Debian Live-style `live/` directory |
+| Lite / Pro live filesystem | Casper-style `casper/` directory |
+| Live filesystem format | SquashFS |
+| BIOS boot | ISOLINUX |
+| UEFI boot | GRUB EFI image |
+| ISO creation | xorriso |
+| Memory optimization | Edition-specific ZRAM configuration |
 
-Gamma is available in three curated editions to fit a range of legacy hardware and user needs:
+The exact desktop, package selection and installer behavior should be checked against the scripts and release notes for the build you are using.
 
-1. Gamma Legacy-32
-   - 32-bit edition aimed at very old hardware. Optimized for systems with very low RAM and older CPUs.
-2. Gamma Lite-Ghost
-   - Lightweight 64-bit edition targeted at modest machines (around 1GB RAM). Minimal window manager + small toolset.
-3. Gamma Pro-MaxMini
-   - More feature-complete 64-bit edition for slightly newer legacy hardware (2GB+ RAM), tuned for snappy responsiveness while remaining lightweight.
+## Download and verify
 
-Choose the edition that matches your machine's RAM and CPU architecture. See Hardware Requirements below.
+1. Open [Gamma Linux Releases](https://github.com/takismartgamer123-rgb/Gamma-linux/releases).
+2. Select the release and edition that match your hardware.
+3. Read the release notes, including known issues and login details if provided.
+4. If a checksum file is published with the ISO, verify it before writing the image to USB.
 
---------------------------------------------------
-INSTALLATION GUIDE (overview)
---------------------------------------------------
+Example SHA-256 verification:
 
-1) Verify your download
+```bash
+sha256sum Gamma-Linux.iso
+```
 
-Always verify ISO checksums after download. Example:
+Compare the output with the checksum published by the project. Do not assume a checksum exists if the release does not provide one.
 
-  sha256sum -c SHA256SUMS.txt
+## Installation and dual-boot safety
 
-2) Create installation media
+Back up important files before changing partitions or installing any operating system. Selecting the wrong disk or partition can cause permanent data loss.
 
-Recommended tools:
-- Rufus (use DD image mode for the most compatible result on legacy BIOS systems)
-- BalenaEtcher
-- Ventoy
+If you plan to install Gamma alongside Windows:
 
-3) Boot the media
+- Disable Windows Fast Startup.
+- Disable hibernation from an Administrator terminal with `powercfg /h off`.
+- Shut Windows down fully before booting the installer.
+- Do not resize, format or mount a Windows partition that is hibernated or in an unsafe state.
 
-Boot from the USB drive and select the Live or Auto-Detect entry. The live session logs into the default user when required for the live environment.
+Boot the USB and test the live environment first. Use the installer supplied by that particular ISO and read every partitioning and bootloader change before confirming it. Installer availability and behavior may differ between editions and releases.
 
-4) Install
+## Building from source
 
-Follow the included graphical installer. For Debian-based editions Calamares may be used; follow on-screen options to partition and install.
+### Requirements
 
-5) Post-install
+The build process uses Bash, debootstrap, xorriso, Syslinux/ISOLINUX, SquashFS tooling and GRUB EFI components. The QEMU test script also requires `qemu-system-x86_64`; OVMF firmware is needed for its optional UEFI x86_64 boot test.
 
-On some editions a lightweight post-install cleanup service will remove non-essential install-time tooling on first boot. After install, reboot into the installed system and verify hardware and display settings.
+Install the dependencies appropriate for your host distribution before starting. Package names can differ between distributions.
 
-Notes
+### Build sequence
 
-- If you are dual-booting with Windows, follow the Critical Warning above before starting.
-- We intentionally avoid Snap/Flatpak by default to keep the system minimal and predictable.
+The repository's numbered scripts define the build workflow:
 
---------------------------------------------------
-HARDWARE REQUIREMENTS (guideline)
---------------------------------------------------
+1. `scripts/01-prepare.sh` — prepares the base chroot.
+2. `scripts/02-install-packages.sh` — installs the edition packages.
+3. `scripts/03-install-gamma.sh` — installs Gamma-specific components.
+4. `scripts/04-configure.sh` — configures the system and completes chroot preparation.
+5. `scripts/05-build-squashfs.sh` — creates the compressed live filesystem.
+6. `scripts/06-build-efi.sh` — prepares EFI boot files.
+7. `scripts/07-build-iso.sh` — validates the ISO tree and creates the hybrid ISO.
+8. `scripts/08-test.sh` — checks ISO structure and attempts QEMU BIOS and, when OVMF is available, UEFI x86_64 boot tests.
 
-- Gamma Legacy-32: Suitable for very old systems; expect low RAM and minimal storage usage (check edition image notes).
-- Gamma Lite-Ghost: Recommended for ~1GB RAM machines.
-- Gamma Pro-MaxMini: Recommended for 2GB+ RAM machines.
+Run the scripts from the repository root, in order, using the same edition argument:
 
-Always check the ISO release notes for exact minimums for a given build.
+```bash
+sudo bash scripts/01-prepare.sh legacy
+sudo bash scripts/02-install-packages.sh legacy
+sudo bash scripts/03-install-gamma.sh legacy
+sudo bash scripts/04-configure.sh legacy
+sudo bash scripts/05-build-squashfs.sh legacy
+sudo bash scripts/06-build-efi.sh legacy
+sudo bash scripts/07-build-iso.sh legacy
+bash scripts/08-test.sh legacy
+```
 
---------------------------------------------------
-CHECKSUMS AND VERIFICATION
---------------------------------------------------
+Replace `legacy` with `lite` or `pro` when building those targets. Check each script before running it and follow any prerequisites it reports.
 
-We publish SHA256 checksums alongside release ISOs. Verify downloads before flashing to protect against corruption and tampering.
+> **Destructive build warning:** `01-prepare.sh` unmounts and removes the repository's `chroot/`, `iso/` and `output/` directories before preparing a new build. Back up anything important in those directories first. Do not run it if you need to preserve a previous build.
 
---------------------------------------------------
-BUG REPORTING
---------------------------------------------------
+The ISO build script checks required files, validates the EFI image and SquashFS, and verifies the resulting ISO contents. The test script performs automated boot attempts; passing those checks is not a substitute for testing the live system and installer on real hardware.
 
-When opening a bug report, please provide as much of the following information as possible to help us reproduce and diagnose the issue:
+## Testing and bug reports
 
-- PC model (manufacturer and model)
-- CPU model
+Testing on older physical hardware is especially valuable. When reporting a bug, include:
+
+- PC manufacturer and model
+- CPU model and architecture
 - RAM amount
-- Storage type and size (HDD/SSD and capacity)
-- Gamma edition and exact version (e.g. Gamma Pro-MaxMini v2.7 Warden)
-- Steps to reproduce the problem
-- A photo or a clear description of the problem (screenshots are very helpful)
-- Any relevant logs (dmesg, Xorg/Wayland logs, installer logs) if available
+- Storage type and capacity
+- Gamma edition and exact release/build
+- BIOS or UEFI mode
+- Steps to reproduce the issue
+- Relevant logs or clear screenshots
 
-Create a new issue in this repository and include the above details. If the issue involves disk/installation problems, avoid sharing sensitive data — include only the pieces of system information needed to reproduce the bug.
+For installer or partitioning issues, include only the disk details needed to understand the problem. **Never publish passwords, personal files, serial numbers or other private information.**
 
---------------------------------------------------
-FEEDBACK & CONTACT
---------------------------------------------------
+Open a report in the [GitHub Issues](https://github.com/takismartgamer123-rgb/Gamma-linux/issues) section.
 
-Send general feedback, questions, or media to: takismartgamer123@gmail.com
-• founder@mail.gamma-linux.is-local.org
+## Contributing
 
---------------------------------------------------
-ROADMAP
---------------------------------------------------
+Bug reports, reproducible fixes, documentation improvements and hardware testing are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change.
 
-Planned focus areas for the 2.7 Warden cycle (high level):
+## License
 
-- Improved hardware detection and older GPU support
-- Smaller, more robust installer flows for legacy BIOS systems
-- Continued maintenance of base packages and security updates
+The repository's `LICENSE.md` identifies the project-specific Gamma components as MIT-licensed. Gamma Linux also includes or depends on software under other upstream licenses. Those components remain governed by their respective licenses; consult their package metadata and upstream notices before redistribution.
 
-For a detailed roadmap and milestones, check the project issues and pinned discussions in this repository.
+## Acknowledgments
 
---------------------------------------------------
-PROJECT PHILOSOPHY
---------------------------------------------------
+Thanks to everyone testing Gamma Linux, reporting bugs and helping older hardware stay useful.
 
-Gamma Linux focuses on practical sustainability: extend the useful life of older hardware, keep systems transparent, and avoid unnecessary complexity. We value small, auditable components and community collaboration.
-
---------------------------------------------------
-DEVELOPMENT & TESTING WORKFLOW
---------------------------------------------------
-
-- Work is tracked in issues. Propose changes with a clear issue referencing the target area.
-- Branching: create topic branches named feature/<short-description> or fix/<short-description> off the default branch.
-- Pull requests: Open a PR referencing the related issue. Provide a clear description, testing steps, and the expected impact.
-- CI: We use GitHub Actions for automated checks where applicable. Keep changes small and focused for easier review.
-- Local testing: build and run the ISO in a VM (QEMU/VirtualBox) and on one non-critical test machine before wider testing. Document hardware used for testing in PR descriptions.
-
-Testing checklist for contributors
-
-- Does the ISO boot in UEFI and legacy BIOS (if expected)?
-- Does the installer complete without errors on the test device?
-- Are core services starting as expected?
-- Do packaging changes include checksums and version bumps where relevant?
-
---------------------------------------------------
-SUPPORT THE PROJECT (DistroWatch)
---------------------------------------------------
-
-Vote for Gamma Linux on DistroWatch to help reach more users:
-
-https://distrowatch.com/dwres-mobile.php?waitingdistro=1101&resource=links#new
-
---------------------------------------------------
-LICENSE
---------------------------------------------------
-
-Gamma Linux is free and open-source. See the LICENSE file in this repository for details.
-
---------------------------------------------------
-ACKNOWLEDGMENTS
---------------------------------------------------
-
-Special thanks to our testers and the wider open-source community. Made in Algeria — with a love of breathing life into old PCs.
+**No PC deserves to die.**  
+**Made in Algeria 🇩🇿**
