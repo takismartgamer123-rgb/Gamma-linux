@@ -1,127 +1,144 @@
 # Contributing to Gamma Linux
 
-Thank you for your interest in contributing to Gamma Linux. Gamma is a lightweight, free, open-source project focused on reviving older PCs — and contributions from people like you keep it alive. This document explains how to contribute in a productive, professional way.
+Thank you for considering a contribution to Gamma Linux.
 
-## Contents
-- Welcome
-- Ways to contribute
-- Reporting bugs (required fields)
-- Feature requests
-- How to open an issue
-- Pull request workflow
-- Branching & commit message guidelines
-- Development and testing recommendations
-- PR checklist
-- Communication channels and contact
-- License and acknowledgments
+Gamma is a lightweight Linux distribution project focused on extending the useful life of older computers. Contributions are welcome when they are practical, reproducible and respectful of the project's compatibility goals.
 
-## Welcome
-Gamma aims to be small, auditable, and practical. We welcome:
-- Bug reports with clear reproduction steps and system details.
-- Patches and improvements to build scripts, installer flows, and hardware detection.
-- Documentation fixes and translations.
-- Testing on real legacy hardware and VMs.
+- Repository: https://github.com/takismartgamer123-rgb/Gamma-linux
+- Issues: https://github.com/takismartgamer123-rgb/Gamma-linux/issues
+- Releases: https://github.com/takismartgamer123-rgb/Gamma-linux/releases
 
 ## Ways to contribute
-- File reproducible bug reports
-- Open feature requests or discuss design in issues
-- Submit pull requests with small, focused changes
-- Test ISOs on real devices and VMs, report results
-- Improve documentation and examples
 
-## Reporting bugs (please include)
-When filing a bug report, include as much of the following as you can — these details help us reproduce and fix problems faster:
+You can help by:
 
-- PC model (manufacturer and model)
-- CPU model
+- Reporting reproducible bugs.
+- Testing release ISOs on real hardware and virtual machines.
+- Improving build scripts, installer behavior or hardware compatibility.
+- Fixing documentation and translations.
+- Proposing focused improvements through GitHub Issues and Pull Requests.
+
+## Before opening an issue
+
+Search existing issues first. If the problem has not already been reported, create a new issue with a descriptive title and include as much relevant information as possible.
+
+### Bug report details
+
+- PC manufacturer and model
+- CPU model and architecture (32-bit or 64-bit)
 - RAM amount
-- Storage type and size (HDD or SSD and capacity)
-- Gamma edition and exact version (for example: Gamma Pro-MaxMini v2.7 Warden)
+- Storage type and capacity
+- Gamma edition and exact version/build
+- Boot mode (Legacy BIOS or UEFI)
 - Steps to reproduce the issue
-- A photo or clear description of the problem (screenshots are highly recommended)
-- Relevant logs if available (dmesg, installer logs, Xorg/Wayland logs, system journal entries)
-- Any partitioning or disk layout details involved in the problem
+- Expected behavior and actual behavior
+- Relevant logs, screenshots or error messages
 
-If the issue involves installation or disk access, avoid sending sensitive data. Only provide the minimum system details required to reproduce the problem.
+For installation problems, include the relevant partitioning context, but remove personal information. Never attach passwords, private keys, personal documents or unrelated disk contents.
 
 ## Feature requests
-Open a new issue describing:
-- The problem or use-case
-- Proposed solution or design sketch
-- Backwards compatibility and migration notes (if applicable)
-- Any known alternatives or related issues
 
-## How to open an issue
-- Choose a clear, descriptive title
-- Use the template below (we will include a template in the issue tracker; try to fill the fields)
-- Add screenshots/logs as attachments when helpful
+A useful feature request explains:
 
-### Issue template (suggested)
-- Title: Short, descriptive
-- Description: What happened and when
-- Steps to reproduce: numbered steps
-- Expected behavior
-- System details (PC model, CPU, RAM, storage, edition/version)
-- Attachments: screenshots, photos, logs
+1. The problem or use case.
+2. Why the current behavior is insufficient.
+3. The proposed change.
+4. Possible compatibility, resource-use or maintenance impact.
 
-## Branching & commit messages
-- Branch from the default branch (usually `main`).
-- Use descriptive topic branches:
-  - `feature/<short-description>`
-  - `fix/<short-description>`
-  - `docs/<short-description>`
-- Keep commits small and focused. Each commit should do one thing.
-- Commit message style:
-  - Short summary line (50 characters or less)
-  - Optional body explaining the reasoning and any important details
-  - Example: `fix(installer): avoid mbr overwrite on some BIOSes`
+Discuss large architectural changes in an issue before investing time in implementation.
 
-## Pull request workflow
-- Open a PR against the default branch.
-- Link the related issue (if any) and explain the change, testing steps, and expected impact.
-- If the PR affects user-visible behavior, update README or release notes accordingly.
-- Keep PRs small to speed review and testing.
+## Development workflow
 
-## Development & testing recommendations
-- Test changes in a VM (QEMU/VirtualBox) and, when safe, on one non-critical physical device before wider testing.
-- For ISO builds: run the ISO in a VM and perform an installer run. Document the environment used for testing in the PR description.
-- When testing installer/disk changes, test on expendable hardware or in a VM using drive images — never test destructive operations on primary machines.
+1. Fork the repository.
+2. Create a focused branch from the default branch (`main`).
+3. Make one logical change at a time.
+4. Test the change and document the test environment.
+5. Push your branch to your fork.
+6. Open a Pull Request against `main`.
 
-## PR checklist for contributors
-- [ ] Branch and commit names follow guidelines
-- [ ] PR description explains what, why, and how to test
-- [ ] Relevant logs, screenshots, or test results attached
-- [ ] Documentation (README/CHANGELOG) updated if needed
-- [ ] No sensitive data included in the PR
-- [ ] Built artifacts (if any) reproducible with the repository instructions
+Suggested branch names:
 
-## Code style & languages
-- Primary repository languages: Shell, C, CMake.
-- Follow existing formatting in repository scripts and sources.
-- Keep changes minimal and well-documented in changelogs or PR descriptions.
+- `feature/<short-description>`
+- `fix/<short-description>`
+- `docs/<short-description>`
 
-## Security & sensitive issues
-If you discover a security vulnerability, please do not open a public issue. Contact the maintainers privately:
+Suggested commit message format:
 
-- Email: takismartgamer123@gmail.com
+```text
+type(scope): short description
+```
 
-Provide clear, reproducible steps and relevant logs; we will respond and coordinate disclosure or fixes.
+Examples:
 
-## Communication & support
-- Email: takismartgamer123@gmail.com (general contact)
+- `fix(installer): handle legacy BIOS partitioning`
+- `docs(readme): clarify ISO build workflow`
+- `feat(theme): add Gamma desktop defaults`
+
+Keep commit subjects concise and explain non-obvious reasoning in the commit body.
+
+## Build and test safety
+
+The build workflow is implemented in the numbered scripts under `scripts/`. Read the relevant scripts before running them.
+
+**Important:** `scripts/01-prepare.sh` removes the existing `chroot/`, `iso/` and `output/` directories before preparing a new build. Back up any files you need from those directories first.
+
+For ISO-related changes:
+
+- Build the edition affected by your change.
+- Run the ISO validation and QEMU test scripts where possible.
+- Test BIOS/UEFI modes that the edition is intended to support.
+- Test the live environment and installer separately.
+- Record hardware or VM details and any skipped tests.
+
+A QEMU boot check alone does not prove that installation, networking, graphics, sound or all physical hardware work correctly.
+
+Never test destructive partitioning or disk operations on your primary machine. Use a VM with disposable disk images or expendable test hardware.
+
+## Code and documentation guidelines
+
+- Follow the style already used in the affected files.
+- Keep shell scripts compatible with the Bash version and tools expected by the build environment.
+- Use clear error messages and fail safely when required files or dependencies are missing.
+- Avoid adding unnecessary packages or background services.
+- Do not claim performance figures, hardware support or completed features without reproducible evidence.
+- Update the README or release notes when a change affects users.
+
+The repository currently contains Shell, C and CMake code, alongside build and automation files. Keep changes focused on the relevant component.
+
+## Pull Request checklist
+
+Before requesting review, confirm:
+
+- [ ] The change has a clear purpose and scope.
+- [ ] The relevant scripts or components have been tested.
+- [ ] Test results and limitations are described.
+- [ ] Documentation is updated where needed.
+- [ ] No credentials, personal data or unrelated generated files are included.
+- [ ] Destructive build steps and disk operations have been handled safely.
+
+## Security issues
+
+Do not publish details of an exploitable security vulnerability in a public issue. Contact the project maintainer privately at:
+
+**takismartgamer123@gmail.com**
+
+Include reproducible technical details while avoiding disclosure of user data or secrets.
+
+## Communication
+
+- General contact: takismartgamer123@gmail.com
 - Telegram: https://t.me/GammaLinuxDZ
-- Messenger: https://m.me/j/AbahTOn_gqLy8R3k/?send_source=gc%3Acopy_invite_link_t
-
-## Roadmap and coordination
-Check issues and pinned discussions for current roadmap items. If your contribution aligns with a planned area, mention the related issue/roadmap item in your PR to speed acceptance.
-
-## DistroWatch
-Support Gamma by voting on DistroWatch:
-
-https://distrowatch.com/dwres-mobile.php?waitingdistro=1101&resource=links#new
+- Messenger: https://m.me/j/AbahTOn_gqLy8R3k/?send_source=gc%3Acopy_invite_link
 
 ## License
-Contributions are accepted under the repository’s license. By submitting a PR you agree to license your contribution under the project license. See LICENSE in the repository for details.
+
+The repository's `LICENSE.md` identifies the project-specific Gamma components as MIT-licensed. Contributions are expected to be submitted under terms compatible with the repository's stated project license. Third-party components retain their own upstream licenses.
+
+By submitting a contribution, you confirm that you have the right to submit it under those terms. If you are unsure about licensing or ownership, clarify that before submitting the contribution.
 
 ## Thank you
-Thank you for helping revive older PCs and keeping Gamma small, fast, and community-driven. We appreciate careful, tested contributions.
+
+Every careful bug report, test and improvement helps make Gamma Linux more reliable.
+
+**No PC deserves to die.**  
+**Made in Algeria 🇩🇿**
