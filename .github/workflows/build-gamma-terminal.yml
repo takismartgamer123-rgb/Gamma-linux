@@ -81,6 +81,7 @@ jobs:
           python3 /work/packages/gamma-terminal/apply-gamma-patches.py sakura-source
           rm -rf sakura-source/debian
           cp -a /work/packages/gamma-terminal/debian sakura-source/debian
+          chmod 755 sakura-source/debian/rules
 
           cd sakura-source
           dpkg-buildpackage -us -uc -b
