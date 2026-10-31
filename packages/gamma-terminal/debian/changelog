@@ -1,0 +1,7 @@
+gamma-terminal (1.0.0-1gamma1) unstable; urgency=medium
+
+  * Fork Sakura 3.8.6 as Gamma Terminal.
+  * Add Gamma Aurora palette, GTK styling and branded header bar.
+  * Preserve the Sakura GTK/VTE terminal core and package per architecture.
+
+ -- Gamma Linux Maintainers <founder@mail.gamma-linux.is-local.org>  Sat, 31 Oct 2026 22:30:00 +0100
