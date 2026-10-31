@@ -1,0 +1,24 @@
+Source: gamma-terminal
+Section: x11
+Priority: optional
+Maintainer: Gamma Linux Maintainers <founder@mail.gamma-linux.is-local.org>
+Build-Depends:
+ debhelper-compat (= 13),
+ cmake,
+ pkg-config,
+ perl,
+ gettext,
+ libglib2.0-dev,
+ libgtk-3-dev,
+ libvte-2.91-dev,
+ libx11-dev,
+ libpcre2-dev
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: gamma-terminal
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Gamma Terminal, a lightweight GTK/VTE terminal
+ Gamma Terminal is a Gamma Linux fork of Sakura 3.8.6.
+ It keeps Sakura's GTK/VTE terminal core with Gamma Aurora branding.
