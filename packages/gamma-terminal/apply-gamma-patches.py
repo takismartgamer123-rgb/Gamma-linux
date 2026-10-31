@@ -69,21 +69,21 @@ source = once(source, '#define GETTEXT_PACKAGE "sakura"',
                '#define GETTEXT_PACKAGE "gamma-terminal"', "gettext domain")
 source = once(source, '#define SAKURA_CSS ""', r'''#define SAKURA_CSS \
 "window#gamma-terminal { background-color: #0b0614; color: #f5f3ff; }" \
-"headerbar { background-color: #141020; color: #f5f3ff; border-bottom: 1px solid #34224f; box-shadow: none; min-height: 42px; }" \
-"headerbar .title { color: #f5f3ff; font-weight: 700; }" \
-"headerbar .subtitle { color: #c4b5fd; font-size: 10px; }" \
-"headerbar button { background-color: #211832; color: #f5f3ff; border: 1px solid #34224f; border-radius: 6px; padding: 4px 8px; }" \
-"headerbar button:hover { background-color: #392354; border-color: #8b5cf6; }" \
+"window#gamma-terminal headerbar { background-color: #141020; color: #f5f3ff; border-bottom: 1px solid #34224f; box-shadow: none; min-height: 42px; }" \
+"window#gamma-terminal headerbar .title { color: #f5f3ff; font-weight: 700; }" \
+"window#gamma-terminal headerbar .subtitle { color: #c4b5fd; font-size: 10px; }" \
+"window#gamma-terminal headerbar button { background-color: #211832; color: #f5f3ff; border: 1px solid #34224f; border-radius: 6px; padding: 4px 8px; }" \
+"window#gamma-terminal headerbar button:hover { background-color: #392354; border-color: #8b5cf6; }" \
 "window#gamma-terminal notebook { background-color: #0b0614; border: 0; }" \
 "window#gamma-terminal notebook > header { background-color: #141020; border: 0; border-bottom: 1px solid #34224f; padding: 4px 5px 0; }" \
 "window#gamma-terminal notebook tab { background-color: #141020; color: #c4b5fd; border: 1px solid #34224f; border-bottom: 0; border-radius: 7px 7px 0 0; padding: 5px 8px; margin-right: 4px; }" \
 "window#gamma-terminal notebook tab:checked { background-color: #2a223c; color: #f5f3ff; border-color: #69418a; border-bottom: 2px solid #8b5cf6; }" \
 "window#gamma-terminal notebook tab button { color: #c4b5fd; background-color: transparent; border: 0; }" \
 "window#gamma-terminal notebook tab button:hover { color: #ffffff; background-color: #57336f; }" \
-"menu { background-color: #141020; color: #f5f3ff; border: 1px solid #4a355c; }" \
-"menu menuitem:hover { background-color: #5b3281; color: #ffffff; }" \
-"scrollbar slider { background-color: #71459a; min-width: 7px; min-height: 7px; }" \
-"vte-terminal { padding: 8px; }"''', "Gamma Aurora CSS")
+"menu#gamma-terminal-menu { background-color: #141020; color: #f5f3ff; border: 1px solid #4a355c; }" \
+"menu#gamma-terminal-menu menuitem:hover { background-color: #5b3281; color: #ffffff; }" \
+"window#gamma-terminal scrollbar slider { background-color: #71459a; min-width: 7px; min-height: 7px; }" \
+"window#gamma-terminal vte-terminal { padding: 8px; }"''', "Gamma Aurora CSS")
 
 palette_anchor = 'const char *palettes_names[]= {"Solarized", "Tango", "Gruvbox","Nord","Xterm","Linux", "Rxvt", NULL};'
 palette_defs = """const GdkRGBA gamma_aurora_palette[PALETTE_SIZE] = {
@@ -194,6 +194,9 @@ new_window = """sakura.main_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	gtk_header_bar_pack_end(GTK_HEADER_BAR(gamma_header), gamma_menu_button);
 	gtk_window_set_titlebar(GTK_WINDOW(sakura.main_window), gamma_header);"""
 source = once(source, old_window, new_window, "Gamma header bar")
+source = once(source, 'sakura.menu = gtk_menu_new();',
+               'sakura.menu = gtk_menu_new();\n\tgtk_widget_set_name(sakura.menu, "gamma-terminal-menu");',
+               "Gamma context menu CSS name")
 source = once(source, "sakura_init_popup();",
                "sakura_init_popup();\n\tgtk_menu_button_set_popup(GTK_MENU_BUTTON(gamma_menu_button), sakura.menu);",
                "existing popup menu integration")
