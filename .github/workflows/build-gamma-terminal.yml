@@ -45,7 +45,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/dist/$DEB_ARCH"
 
-          docker run --rm \
+          docker run --rm -i \
             --platform "$DOCKER_PLATFORM" \
             -e DEB_ARCH="$DEB_ARCH" \
             -v "$GITHUB_WORKSPACE:/work" \
