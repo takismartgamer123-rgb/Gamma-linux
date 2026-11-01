@@ -60,6 +60,14 @@ All current target editions use Debian's Live components:
 
 The systemd backend is installed because the target root filesystem uses systemd. The initramfs is generated inside the target chroot by `update-initramfs`.
 
+Gamma writes `/etc/live/config.conf` from the selected edition profile so the live session does not fall back to Debian's generic defaults:
+
+- `LIVE_HOSTNAME` uses the edition hostname (`gamma-pro`, `gamma-lite` or `gamma-legacy`).
+- `LIVE_USERNAME=gamma` creates the Gamma live user.
+- `LIVE_USER_FULLNAME=Gamma Linux User` sets the display name.
+
+The Debian Live user-setup component supplies its documented default live password (`live`) unless a project-specific password hook is added. Treat this as a live-session credential, not a secure installed-user password; installation creates the installed system's user account separately.
+
 Every edition uses the same ISO layout and boot parameter:
 
 - ISO directory: `iso/live/`
