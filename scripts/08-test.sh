@@ -7,7 +7,6 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 source "$ROOT/scripts/lib/profile.sh"
 load_gamma_profile "$EDITION" "$ROOT"
-LIVE_DIR="$LIVE_DIR"
 
 ISO="$ROOT/output/gamma-${EDITION}.iso"
 
