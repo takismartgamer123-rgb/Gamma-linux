@@ -22,8 +22,8 @@ jobs:
         with:
           name: gamma-lite
           path: output
-          github-token: \${{ secrets.GITHUB_TOKEN }}
-          run-id: \${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.run_id }}
 
       - name: Install inspection tools
         run: |
@@ -75,7 +75,7 @@ jobs:
 
           echo "===== LIVE BOOT ====="
           test -f /mnt/gamma/usr/share/initramfs-tools/scripts/live
-          if sudo chroot /mnt/gamma dpkg-query -W -f='\${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
+          if sudo chroot /mnt/gamma dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
             echo "Unexpected Ubuntu Casper package found."
             exit 1
           fi
