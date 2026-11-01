@@ -11,7 +11,6 @@ GRUB_DIR="$ISO_DIR/boot/grub"
 
 source "$ROOT/scripts/lib/profile.sh"
 load_gamma_profile "$EDITION" "$ROOT"
-LIVE_DIR="$LIVE_DIR"
 BOOT="$LIVE_BOOT_PARAM"
 
 echo "[06] Building Debian Live EFI boot files ($EDITION)"
