@@ -83,6 +83,13 @@ LIVE_USERNAME="$LIVE_USERNAME"
 LIVE_USER_FULLNAME="$LIVE_USER_FULLNAME"
 EOF
 
+if ! grep -Fxq "LIVE_HOSTNAME=$HOSTNAME" "$CHROOT/etc/live/config.conf" ||
+   ! grep -Fxq "LIVE_USERNAME=$LIVE_USERNAME" "$CHROOT/etc/live/config.conf" ||
+   ! grep -Fxq "LIVE_USER_FULLNAME=$LIVE_USER_FULLNAME" "$CHROOT/etc/live/config.conf"; then
+    echo "ERROR: Debian live-config identity file was not written correctly."
+    exit 1
+fi
+
 # ==========================================================
 # LightDM
 # ==========================================================
