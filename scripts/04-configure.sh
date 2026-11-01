@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
+EDITION="${1:-}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHROOT="$ROOT/chroot"
+
+source "$ROOT/scripts/lib/profile.sh"
+load_gamma_profile "$EDITION" "$ROOT"
 
 echo "[04] Configuring Gamma Linux ($EDITION)"
 
@@ -24,41 +27,9 @@ cleanup() {
 trap cleanup EXIT
 
 # ==========================================================
-# Edition tuning
+# Edition tuning comes from build/profiles/<edition>.conf.
+# Keep the tuning values next to the base suite and architecture.
 # ==========================================================
-
-case "$EDITION" in
-
-    pro)
-        SWAPPINESS=80
-        VFS_CACHE=50
-        DIRTY_RATIO=20
-        ZRAM_PERCENT=50
-        HOSTNAME="gamma-pro"
-        ;;
-
-    lite)
-        SWAPPINESS=100
-        VFS_CACHE=100
-        DIRTY_RATIO=10
-        ZRAM_PERCENT=75
-        HOSTNAME="gamma-lite"
-        ;;
-
-    legacy)
-        SWAPPINESS=100
-        VFS_CACHE=100
-        DIRTY_RATIO=5
-        ZRAM_PERCENT=100
-        HOSTNAME="gamma-legacy"
-        ;;
-
-    *)
-        echo "ERROR: Unknown edition '$EDITION'"
-        exit 1
-        ;;
-
-esac
 
 # ==========================================================
 # Directories
@@ -70,8 +41,11 @@ sudo mkdir -p \
     "$CHROOT/etc/sysctl.d" \
     "$CHROOT/etc/systemd/system" \
     "$CHROOT/usr/local/bin" \
-    "$CHROOT/usr/share/applications" \
-    "$CHROOT/etc/calamares/branding/gamma"
+    "$CHROOT/usr/share/applications"
+
+if [[ "$EDITION" != "legacy" ]]; then
+    sudo mkdir -p "$CHROOT/etc/calamares/branding/gamma"
+fi
 
 # ==========================================================
 # Gamma identity
@@ -93,14 +67,31 @@ sudo tee "$CHROOT/etc/motd" >/dev/null <<'EOF'
 
 EOF
 
-# Keep real Ubuntu/Debian /etc/os-release untouched.
-# Some system tools and installers use it.
+# Keep the real Debian /etc/os-release untouched.
+# System tools and installers depend on the distribution identity.
 
 # ==========================================================
 # Hostname default
 # ==========================================================
 
 echo "$HOSTNAME" | sudo tee "$CHROOT/etc/hostname" >/dev/null
+
+# Debian live-config otherwise defaults to hostname "debian" and user "user".
+# Set Gamma's live identity through the supported /etc/live/config.conf file.
+sudo mkdir -p "$CHROOT/etc/live"
+sudo tee "$CHROOT/etc/live/config.conf" >/dev/null <<EOF
+# Gamma Linux live-session defaults.
+LIVE_HOSTNAME="$HOSTNAME"
+LIVE_USERNAME="$LIVE_USERNAME"
+LIVE_USER_FULLNAME="$LIVE_USER_FULLNAME"
+EOF
+
+if ! grep -Fxq "LIVE_HOSTNAME=\"$HOSTNAME\"" "$CHROOT/etc/live/config.conf" ||
+   ! grep -Fxq "LIVE_USERNAME=\"$LIVE_USERNAME\"" "$CHROOT/etc/live/config.conf" ||
+   ! grep -Fxq "LIVE_USER_FULLNAME=\"$LIVE_USER_FULLNAME\"" "$CHROOT/etc/live/config.conf"; then
+    echo "ERROR: Debian live-config identity file was not written correctly."
+    exit 1
+fi
 
 # ==========================================================
 # LightDM
@@ -152,8 +143,10 @@ NoDisplay=true
 EOF
 
 # ==========================================================
-# Gamma installer launcher
+# Gamma installer launcher (Pro/Lite only)
 # ==========================================================
+
+if [[ "$EDITION" != "legacy" ]]; then
 
 sudo tee "$CHROOT/usr/local/bin/gamma-installer" >/dev/null <<'EOF'
 #!/usr/bin/env bash
@@ -198,6 +191,12 @@ StartupNotify=true
 Categories=System;Settings;
 EOF
 
+
+else
+    sudo rm -f "$CHROOT/usr/local/bin/gamma-installer"
+    sudo rm -f "$CHROOT/usr/share/applications/gamma-installer.desktop"
+fi
+
 # ==========================================================
 # ZRAM — Gamma pre-tuned
 # ==========================================================
@@ -240,6 +239,7 @@ sudo ln -sf \
     /lib/systemd/system/graphical.target \
     "$CHROOT/etc/systemd/system/default.target"
 
+if [[ "$EDITION" != "legacy" ]]; then
 # ==========================================================
 # Calamares verification and setup
 # ==========================================================
@@ -362,6 +362,10 @@ EOF
 echo "[04] Calamares configuration:"
 grep -E '^[[:space:]]*branding:' \
     "$CAL_ROOT/settings.conf" || true
+
+else
+    echo "[04] Calamares is not part of the Legacy-32 image."
+fi
 
 # ==========================================================
 # ZRAM sanity check

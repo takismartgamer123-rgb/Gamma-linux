@@ -6,7 +6,7 @@
 >
 > **Made in Algeria 🇩🇿**
 
-Gamma Linux is a small, hardware-conscious Linux distribution project. It combines established Debian/Ubuntu bases with Gamma-specific configuration, live-system integration and ISO-building tools.
+Gamma Linux is a lightweight Linux distribution project for older computers. Its target root filesystems are built from Debian using a manual chroot workflow, then assembled into hybrid bootable ISO images with SquashFS, GRUB, ISOLINUX and xorriso.
 
 - Website: https://gamma-linux.is-local.org/
 - Source code: https://github.com/takismartgamer123-rgb/Gamma-linux
@@ -15,45 +15,53 @@ Gamma Linux is a small, hardware-conscious Linux distribution project. It combin
 
 ## Project status
 
-The latest published GitHub release is named **Gamma Linux v2.7.1 — Warden**. Check the [Releases page](https://github.com/takismartgamer123-rgb/Gamma-linux/releases) for the exact ISO files currently available, release notes and checksums.
+The latest published GitHub release currently listed by the project is **Gamma Linux v2.7.1 — Warden**. Check the [Releases page](https://github.com/takismartgamer123-rgb/Gamma-linux/releases) for the exact ISO files, release notes and checksums that are actually available.
 
-The repository contains build scripts for three edition targets. A build target being present in the source tree does **not** mean that a ready-to-download ISO for that edition is published. Always check the release assets before downloading.
+The Debian migration changes the source build configuration. Existing release assets are not rebuilt or retroactively changed by these source updates.
 
-## Editions and build targets
+## Editions and target bases
 
-| Edition | Base configured by the build scripts | Architecture | Intended direction |
+| Edition | Target base | Architecture | Purpose |
 |---|---|---|---|
-| **Legacy** | Debian 12 Bookworm | i386 | Compatibility with older 32-bit hardware |
-| **Lite** | Ubuntu 22.04 Jammy | amd64 | Lightweight desktop for modest 64-bit systems |
-| **Pro** | Ubuntu 22.04 Jammy | amd64 | A more complete desktop for systems with more resources |
+| **Legacy-32** | Debian 12 Bookworm | i386 | Compatibility with older 32-bit hardware |
+| **Lite-Ghost** | Debian 13 Trixie | amd64 | Lightweight desktop for modest 64-bit systems |
+| **Pro-MaxMini** | Debian 13 Trixie | amd64 | More complete desktop for systems with additional resources |
 
-These are the base-system settings in the current build scripts. Hardware requirements and included software can change between builds; consult the relevant release notes rather than treating the table as fixed minimum specifications.
+The exact installed package set and hardware behavior can change between builds. Consult the release notes for published images; the table above describes the current source build targets.
+
+## Build architecture
+
+Gamma uses a **manual chroot-to-ISO pipeline**. It does not use Ubuntu Casper and does not use `live-build`.
+
+| Stage | Implementation |
+|---|---|
+| Base filesystem | `debootstrap` creates a Debian chroot |
+| Edition configuration | `build/profiles/*.conf` |
+| Shared build logic | Numbered Bash scripts under `scripts/` |
+| Live boot integration | Debian `live-boot` and `live-config` |
+| Live filesystem | `mksquashfs` creates `iso/live/filesystem.squashfs` |
+| Kernel/initramfs | Debian kernel and `initramfs-tools` |
+| BIOS boot | ISOLINUX |
+| UEFI boot | GRUB EFI, with IA32 loader required for Legacy-32 |
+| ISO assembly | `xorriso` |
+
+All editions use one Debian Live layout:
+- Kernel: `/live/vmlinuz`
+- Initramfs: `/live/initrd.lz` (the established Gamma filename; it is copied from Debian's generated initramfs)
+- Compressed root filesystem: `/live/filesystem.squashfs`
+- Kernel command-line parameter: `boot=live`
+
+The Debian Live packages are installed inside the target chroot: `live-boot`, `live-boot-initramfs-tools`, `live-config` and `live-config-systemd`. The build host and the target operating system are separate: the current GitHub Actions workflow may run on Ubuntu, but it bootstraps Debian target filesystems.
+
+For the full pipeline, profile variables, host dependencies and troubleshooting, read [docs/build-system.md](docs/build-system.md).
 
 ## Core design
 
-- **Lightweight by design:** avoid unnecessary services and software.
+- **Lightweight by design:** avoid unnecessary packages and background services.
 - **Older-hardware focus:** keep compatibility and resource use in mind.
-- **Open source:** build scripts and project-specific components are maintained in this repository.
-- **User-respecting defaults:** no Snap or Flatpak is installed by default as part of the project's stated minimal approach.
-- **Hybrid boot media:** the ISO builder prepares BIOS and UEFI boot entries. Legacy builds also check for an IA32 EFI loader.
-
-## Current technical layout
-
-The current scripts describe the following build architecture:
-
-| Component | Current implementation |
-|---|---|
-| Legacy base | Debian Bookworm, i386 |
-| Lite / Pro base | Ubuntu Jammy, amd64 |
-| Legacy live filesystem | Debian Live-style `live/` directory |
-| Lite / Pro live filesystem | Casper-style `casper/` directory |
-| Live filesystem format | SquashFS |
-| BIOS boot | ISOLINUX |
-| UEFI boot | GRUB EFI image |
-| ISO creation | xorriso |
-| Memory optimization | Edition-specific ZRAM configuration |
-
-The exact desktop, package selection and installer behavior should be checked against the scripts and release notes for the build you are using.
+- **Open source:** build scripts and Gamma-specific components are maintained in this repository.
+- **User-respecting defaults:** Snap and Flatpak are not installed by default as part of the project's minimal approach.
+- **Hybrid boot media:** BIOS and UEFI boot paths are prepared by the manual ISO builder.
 
 ## Download and verify
 
@@ -85,50 +93,33 @@ Boot the USB and test the live environment first. Use the installer supplied by 
 
 ## Building from source
 
-### Requirements
+Read [Build System Documentation](docs/build-system.md) before starting. The build scripts modify and remove generated build directories.
 
-The build process uses Bash, debootstrap, xorriso, Syslinux/ISOLINUX, SquashFS tooling and GRUB EFI components. The QEMU test script also requires `qemu-system-x86_64`; OVMF firmware is needed for its optional UEFI x86_64 boot test.
-
-Install the dependencies appropriate for your host distribution before starting. Package names can differ between distributions.
-
-### Build sequence
-
-The repository's numbered scripts define the build workflow:
-
-1. `scripts/01-prepare.sh` — prepares the base chroot.
-2. `scripts/02-install-packages.sh` — installs the edition packages.
-3. `scripts/03-install-gamma.sh` — installs Gamma-specific components.
-4. `scripts/04-configure.sh` — configures the system and completes chroot preparation.
-5. `scripts/05-build-squashfs.sh` — creates the compressed live filesystem.
-6. `scripts/06-build-efi.sh` — prepares EFI boot files.
-7. `scripts/07-build-iso.sh` — validates the ISO tree and creates the hybrid ISO.
-8. `scripts/08-test.sh` — checks ISO structure and attempts QEMU BIOS and, when OVMF is available, UEFI x86_64 boot tests.
-
-Run the scripts from the repository root, in order, using the same edition argument:
+The standard sequence is:
 
 ```bash
-sudo bash scripts/01-prepare.sh legacy
-sudo bash scripts/02-install-packages.sh legacy
-sudo bash scripts/03-install-gamma.sh legacy
-sudo bash scripts/04-configure.sh legacy
-sudo bash scripts/05-build-squashfs.sh legacy
-sudo bash scripts/06-build-efi.sh legacy
-sudo bash scripts/07-build-iso.sh legacy
-bash scripts/08-test.sh legacy
+bash scripts/01-prepare.sh <pro|lite|legacy>
+bash scripts/02-install-packages.sh <pro|lite|legacy>
+bash scripts/03-install-gamma.sh
+bash scripts/04-configure.sh <pro|lite|legacy>
+bash scripts/05-build-squashfs.sh <pro|lite|legacy>
+bash scripts/06-build-efi.sh <pro|lite|legacy>
+bash scripts/07-build-iso.sh <pro|lite|legacy>
+bash scripts/08-test.sh <pro|lite|legacy>
 ```
 
-Replace `legacy` with `lite` or `pro` when building those targets. Check each script before running it and follow any prerequisites it reports.
+Run all commands from the repository root. The scripts use `sudo` for privileged filesystem and mount operations; do not run the entire sequence inside an already-root shell unless you have deliberately adapted the scripts.
 
-> **Destructive build warning:** `01-prepare.sh` unmounts and removes the repository's `chroot/`, `iso/` and `output/` directories before preparing a new build. Back up anything important in those directories first. Do not run it if you need to preserve a previous build.
+> **Destructive build warning:** `scripts/01-prepare.sh` unmounts and removes the generated `chroot/`, `iso/` and `output/` directories before preparing a new build. Move anything you need to keep outside those paths first.
 
-The ISO build script checks required files, validates the EFI image and SquashFS, and verifies the resulting ISO contents. The test script performs automated boot attempts; passing those checks is not a substitute for testing the live system and installer on real hardware.
+The automated QEMU checks validate boot records and attempt BIOS and UEFI x86_64 boots. They do not replace testing the live desktop, installer, networking, graphics, sound or hardware on real machines. The Legacy IA32 EFI loader is checked in the ISO tree but is not emulated by the x86_64 QEMU test.
 
 ## Testing and bug reports
 
 Testing on older physical hardware is especially valuable. When reporting a bug, include:
 
 - PC manufacturer and model
-- CPU model and architecture
+- CPU model and architecture (32-bit or 64-bit)
 - RAM amount
 - Storage type and capacity
 - Gamma edition and exact release/build

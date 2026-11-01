@@ -1,7 +1,16 @@
-name: Check Built ISO
+name: Check Built Debian Live ISO
 
 on:
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: "GitHub Actions run ID that produced the gamma-lite artifact"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
 
 jobs:
   check:
@@ -14,46 +23,64 @@ jobs:
           name: gamma-lite
           path: output
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: 29739836293
+          run-id: ${{ inputs.run_id }}
 
-      - name: Install tools
+      - name: Install inspection tools
         run: |
           sudo apt-get update
           sudo apt-get install -y xorriso squashfs-tools
 
-      - name: Check ISO
+      - name: Inspect Debian Live ISO
         run: |
-          ls -lh output/
-
-          xorriso \
-            -indev output/gamma-lite.iso \
-            -ls /
+          set -euo pipefail
+          test -s output/gamma-lite.iso
+          xorriso -indev output/gamma-lite.iso -ls /
+          xorriso -indev output/gamma-lite.iso -ls /live
 
       - name: Extract ISO
         run: |
+          set -euo pipefail
           mkdir iso-root
+          xorriso -osirrox on -indev output/gamma-lite.iso -extract / iso-root
+          test -s iso-root/live/vmlinuz
+          test -s iso-root/live/initrd.lz
+          test -s iso-root/live/filesystem.squashfs
+          test -s iso-root/EFI/BOOT/BOOTX64.EFI
+          echo "Debian Live ISO tree: PASS"
 
-          xorriso \
-            -osirrox on \
-            -indev output/gamma-lite.iso \
-            -extract / iso-root
-
-          ls -lh iso-root/casper
-
-      - name: Check SquashFS
+      - name: Inspect SquashFS
         run: |
+          set -euo pipefail
           sudo mkdir -p /mnt/gamma
+          cleanup() {
+            sudo umount /mnt/gamma 2>/dev/null || true
+          }
+          trap cleanup EXIT
 
-          sudo mount \
-            -o loop,ro \
-            iso-root/casper/filesystem.squashfs \
-            /mnt/gamma
+          sudo mount -o loop,ro iso-root/live/filesystem.squashfs /mnt/gamma
 
           echo "===== INIT ====="
+          test -x /mnt/gamma/sbin/init
           ls -l /mnt/gamma/sbin/init
-
-          echo "===== SYSTEMD ====="
-          ls -l /mnt/gamma/lib/systemd/systemd
 
           echo "===== OS ====="
           cat /mnt/gamma/etc/os-release
+          grep -q '^ID=debian$' /mnt/gamma/etc/os-release
+          grep -q '^VERSION_CODENAME=trixie$' /mnt/gamma/etc/os-release
+
+          echo "===== GAMMA LIVE SESSION ====="
+          grep -Fxq 'LIVE_HOSTNAME=gamma-lite' /mnt/gamma/etc/live/config.conf
+          grep -Fxq 'LIVE_USERNAME=gamma' /mnt/gamma/etc/live/config.conf
+          grep -Fxq 'LIVE_USER_FULLNAME="Gamma Linux User"' /mnt/gamma/etc/live/config.conf
+
+          echo "===== LIVE BOOT ====="
+          test -f /mnt/gamma/usr/share/initramfs-tools/scripts/live
+          for package in live-boot live-boot-initramfs-tools live-config live-config-systemd user-setup sudo; do
+            sudo chroot /mnt/gamma dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "install ok installed"
+          done
+          if sudo chroot /mnt/gamma dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
+            echo "Unexpected Ubuntu Casper package found."
+            exit 1
+          fi
+
+          echo "Debian Trixie root filesystem: PASS"
