@@ -41,8 +41,11 @@ sudo mkdir -p \
     "$CHROOT/etc/sysctl.d" \
     "$CHROOT/etc/systemd/system" \
     "$CHROOT/usr/local/bin" \
-    "$CHROOT/usr/share/applications" \
-    "$CHROOT/etc/calamares/branding/gamma"
+    "$CHROOT/usr/share/applications"
+
+if [[ "$EDITION" != "legacy" ]]; then
+    sudo mkdir -p "$CHROOT/etc/calamares/branding/gamma"
+fi
 
 # ==========================================================
 # Gamma identity
