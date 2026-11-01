@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
+EDITION="${1:-}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHROOT="$ROOT/chroot"
+
+source "$ROOT/scripts/lib/profile.sh"
+load_gamma_profile "$EDITION" "$ROOT"
 
 echo "[04] Configuring Gamma Linux ($EDITION)"
 
@@ -24,41 +27,9 @@ cleanup() {
 trap cleanup EXIT
 
 # ==========================================================
-# Edition tuning
+# Edition tuning comes from build/profiles/<edition>.conf.
+# Keep the tuning values next to the base suite and architecture.
 # ==========================================================
-
-case "$EDITION" in
-
-    pro)
-        SWAPPINESS=80
-        VFS_CACHE=50
-        DIRTY_RATIO=20
-        ZRAM_PERCENT=50
-        HOSTNAME="gamma-pro"
-        ;;
-
-    lite)
-        SWAPPINESS=100
-        VFS_CACHE=100
-        DIRTY_RATIO=10
-        ZRAM_PERCENT=75
-        HOSTNAME="gamma-lite"
-        ;;
-
-    legacy)
-        SWAPPINESS=100
-        VFS_CACHE=100
-        DIRTY_RATIO=5
-        ZRAM_PERCENT=100
-        HOSTNAME="gamma-legacy"
-        ;;
-
-    *)
-        echo "ERROR: Unknown edition '$EDITION'"
-        exit 1
-        ;;
-
-esac
 
 # ==========================================================
 # Directories
