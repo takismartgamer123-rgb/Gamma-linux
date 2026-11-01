@@ -26,6 +26,12 @@ load_gamma_profile() {
     : "${KERNEL_PACKAGE:?Profile must define KERNEL_PACKAGE}"
     : "${LIVE_DIR:?Profile must define LIVE_DIR}"
     : "${LIVE_BOOT_PARAM:?Profile must define LIVE_BOOT_PARAM}"
+    : "${HOSTNAME:?Profile must define HOSTNAME}"
+    : "${SWAPPINESS:?Profile must define SWAPPINESS}"
+    : "${VFS_CACHE:?Profile must define VFS_CACHE}"
+    : "${DIRTY_RATIO:?Profile must define DIRTY_RATIO}"
+    : "${ZRAM_PERCENT:?Profile must define ZRAM_PERCENT}"
+    : "${EXTRA_PACKAGES+x}"
 
     if [[ "$EDITION" != "$edition" || "$BASE_DISTRO" != "debian" ]]; then
         echo "ERROR: Invalid or mismatched Gamma build profile: $profile" >&2
@@ -43,6 +49,13 @@ load_gamma_profile() {
             return 1
             ;;
     esac
+
+    for setting in "$SWAPPINESS" "$VFS_CACHE" "$DIRTY_RATIO" "$ZRAM_PERCENT"; do
+        if [[ ! "$setting" =~ ^[0-9]+$ ]]; then
+            echo "ERROR: Memory tuning values must be non-negative integers in $profile." >&2
+            return 1
+        fi
+    done
 
     if [[ "$LIVE_DIR" != "live" || "$LIVE_BOOT_PARAM" != "boot=live" ]]; then
         echo "ERROR: All Debian Gamma editions must use /live and boot=live." >&2
