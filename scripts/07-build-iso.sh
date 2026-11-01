@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
+EDITION="${1:-}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 ISO_DIR="$ROOT/iso"
 OUTPUT_DIR="$ROOT/output"
+
+source "$ROOT/scripts/lib/profile.sh"
+load_gamma_profile "$EDITION" "$ROOT"
+LIVE_DIR="$LIVE_DIR"
+BOOT="$LIVE_BOOT_PARAM"
 
 ISO="$OUTPUT_DIR/gamma-${EDITION}.iso"
 EFI_IMAGE="$ISO_DIR/boot/grub/efi.img"
@@ -20,25 +25,6 @@ echo " ISO Dir : $ISO_DIR"
 echo " Output  : $ISO"
 echo "=========================================================="
 echo
-
-# ==========================================================
-# Edition configuration
-# ==========================================================
-
-case "$EDITION" in
-    pro|lite)
-        LIVE_DIR="casper"
-        BOOT="boot=casper"
-        ;;
-    legacy)
-        LIVE_DIR="live"
-        BOOT="boot=live"
-        ;;
-    *)
-        echo "ERROR: Unknown edition: $EDITION"
-        exit 1
-        ;;
-esac
 
 # ==========================================================
 # Dependencies
