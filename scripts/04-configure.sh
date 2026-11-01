@@ -236,6 +236,7 @@ sudo ln -sf \
     /lib/systemd/system/graphical.target \
     "$CHROOT/etc/systemd/system/default.target"
 
+if [[ "$EDITION" != "legacy" ]]; then
 # ==========================================================
 # Calamares verification and setup
 # ==========================================================
@@ -358,6 +359,10 @@ EOF
 echo "[04] Calamares configuration:"
 grep -E '^[[:space:]]*branding:' \
     "$CAL_ROOT/settings.conf" || true
+
+else
+    echo "[04] Calamares is not part of the Legacy-32 image."
+fi
 
 # ==========================================================
 # ZRAM sanity check
