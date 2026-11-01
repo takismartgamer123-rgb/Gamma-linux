@@ -31,7 +31,7 @@ load_gamma_profile() {
     : "${VFS_CACHE:?Profile must define VFS_CACHE}"
     : "${DIRTY_RATIO:?Profile must define DIRTY_RATIO}"
     : "${ZRAM_PERCENT:?Profile must define ZRAM_PERCENT}"
-    : "${EXTRA_PACKAGES+x}"
+    : "${EXTRA_PACKAGES?Profile must define EXTRA_PACKAGES}"
 
     if [[ "$EDITION" != "$edition" || "$BASE_DISTRO" != "debian" ]]; then
         echo "ERROR: Invalid or mismatched Gamma build profile: $profile" >&2
