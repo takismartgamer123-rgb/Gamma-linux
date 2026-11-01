@@ -100,7 +100,7 @@ jobs:
 
     - name: Check Build Environment
       run: |
-        bash -n scripts/*.sh scripts/lib/profile.sh
+        for script in scripts/*.sh scripts/lib/*.sh; do bash -n "$script"; done
         for profile in build/profiles/*.conf; do bash -n "$profile"; done
         for edition in pro lite legacy; do
           bash -c 'source scripts/lib/profile.sh; load_gamma_profile "$1" "$PWD" >/dev/null' -- "$edition"
