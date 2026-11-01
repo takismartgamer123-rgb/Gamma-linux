@@ -5,26 +5,13 @@ EDITION="${1:-pro}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+source "$ROOT/scripts/lib/profile.sh"
+load_gamma_profile "$EDITION" "$ROOT"
+LIVE_DIR="$LIVE_DIR"
+
 ISO="$ROOT/output/gamma-${EDITION}.iso"
 
-echo "[08] Gamma Linux Boot Test ($EDITION)"
-
-# ==========================================
-# Edition configuration
-# ==========================================
-
-case "$EDITION" in
-    pro|lite)
-        LIVE_DIR="casper"
-        ;;
-    legacy)
-        LIVE_DIR="live"
-        ;;
-    *)
-        echo "ERROR: Unknown edition: $EDITION"
-        exit 1
-        ;;
-esac
+echo "[08] Gamma Linux Debian Live Boot Test ($EDITION)"
 
 # ==========================================
 # Dependencies
@@ -72,6 +59,10 @@ check_iso_file "/${LIVE_DIR}/filesystem.squashfs"
 check_iso_file "/boot/grub/efi.img"
 check_iso_file "/boot/isolinux/isolinux.bin"
 check_iso_file "/boot/isolinux/vesamenu.c32"
+
+if [[ "$BASE_ARCH" == "i386" ]]; then
+    check_iso_file "/EFI/BOOT/BOOTIA32.EFI"
+fi
 
 echo "[08] ISO structure: PASS"
 
