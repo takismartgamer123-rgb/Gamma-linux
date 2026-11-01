@@ -1,6 +1,14 @@
 name: Build Gamma Linux (Debian chroot)
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scripts/**'
+      - 'build/**'
+      - 'src/**'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
       tag:
@@ -92,6 +100,12 @@ jobs:
 
     - name: Check Build Environment
       run: |
+        bash -n scripts/*.sh scripts/lib/profile.sh
+        for profile in build/profiles/*.conf; do bash -n "$profile"; done
+        for edition in pro lite legacy; do
+          bash -c 'source scripts/lib/profile.sh; load_gamma_profile "$1" "$PWD" >/dev/null' -- "$edition"
+        done
+
         cmake --version
 
         pkg-config --modversion elementary || true
@@ -158,6 +172,7 @@ jobs:
 
   release:
 
+    if: github.event_name == 'workflow_dispatch'
     needs: build
 
     runs-on: ubuntu-22.04
