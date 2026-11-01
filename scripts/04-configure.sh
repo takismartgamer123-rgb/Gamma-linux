@@ -140,8 +140,10 @@ NoDisplay=true
 EOF
 
 # ==========================================================
-# Gamma installer launcher
+# Gamma installer launcher (Pro/Lite only)
 # ==========================================================
+
+if [[ "$EDITION" != "legacy" ]]; then
 
 sudo tee "$CHROOT/usr/local/bin/gamma-installer" >/dev/null <<'EOF'
 #!/usr/bin/env bash
@@ -185,6 +187,12 @@ Terminal=false
 StartupNotify=true
 Categories=System;Settings;
 EOF
+
+
+else
+    sudo rm -f "$CHROOT/usr/local/bin/gamma-installer"
+    sudo rm -f "$CHROOT/usr/share/applications/gamma-installer.desktop"
+fi
 
 # ==========================================================
 # ZRAM — Gamma pre-tuned
