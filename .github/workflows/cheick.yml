@@ -75,6 +75,9 @@ jobs:
 
           echo "===== LIVE BOOT ====="
           test -f /mnt/gamma/usr/share/initramfs-tools/scripts/live
+          for package in live-boot live-boot-initramfs-tools live-config live-config-systemd user-setup sudo; do
+            sudo chroot /mnt/gamma dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "install ok installed"
+          done
           if sudo chroot /mnt/gamma dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
             echo "Unexpected Ubuntu Casper package found."
             exit 1
