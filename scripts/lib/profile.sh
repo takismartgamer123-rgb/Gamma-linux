@@ -26,6 +26,8 @@ load_gamma_profile() {
     : "${KERNEL_PACKAGE:?Profile must define KERNEL_PACKAGE}"
     : "${LIVE_DIR:?Profile must define LIVE_DIR}"
     : "${LIVE_BOOT_PARAM:?Profile must define LIVE_BOOT_PARAM}"
+    : "${LIVE_USERNAME:?Profile must define LIVE_USERNAME}"
+    : "${LIVE_USER_FULLNAME:?Profile must define LIVE_USER_FULLNAME}"
     : "${HOSTNAME:?Profile must define HOSTNAME}"
     : "${SWAPPINESS:?Profile must define SWAPPINESS}"
     : "${VFS_CACHE:?Profile must define VFS_CACHE}"
@@ -56,6 +58,11 @@ load_gamma_profile() {
             return 1
         fi
     done
+
+    if [[ ! "$LIVE_USERNAME" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+        echo "ERROR: Invalid Debian Live username in $profile." >&2
+        return 1
+    fi
 
     if [[ "$LIVE_DIR" != "live" || "$LIVE_BOOT_PARAM" != "boot=live" ]]; then
         echo "ERROR: All Debian Gamma editions must use /live and boot=live." >&2
