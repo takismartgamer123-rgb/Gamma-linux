@@ -1,335 +1,161 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
+EDITION="${1:-}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CHROOT="$ROOT/chroot"
 
-echo "[02] Installing packages for $EDITION"
+source "$ROOT/scripts/lib/profile.sh"
+load_gamma_profile "$EDITION" "$ROOT"
 
-export DEBIAN_FRONTEND=noninteractive
-
-# ==========================================
-# Detect Base
-# ==========================================
-
-if [ ! -f chroot/etc/os-release ]; then
-    echo "ERROR: chroot/etc/os-release not found"
+if [[ ! -f "$CHROOT/etc/os-release" ]]; then
+    echo "ERROR: chroot/etc/os-release not found. Run 01-prepare.sh first."
     exit 1
 fi
 
-. chroot/etc/os-release
-
-echo "[02] Base: ${PRETTY_NAME:-unknown}"
-
-# ==========================================
-# Repository Setup
-# ==========================================
-
-if [ "${ID:-}" = "ubuntu" ]; then
-
-    echo "[02] Ubuntu detected"
-
-    sudo chroot chroot apt-get update
-
-    sudo chroot chroot apt-get install -y \
-        software-properties-common
-
-    sudo chroot chroot add-apt-repository universe || true
-
-    sudo chroot chroot apt-get update
-
-elif [ "${ID:-}" = "debian" ]; then
-
-    echo "[02] Debian detected"
-
-    sudo chroot chroot apt-get update
-
-else
-
-    echo "ERROR: Unsupported base: ${ID:-unknown}"
+. "$CHROOT/etc/os-release"
+if [[ "${ID:-}" != "debian" || "${VERSION_CODENAME:-}" != "$BASE_SUITE" ]]; then
+    echo "ERROR: Expected Debian $BASE_SUITE, found ${PRETTY_NAME:-unknown}."
     exit 1
-
 fi
 
-# ==========================================
-# Locales
-# ==========================================
+CHROOT_ARCH="$(sudo chroot "$CHROOT" dpkg --print-architecture)"
+if [[ "$CHROOT_ARCH" != "$BASE_ARCH" ]]; then
+    echo "ERROR: Expected architecture $BASE_ARCH, found $CHROOT_ARCH."
+    exit 1
+fi
+
+run_chroot() {
+    sudo chroot "$CHROOT" env DEBIAN_FRONTEND=noninteractive "$@"
+}
+
+echo "[02] Updating Debian $BASE_SUITE package indexes..."
+run_chroot apt-get update
 
 echo "[02] Installing locales..."
-
-if [ "$EDITION" = "legacy" ]; then
-
-    sudo chroot chroot apt-get install -y \
-        locales
-
-else
-
-    sudo chroot chroot apt-get install -y \
-        locales \
-        language-pack-ar \
-        language-pack-fr
-
-fi
-
-sudo tee chroot/etc/locale.gen >/dev/null <<EOF
+run_chroot apt-get install -y --no-install-recommends locales
+sudo tee "$CHROOT/etc/locale.gen" >/dev/null <<'EOF'
 ar_DZ.UTF-8 UTF-8
 en_US.UTF-8 UTF-8
 fr_FR.UTF-8 UTF-8
 EOF
+run_chroot locale-gen
+echo "LANG=en_US.UTF-8" | sudo tee "$CHROOT/etc/default/locale" >/dev/null
 
-sudo chroot chroot locale-gen
+# Debian Live runtime: live-boot handles the early initramfs stage and
+# live-config configures the live userspace after the root filesystem mounts.
+# live-config-systemd is the required backend for this systemd-based image.
+COMMON_PACKAGES=(
+    "$KERNEL_PACKAGE"
+    initramfs-tools
+    live-boot
+    live-boot-initramfs-tools
+    live-config
+    live-config-systemd
+    acpi
+    nano
+    xserver-xorg
+    xinit
+    x11-xserver-utils
+    xauth
+    calamares
+    zram-tools
+    lightdm
+    lightdm-gtk-greeter
+    enlightenment
+    terminology
+    dbus-x11
+    network-manager
+)
 
-echo "LANG=en_US.UTF-8" | \
-    sudo tee chroot/etc/default/locale >/dev/null
+read -r -a EXTRA_PACKAGE_ARRAY <<< "$EXTRA_PACKAGES"
+PACKAGES=("${COMMON_PACKAGES[@]}" "${EXTRA_PACKAGE_ARRAY[@]}")
 
-# ==========================================
-# Common Desktop Packages
-# ==========================================
+echo "[02] Installing Debian packages:"
+printf '  - %s\n' "${PACKAGES[@]}"
+run_chroot apt-get install -y --no-install-recommends "${PACKAGES[@]}"
 
-COMMON_PKGS="
-initramfs-tools
-acpi
-nano
+echo "[02] Verifying required packages..."
+REQUIRED_PACKAGES=(
+    "$KERNEL_PACKAGE"
+    initramfs-tools
+    live-boot
+    live-boot-initramfs-tools
+    live-config
+    live-config-systemd
+    lightdm
+    lightdm-gtk-greeter
+    xserver-xorg
+    enlightenment
+    terminology
+    calamares
+    zram-tools
+    network-manager
+)
 
-xserver-xorg
-xinit
-x11-xserver-utils
-xauth
-calamares
-zram-tools
-
-lightdm
-lightdm-gtk-greeter
-
-enlightenment
-terminology
-
-dbus-x11
-"
-
-# ==========================================
-# Edition Packages
-# ==========================================
-
-case "$EDITION" in
-
-    pro)
-
-        PKGS="
-        linux-image-generic-hwe-22.04
-        casper
-        ubuntu-minimal
-
-        $COMMON_PKGS
-
-        network-manager
-        earlyoom
-
-        calamares
-        "
-
-        ;;
-
-    lite)
-
-        PKGS="
-        linux-image-generic-hwe-22.04
-        casper
-        ubuntu-minimal
-
-        $COMMON_PKGS
-
-        network-manager
-
-        calamares
-        "
-
-        ;;
-
-    legacy)
-
-        PKGS="
-        linux-image-686-pae
-
-        $COMMON_PKGS
-
-        network-manager
-        "
-
-        ;;
-
-    *)
-
-        echo "ERROR: Unknown edition: $EDITION"
+for package in "${REQUIRED_PACKAGES[@]}"; do
+    if ! run_chroot dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "install ok installed"; then
+        echo "ERROR: Required package missing or not installed: $package"
         exit 1
-
-        ;;
-
-esac
-
-# ==========================================
-# Install Packages
-# ==========================================
-
-echo
-echo "[02] Installing packages:"
-echo "$PKGS"
-echo
-
-sudo chroot chroot apt-get install \
-    -y \
-    --no-install-recommends \
-    $PKGS
-
-# ==========================================
-# Verify Desktop
-# ==========================================
-
-echo "[02] Verifying desktop environment..."
-
-REQUIRED_PKGS="
-lightdm
-lightdm-gtk-greeter
-xserver-xorg
-enlightenment
-terminology
-"
-
-for PKG in $REQUIRED_PKGS; do
-
-    if ! sudo chroot chroot dpkg -s "$PKG" >/dev/null 2>&1; then
-
-        echo "ERROR: Required package missing: $PKG"
-        exit 1
-
     fi
-
 done
 
-# ==========================================
-# Verify Xorg
-# ==========================================
-
-if [ ! -x chroot/usr/bin/Xorg ]; then
-
-    echo "ERROR: Xorg executable missing"
+if ! run_chroot test -x /usr/bin/Xorg; then
+    echo "ERROR: Xorg executable missing."
     exit 1
-
 fi
 
-echo "[02] Xorg OK"
-
-# ==========================================
-# Verify Enlightenment Session
-# ==========================================
-
-if [ ! -f chroot/usr/share/xsessions/enlightenment.desktop ]; then
-
-    echo "ERROR: Enlightenment session missing:"
-    echo "       chroot/usr/share/xsessions/enlightenment.desktop"
-
+if [[ ! -f "$CHROOT/usr/share/xsessions/enlightenment.desktop" ]]; then
+    echo "ERROR: Enlightenment X session file missing."
     exit 1
-
 fi
 
-echo "[02] Enlightenment session OK"
-
-# ==========================================
-# Verify LightDM Greeter
-# ==========================================
-
-if [ ! -f chroot/usr/share/xgreeters/lightdm-gtk-greeter.desktop ]; then
-
-    echo "ERROR: LightDM GTK greeter missing"
+if [[ ! -f "$CHROOT/usr/share/xgreeters/lightdm-gtk-greeter.desktop" ]]; then
+    echo "ERROR: LightDM GTK greeter file missing."
     exit 1
-
 fi
 
-echo "[02] LightDM greeter OK"
-
-# ==========================================
-# Verify Calamares
-# ==========================================
-
-if [ "$EDITION" != "legacy" ]; then
-
-    if [ ! -x chroot/usr/bin/calamares ]; then
-
-        echo "ERROR: Calamares missing for $EDITION"
-        exit 1
-
-    fi
-
-    echo "[02] Calamares OK"
-
+if [[ ! -x "$CHROOT/usr/bin/calamares" ]]; then
+    echo "ERROR: Calamares executable missing."
+    exit 1
 fi
 
-# ==========================================
-# Enable LightDM
-# ==========================================
+if [[ ! -f "$CHROOT/usr/share/initramfs-tools/scripts/live" ]]; then
+    echo "ERROR: Debian live-boot initramfs script is missing."
+    exit 1
+fi
 
 echo "[02] Enabling LightDM..."
+run_chroot systemctl enable lightdm.service >/dev/null 2>&1 || true
 
-sudo chroot chroot systemctl enable lightdm.service \
-    >/dev/null 2>&1 || true
+echo "[02] Rebuilding initramfs with Debian live-boot hooks..."
+run_chroot update-initramfs -c -k all || run_chroot update-initramfs -u -k all
 
-# ==========================================
-# Rebuild Initramfs
-# ==========================================
-
-echo "[02] Rebuilding initramfs..."
-
-sudo chroot chroot update-initramfs -c -k all || \
-sudo chroot chroot update-initramfs -u -k all
-
-# ==========================================
-# Verify Initramfs
-# ==========================================
-
-if ! find chroot/boot \
-    -maxdepth 1 \
-    -type f \
-    -name 'initrd.img-*' \
-    | grep -q .; then
-
-    echo "ERROR: No initramfs generated"
+if ! find "$CHROOT/boot" -maxdepth 1 -type f -name 'initrd.img-*' -print -quit | grep -q .; then
+    echo "ERROR: No initramfs generated."
     exit 1
-
 fi
 
-echo "[02] Initramfs OK"
+echo "[02] Removing unwanted optional packages and build cache..."
+run_chroot apt-get purge -y snapd flatpak cups || true
+run_chroot apt-get autoremove -y
+run_chroot apt-get clean
 
-# ==========================================
-# Cleanup
-# ==========================================
-
-echo "[02] Cleaning unwanted packages..."
-
-sudo chroot chroot apt-get purge -y \
-    snapd \
-    flatpak \
-    cups \
-    || true
-
-sudo chroot chroot apt-get autoremove -y
-
-sudo chroot chroot apt-get clean
-
-# ==========================================
-# Final Report
-# ==========================================
+if run_chroot dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
+    echo "ERROR: An Ubuntu Casper package was installed unexpectedly."
+    exit 1
+fi
 
 echo
 echo "=========================================="
-echo " Gamma Linux Package Stage Completed"
+echo " Gamma Linux Debian Package Stage"
 echo " Edition : $EDITION"
-echo " Base    : ${PRETTY_NAME:-unknown}"
+echo " Base    : Debian $BASE_SUITE"
+echo " Arch    : $BASE_ARCH"
+echo " Kernel  : $KERNEL_PACKAGE"
+echo " Live    : live-boot + live-config"
 echo " Xorg    : OK"
 echo " LightDM : OK"
-echo " Greeter : OK"
-echo " E17/E25 : OK"
-if [ "$EDITION" != "legacy" ]; then
 echo " Calamares: OK"
-fi
 echo " Initramfs: OK"
 echo "=========================================="
-echo
