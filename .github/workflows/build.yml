@@ -83,7 +83,8 @@ jobs:
           syslinux-common \
           qemu-system-x86 \
           ovmf \
-          libefl-all-dev
+          libefl-all-dev \
+          libedje-bin
 
     # ================================
     # Check Environment
@@ -98,6 +99,10 @@ jobs:
         pkg-config --modversion evas || true
 
         which grub-mkstandalone
+        which debootstrap
+        which mksquashfs
+        which lsinitramfs
+        which edje_cc
         which xorriso
         which qemu-system-x86_64
 
