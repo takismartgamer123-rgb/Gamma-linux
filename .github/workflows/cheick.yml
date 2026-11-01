@@ -22,8 +22,8 @@ jobs:
         with:
           name: gamma-lite
           path: output
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ inputs.run_id }}
+          github-token: \${{ secrets.GITHUB_TOKEN }}
+          run-id: \${{ inputs.run_id }}
 
       - name: Install inspection tools
         run: |
@@ -66,44 +66,16 @@ jobs:
           echo "===== OS ====="
           cat /mnt/gamma/etc/os-release
           grep -q '^ID=debian$' /mnt/gamma/etc/os-release
-          grep -q '^VERSION_CODENAME=trixie          test -f /mnt/gamma/usr/share/initramfs-tools/scripts/live
-          if sudo chroot /mnt/gamma dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
-            echo "Unexpected Ubuntu Casper package found."
-            exit 1
-          fi
-
-          echo "Debian Trixie root filesystem: PASS"
- /mnt/gamma/etc/os-release
+          grep -q '^VERSION_CODENAME=trixie$' /mnt/gamma/etc/os-release
 
           echo "===== GAMMA LIVE SESSION ====="
-          grep -q '^LIVE_HOSTNAME=gamma-lite          test -f /mnt/gamma/usr/share/initramfs-tools/scripts/live
-          if sudo chroot /mnt/gamma dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
-            echo "Unexpected Ubuntu Casper package found."
-            exit 1
-          fi
-
-          echo "Debian Trixie root filesystem: PASS"
- /mnt/gamma/etc/live/config.conf
-          grep -q '^LIVE_USERNAME=gamma          test -f /mnt/gamma/usr/share/initramfs-tools/scripts/live
-          if sudo chroot /mnt/gamma dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
-            echo "Unexpected Ubuntu Casper package found."
-            exit 1
-          fi
-
-          echo "Debian Trixie root filesystem: PASS"
- /mnt/gamma/etc/live/config.conf
-          grep -q '^LIVE_USER_FULLNAME="Gamma Linux User"          test -f /mnt/gamma/usr/share/initramfs-tools/scripts/live
-          if sudo chroot /mnt/gamma dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
-            echo "Unexpected Ubuntu Casper package found."
-            exit 1
-          fi
-
-          echo "Debian Trixie root filesystem: PASS"
- /mnt/gamma/etc/live/config.conf
+          grep -Fxq 'LIVE_HOSTNAME=gamma-lite' /mnt/gamma/etc/live/config.conf
+          grep -Fxq 'LIVE_USERNAME=gamma' /mnt/gamma/etc/live/config.conf
+          grep -Fxq 'LIVE_USER_FULLNAME="Gamma Linux User"' /mnt/gamma/etc/live/config.conf
 
           echo "===== LIVE BOOT ====="
           test -f /mnt/gamma/usr/share/initramfs-tools/scripts/live
-          if sudo chroot /mnt/gamma dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
+          if sudo chroot /mnt/gamma dpkg-query -W -f='\${binary:Package}\n' 2>/dev/null | grep -qx 'casper'; then
             echo "Unexpected Ubuntu Casper package found."
             exit 1
           fi
