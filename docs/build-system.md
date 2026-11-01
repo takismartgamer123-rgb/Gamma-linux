@@ -66,6 +66,8 @@ Gamma writes `/etc/live/config.conf` from the selected edition profile so the li
 - `LIVE_USERNAME=gamma` creates the Gamma live user.
 - `LIVE_USER_FULLNAME=Gamma Linux User` sets the display name.
 
+Because this build uses `--no-install-recommends`, the packages `user-setup` and `sudo` are installed explicitly. They are recommended by Debian's `live-config` package and are needed for creating the configured live user and granting that user sudo privileges. The `lightdm` live-config component enables graphical autologin.
+
 The Debian Live user-setup component supplies its documented default live password (`live`) unless a project-specific password hook is added. Treat this as a live-session credential, not a secure installed-user password; installation creates the installed system's user account separately.
 
 Every edition uses the same ISO layout and boot parameter:
