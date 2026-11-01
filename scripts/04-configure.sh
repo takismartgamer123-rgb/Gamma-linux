@@ -64,8 +64,8 @@ sudo tee "$CHROOT/etc/motd" >/dev/null <<'EOF'
 
 EOF
 
-# Keep real Ubuntu/Debian /etc/os-release untouched.
-# Some system tools and installers use it.
+# Keep the real Debian /etc/os-release untouched.
+# System tools and installers depend on the distribution identity.
 
 # ==========================================================
 # Hostname default
