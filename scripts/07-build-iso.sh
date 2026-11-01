@@ -10,7 +10,6 @@ OUTPUT_DIR="$ROOT/output"
 
 source "$ROOT/scripts/lib/profile.sh"
 load_gamma_profile "$EDITION" "$ROOT"
-LIVE_DIR="$LIVE_DIR"
 BOOT="$LIVE_BOOT_PARAM"
 
 ISO="$OUTPUT_DIR/gamma-${EDITION}.iso"
