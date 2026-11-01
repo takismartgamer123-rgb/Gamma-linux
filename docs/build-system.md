@@ -89,7 +89,7 @@ Run the stages from the repository root, in order, with the same edition name.
 | Script | Responsibility |
 |---|---|
 | `01-prepare.sh` | Load edition profile, clean generated work directories, bootstrap Debian chroot, write APT sources, mount host virtual filesystems |
-| `02-install-packages.sh` | Verify Debian suite/architecture, install desktop, kernel, installer and Debian Live packages, generate initramfs |
+| `02-install-packages.sh` | Verify Debian suite/architecture, install desktop, kernel and Debian Live packages, install Calamares on Pro/Lite only, generate initramfs |
 | `03-install-gamma.sh` | Build and install Gamma Control Center and compile/install the Gamma Edje theme |
 | `04-configure.sh` | Apply Gamma identity, LightDM, Calamares branding, ZRAM and sysctl tuning |
 | `05-build-squashfs.sh` | Validate Debian Live initramfs integration, clean transient state, create SquashFS and copy kernel/initramfs |
