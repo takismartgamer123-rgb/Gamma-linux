@@ -1,4 +1,4 @@
-name: Build Gamma Linux v2.7
+name: Build Gamma Linux (Debian chroot)
 
 on:
   workflow_dispatch:
@@ -19,6 +19,7 @@ jobs:
 
   build:
 
+    # Ubuntu is only the build host; all target filesystems are Debian chroots.
     runs-on: ubuntu-22.04
 
     timeout-minutes: 180
@@ -70,6 +71,7 @@ jobs:
           cmake \
           pkg-config \
           debootstrap \
+          initramfs-tools \
           squashfs-tools \
           xorriso \
           grub-pc-bin \
