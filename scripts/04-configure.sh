@@ -73,6 +73,16 @@ EOF
 
 echo "$HOSTNAME" | sudo tee "$CHROOT/etc/hostname" >/dev/null
 
+# Debian live-config otherwise defaults to hostname "debian" and user "user".
+# Set Gamma's live identity through the supported /etc/live/config.conf file.
+sudo mkdir -p "$CHROOT/etc/live"
+sudo tee "$CHROOT/etc/live/config.conf" >/dev/null <<EOF
+# Gamma Linux live-session defaults.
+LIVE_HOSTNAME="$HOSTNAME"
+LIVE_USERNAME="$LIVE_USERNAME"
+LIVE_USER_FULLNAME="$LIVE_USER_FULLNAME"
+EOF
+
 # ==========================================================
 # LightDM
 # ==========================================================
