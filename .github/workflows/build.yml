@@ -16,6 +16,10 @@ on:
         required: true
         default: 'v2.7'
 
+concurrency:
+  group: gamma-debian-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
