@@ -52,6 +52,8 @@ COMMON_PACKAGES=(
     live-boot-initramfs-tools
     live-config
     live-config-systemd
+    user-setup
+    sudo
     acpi
     nano
     xserver-xorg
@@ -83,6 +85,8 @@ REQUIRED_PACKAGES=(
     live-boot-initramfs-tools
     live-config
     live-config-systemd
+    user-setup
+    sudo
     lightdm
     lightdm-gtk-greeter
     xserver-xorg
