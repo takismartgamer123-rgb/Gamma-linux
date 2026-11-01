@@ -60,7 +60,6 @@ COMMON_PACKAGES=(
     xinit
     x11-xserver-utils
     xauth
-    calamares
     zram-tools
     lightdm
     lightdm-gtk-greeter
@@ -72,6 +71,9 @@ COMMON_PACKAGES=(
 
 read -r -a EXTRA_PACKAGE_ARRAY <<< "$EXTRA_PACKAGES"
 PACKAGES=("${COMMON_PACKAGES[@]}" "${EXTRA_PACKAGE_ARRAY[@]}")
+if [[ "$EDITION" != "legacy" ]]; then
+    PACKAGES+=(calamares)
+fi
 
 echo "[02] Installing Debian packages:"
 printf '  - %s\n' "${PACKAGES[@]}"
@@ -92,7 +94,6 @@ REQUIRED_PACKAGES=(
     xserver-xorg
     enlightenment
     terminology
-    calamares
     zram-tools
     network-manager
 )
@@ -119,8 +120,8 @@ if [[ ! -f "$CHROOT/usr/share/xgreeters/lightdm-gtk-greeter.desktop" ]]; then
     exit 1
 fi
 
-if [[ ! -x "$CHROOT/usr/bin/calamares" ]]; then
-    echo "ERROR: Calamares executable missing."
+if [[ "$EDITION" != "legacy" && ! -x "$CHROOT/usr/bin/calamares" ]]; then
+    echo "ERROR: Calamares executable missing for $EDITION."
     exit 1
 fi
 
@@ -160,6 +161,6 @@ echo " Kernel  : $KERNEL_PACKAGE"
 echo " Live    : live-boot + live-config"
 echo " Xorg    : OK"
 echo " LightDM : OK"
-echo " Calamares: OK"
+if [[ "$EDITION" != "legacy" ]]; then echo " Calamares: OK"; else echo " Calamares: not included"; fi
 echo " Initramfs: OK"
 echo "=========================================="
