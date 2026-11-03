@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Guides pratiques pour choisir, télécharger, installer, compiler et dépanner Gamma Linux.">
+  <meta name="theme-color" content="#070711">
+  <title>Documentation Gamma Linux · Gamma Linux Docs</title>
+  <link rel="stylesheet" href="../assets/docs.css">
+  <script defer src="../assets/docs.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="https://gamma-linux.is-local.org/"><span class="brand-mark">Γ</span> Gamma Linux <span class="muted">/ Docs</span></a>
+      <div class="top-links">
+        <a href="../">Docs home</a>
+        <a href="https://gamma-linux.is-local.org/">Main website</a>
+        <span class="lang-switch" aria-label="Language"><a href="../en/">EN</a><a href="../fr/" aria-current="page">FR</a><a href="../ar/">AR</a></span>
+      </div>
+    </div>
+  </header>
+  <main class="container">
+    <section class="hero">
+      <span class="eyebrow">GAMMA LINUX · OFFICIAL DOCUMENTATION</span>
+      <h1>Documentation Gamma Linux</h1>
+      <p class="lead">Guides pratiques pour choisir, télécharger, installer, compiler et dépanner Gamma Linux.</p>
+    </section>
+    <div class="layout">
+      <aside class="sidebar">
+        <label class="search-label" for="doc-search">Rechercher dans ce guide</label>
+        <input class="search" id="doc-search" data-doc-search type="search" placeholder="Saisissez un mot-clé…">
+        <nav class="side-nav" aria-label="Sections de la documentation"><a href="#overview">Présentation</a><a href="#editions">Choisir une édition</a><a href="#download">Télécharger et vérifier</a><a href="#install">Installation</a><a href="#build">Compiler depuis les sources</a><a href="#troubleshoot">Dépannage</a><a href="#report">Signaler un problème</a><a href="#contribute">Contribuer</a><a href="#faq">FAQ</a></nav>
+      </aside>
+      <div class="content">
+        
+<section class="doc-section" id="overview" data-doc-section>
+  <h2>Bienvenue dans Gamma Linux</h2>
+  <p>Gamma Linux est un projet de distribution libre et open source dont l’objectif est de donner une nouvelle utilité aux anciens ordinateurs.</p>
+  <div class="note"><strong>À lire avant de commencer :</strong> Gamma est en développement actif. Le bureau, les paquets, l’installateur, la compatibilité matérielle et les exigences peuvent changer d’une image ISO à l’autre. Les notes de version de l’ISO utilisée restent la référence finale.</div>
+  <p>Cette documentation présente le parcours général. Si une instruction diffère des notes de version ou des scripts de la branche utilisée, suivez les informations propres à cette version.</p>
+</section>
+<section class="doc-section" id="editions" data-doc-section>
+  <h2>Choisir la bonne édition</h2>
+  <p>Commencez par vérifier l’architecture du processeur, puis tenez compte de la mémoire et du stockage. Les valeurs ci-dessous sont des objectifs pratiques publiés sur le site du projet, pas des garanties de performances.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Édition</th><th>Architecture</th><th>RAM cible</th><th>Stockage cible</th><th>Usage prévu</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Legacy-32</strong></td><td>x86 32 bits (i386)</td><td>512 Mo+</td><td>8 Go+</td><td>Anciens ordinateurs 32 bits</td></tr>
+      <tr><td><strong>Lite-Ghost</strong></td><td>x86 64 bits (amd64)</td><td>1 Go+</td><td>10 Go+</td><td>Systèmes 64 bits modestes</td></tr>
+      <tr><td><strong>Pro-MaxMini</strong></td><td>x86 64 bits (amd64)</td><td>2 Go+</td><td>15 Go+</td><td>Machines plus puissantes</td></tr>
+    </tbody>
+  </table></div>
+  <div class="warning"><strong>Compatibilité :</strong> Un processeur 32 bits ne peut pas exécuter une image amd64. Un processeur 64 bits peut prendre en charge plusieurs modes, mais le firmware et les fichiers de démarrage doivent aussi correspondre. Vérifiez le processeur et le firmware avant le téléchargement.</div>
+  <p>Les noms et caractéristiques des éditions peuvent évoluer. Consultez toujours la page de la version exacte avant de choisir une image.</p>
+</section>
+<section class="doc-section" id="download" data-doc-section>
+  <h2>Télécharger et vérifier</h2>
+  <ol>
+    <li>Ouvrez la page des <a href="https://github.com/takismartgamer123-rgb/Gamma-linux/releases">versions Gamma Linux</a>.</li>
+    <li>Choisissez une version publiée et vérifiez que son ISO correspond à votre architecture.</li>
+    <li>Lisez les notes de version : problèmes connus, identifiants éventuels et consignes propres à l’installateur.</li>
+    <li>Si une somme SHA-256 est publiée, calculez celle du fichier téléchargé :</li>
+  </ol>
+  <pre>sha256sum Gamma-Linux.iso</pre>
+  <p>Comparez le résultat caractère par caractère avec la somme publiée pour cette ISO précise. Toutes les versions ne fournissent pas nécessairement un fichier de sommes.</p>
+  <div class="note">Téléchargez l’image depuis la page officielle des versions ou depuis une source explicitement indiquée par le projet.</div>
+</section>
+<section class="doc-section" id="install" data-doc-section>
+  <h2>Guide d’installation</h2>
+  <div class="warning"><strong>Sauvegardez vos données avant toute opération.</strong> Le partitionnement et le formatage peuvent effacer définitivement des fichiers. Vérifiez le disque cible avant de confirmer une modification.</div>
+  <h3>1. Préparer la clé USB</h3>
+  <p>Écrivez l’ISO sur une clé USB avec un outil adapté comme Rufus ou Ventoy. Cette opération efface généralement le contenu existant de la clé. Sauvegardez les fichiers qui s’y trouvent.</p>
+  <h3>2. Vérifier le mode BIOS ou UEFI</h3>
+  <p>Ouvrez le menu de démarrage du firmware et choisissez l’entrée USB correspondant au mode de démarrage de la machine. Les touches courantes sont F12, F11, Esc, F8 ou F9, selon le fabricant.</p>
+  <h3>3. Si Windows est installé sur le même ordinateur</h3>
+  <p>Pour une configuration en double démarrage, désactivez le démarrage rapide et l’hibernation depuis une invite de commandes Windows ouverte en administrateur :</p>
+  <pre>powercfg /h off</pre>
+  <p>Effectuez ensuite un arrêt complet de Windows avant de démarrer la clé Gamma. Cette commande désactive aussi l’hibernation. N’accédez pas depuis Linux à une partition Windows en hibernation.</p>
+  <h3>4. Tester la session Live</h3>
+  <p>Démarrez Gamma en mode Live avant l’installation. Vérifiez l’écran, le clavier, le pavé tactile, le stockage, le réseau et la stabilité générale. Si un périphérique essentiel ne fonctionne pas, consultez les notes de version et signalez le problème avant de modifier les partitions.</p>
+  <h3>5. Lancer l’installateur</h3>
+  <p>Si le bureau Live propose le raccourci <strong>Install Gamma Linux</strong>, ouvrez-le pour lancer Calamares. Vérifiez attentivement la langue, le clavier, le partitionnement, le compte utilisateur et le chargeur d’amorçage. Relisez le résumé final avant de confirmer.</p>
+  <h3>6. Terminer</h3>
+  <p>Lorsque l’installation est terminée, redémarrez et retirez la clé USB lorsque le système le demande. Si le système installé ne démarre pas, notez le message exact et le mode firmware au lieu de modifier les partitions au hasard.</p>
+</section>
+<section class="doc-section" id="build" data-doc-section>
+  <h2>Compiler Gamma Linux depuis les sources</h2>
+  <p>Les scripts de construction et la configuration sont disponibles dans le <a href="https://github.com/takismartgamer123-rgb/Gamma-linux">dépôt source</a>. Le README et les scripts de la branche choisie définissent le processus réel.</p>
+  <p>Le processus documenté est divisé en étapes :</p>
+  <ol>
+    <li><code>scripts/01-prepare.sh</code> — préparer le chroot de base.</li>
+    <li><code>scripts/02-install-packages.sh</code> — installer les paquets de l’édition.</li>
+    <li><code>scripts/03-install-gamma.sh</code> — installer les composants propres à Gamma.</li>
+    <li><code>scripts/04-configure.sh</code> — configurer le système.</li>
+    <li><code>scripts/05-build-squashfs.sh</code> — créer le système de fichiers Live compressé.</li>
+    <li><code>scripts/06-build-efi.sh</code> — préparer les fichiers EFI.</li>
+    <li><code>scripts/07-build-iso.sh</code> — créer l’image ISO.</li>
+    <li><code>scripts/08-test.sh</code> — lancer les vérifications et les tests QEMU disponibles.</li>
+  </ol>
+  <p>Pour la cible documentée <code>legacy</code>, exécutez :</p>
+  <pre>sudo bash scripts/01-prepare.sh legacy
+sudo bash scripts/02-install-packages.sh legacy
+sudo bash scripts/03-install-gamma.sh legacy
+sudo bash scripts/04-configure.sh legacy
+sudo bash scripts/05-build-squashfs.sh legacy
+sudo bash scripts/06-build-efi.sh legacy
+sudo bash scripts/07-build-iso.sh legacy
+bash scripts/08-test.sh legacy</pre>
+  <p>Remplacez <code>legacy</code> par <code>lite</code> ou <code>pro</code> uniquement si ces cibles existent dans la branche utilisée. Installez d’abord les dépendances hôtes indiquées dans le README de cette branche.</p>
+  <div class="warning"><strong>Étape destructive :</strong> le script documenté <code>01-prepare.sh</code> supprime les répertoires <code>chroot/</code>, <code>iso/</code> et <code>output/</code> du dépôt avant de préparer une nouvelle compilation. Sauvegardez leur contenu important et inspectez le script actuel avant de l’exécuter, surtout sur une autre branche.</div>
+  <p>Les tests automatisés sont utiles, mais ne remplacent pas les essais de l’ISO Live et de l’installateur sur du matériel réel.</p>
+</section>
+<section class="doc-section" id="troubleshoot" data-doc-section>
+  <h2>Dépannage</h2>
+  <h3>La clé USB n’apparaît pas dans le menu de démarrage</h3>
+  <ul><li>Essayez un autre port USB, directement sur la machine.</li><li>Recréez la clé et vérifiez la somme ISO lorsqu’elle est publiée.</li><li>Vérifiez le mode Legacy BIOS ou UEFI et choisissez l’entrée correspondante.</li></ul>
+  <h3>L’écran reste noir au démarrage</h3>
+  <ul><li>Attendez un peu afin d’écarter un démarrage simplement lent.</li><li>Consultez les notes de version pour les problèmes graphiques et les options de secours prises en charge.</li><li>Notez le modèle du GPU et les messages visibles. N’ajoutez pas de paramètres noyau au hasard.</li></ul>
+  <h3>L’installateur ne détecte pas le disque</h3>
+  <ul><li>Arrêtez-vous avant de formater ou de modifier la table de partitions.</li><li>Vérifiez que le firmware détecte le disque et que Windows est complètement arrêté, le cas échéant.</li><li>Notez le modèle du stockage, le mode du contrôleur et le message de l’installateur.</li></ul>
+  <h3>Réseau, Wi-Fi ou audio absent</h3>
+  <p>Certains appareils nécessitent un firmware ou une prise en charge spécifique. Notez le modèle exact et consultez les notes de version. Évitez les firmwares provenant de sites non fiables.</p>
+  <h3>Le système installé diffère de la session Live</h3>
+  <p>Indiquez l’édition, la version, le mode de démarrage et les étapes pour reproduire le problème. Retirez les mots de passe, clés privées, numéros de série et données personnelles des journaux avant de les partager.</p>
+</section>
+<section class="doc-section" id="report" data-doc-section>
+  <h2>Signaler un problème</h2>
+  <p>Un bon rapport permet de reproduire le problème. Ajoutez :</p>
+  <ul>
+    <li>fabricant et modèle du PC ;</li><li>modèle et architecture du CPU, quantité de RAM et type de stockage ;</li>
+    <li>édition Gamma et version/build exacts ;</li><li>mode BIOS ou UEFI ;</li>
+    <li>étapes pour reproduire le problème et résultat attendu ;</li><li>journaux utiles ou capture d’écran lisible, après retrait des informations personnelles.</li>
+  </ul>
+  <p>Envoyez le rapport via <a href="https://github.com/takismartgamer123-rgb/Gamma-linux/issues">GitHub Issues</a> ou par e-mail à <a href="mailto:founder@mail.gamma-linux.is-local.org">founder@mail.gamma-linux.is-local.org</a>.</p>
+</section>
+<section class="doc-section" id="contribute" data-doc-section>
+  <h2>Contribuer à Gamma</h2>
+  <div class="cards">
+    <div class="mini-card"><h3>Tester du matériel</h3><p>Essayez la session Live sur de vrais ordinateurs et communiquez des résultats précis.</p></div>
+    <div class="mini-card"><h3>Améliorer la documentation</h3><p>Clarifiez les instructions, traduisez les pages et ajoutez des solutions vérifiées.</p></div>
+    <div class="mini-card"><h3>Développer</h3><p>Examinez les scripts, reproduisez les problèmes et proposez des améliorations ciblées sur GitHub.</p></div>
+  </div>
+  <p>Gamma est open source. Les tests honnêtes et les critiques constructives sont les bienvenus ; un avis n’a pas besoin d’être positif pour être utile.</p>
+</section>
+<section class="doc-section" id="faq" data-doc-section>
+  <h2>Foire aux questions</h2>
+  <h3>Gamma Linux est-elle gratuite ?</h3><p>Oui. Gamma Linux est un projet libre et open source. Consultez le fichier de licence du dépôt pour connaître les conditions applicables.</p>
+  <h3>Toutes les éditions prennent-elles en charge le 32 bits ?</h3><p>Non. La cible Legacy-32 est destinée au matériel x86 32 bits. Lite-Ghost et Pro-MaxMini sont indiquées comme cibles amd64 dans la documentation actuelle du projet.</p>
+  <h3>Les valeurs de RAM sont-elles des minimums garantis ?</h3><p>Non. Ce sont des objectifs pratiques publiés par le projet. L’utilisation réelle dépend de la version, du matériel, des pilotes et de la charge de travail.</p>
+  <h3>Puis-je installer Gamma à côté de Windows ?</h3><p>Le double démarrage peut être possible, mais le partitionnement demande de la prudence. Sauvegardez vos données, désactivez le démarrage rapide et l’hibernation, puis vérifiez chaque modification de l’installateur.</p>
+  <h3>Où trouver la dernière ISO ?</h3><p>Utilisez la page <a href="https://github.com/takismartgamer123-rgb/Gamma-linux/releases">GitHub Releases</a>. Toutes les cibles de compilation ne disposent pas nécessairement d’une ISO publiée.</p>
+</section>
+        <div class="no-results" data-no-results>Aucune section correspondante.</div>
+      </div>
+    </div>
+  </main>
+  <footer class="container footer">
+    <strong>Gamma Linux</strong> · "No PC deserves to die." · GPL v3 · Made in Algeria 🇩🇿<br>
+    <a href="https://github.com/takismartgamer123-rgb/Gamma-linux">Source code</a> ·
+    <a href="https://github.com/takismartgamer123-rgb/Gamma-linux/issues">Bug reports</a> ·
+    <a href="mailto:founder@mail.gamma-linux.is-local.org">Contact</a>
+  </footer>
+</body>
+</html>

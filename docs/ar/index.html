@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="أدلة عملية لاختيار Gamma Linux وتنزيلها وتثبيتها وبنائها وحل مشاكلها.">
+  <meta name="theme-color" content="#070711">
+  <title>توثيق Gamma Linux · Gamma Linux Docs</title>
+  <link rel="stylesheet" href="../assets/docs.css">
+  <script defer src="../assets/docs.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="https://gamma-linux.is-local.org/"><span class="brand-mark">Γ</span> Gamma Linux <span class="muted">/ Docs</span></a>
+      <div class="top-links">
+        <a href="../">Docs home</a>
+        <a href="https://gamma-linux.is-local.org/">Main website</a>
+        <span class="lang-switch" aria-label="Language"><a href="../en/">EN</a><a href="../fr/">FR</a><a href="../ar/" aria-current="page">AR</a></span>
+      </div>
+    </div>
+  </header>
+  <main class="container">
+    <section class="hero">
+      <span class="eyebrow">GAMMA LINUX · OFFICIAL DOCUMENTATION</span>
+      <h1>توثيق Gamma Linux</h1>
+      <p class="lead">أدلة عملية لاختيار Gamma Linux وتنزيلها وتثبيتها وبنائها وحل مشاكلها.</p>
+    </section>
+    <div class="layout">
+      <aside class="sidebar">
+        <label class="search-label" for="doc-search">ابحث في هذا الدليل</label>
+        <input class="search" id="doc-search" data-doc-search type="search" placeholder="اكتب كلمة للبحث…">
+        <nav class="side-nav" aria-label="أقسام التوثيق"><a href="#overview">نظرة عامة</a><a href="#editions">اختيار الإصدار</a><a href="#download">التنزيل والتحقق</a><a href="#install">التثبيت</a><a href="#build">البناء من المصدر</a><a href="#troubleshoot">حل المشاكل</a><a href="#report">الإبلاغ عن خلل</a><a href="#contribute">المساهمة</a><a href="#faq">أسئلة شائعة</a></nav>
+      </aside>
+      <div class="content">
+        
+<section class="doc-section" id="overview" data-doc-section>
+  <h2>مرحبًا بك في Gamma Linux</h2>
+  <p>Gamma Linux مشروع توزيعة حرة ومفتوحة المصدر، هدفه إعطاء الحواسيب القديمة فرصة جديدة للاستعمال.</p>
+  <div class="note"><strong>اقرأ هذا أولًا:</strong> المشروع قيد التطوير المستمر. قد تختلف بيئة سطح المكتب والحزم والمثبّت ودعم العتاد والمتطلبات بين صور ISO. ملاحظات الإصدار المرفقة بالصورة التي تستعملها هي المرجع النهائي.</div>
+  <p>يشرح هذا التوثيق الخطوات العامة. إذا اختلفت معلومة هنا عن ملاحظات الإصدار أو السكريبتات الموجودة في الفرع الذي تستعمله، فاتبع وثائق ذلك الإصدار.</p>
+</section>
+<section class="doc-section" id="editions" data-doc-section>
+  <h2>اختيار الإصدار المناسب</h2>
+  <p>تحقق أولًا من معمارية المعالج، ثم راعِ الذاكرة ومساحة التخزين. الأرقام التالية أهداف عملية منشورة في موقع المشروع، وليست ضمانًا للأداء على كل جهاز.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>الإصدار</th><th>المعمارية</th><th>الذاكرة المستهدفة</th><th>التخزين المستهدف</th><th>الاستخدام</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Legacy-32</strong></td><td>x86 ‏32-bit (i386)</td><td>512 MB+</td><td>8 GB+</td><td>الحواسيب القديمة ذات 32 بت</td></tr>
+      <tr><td><strong>Lite-Ghost</strong></td><td>x86 ‏64-bit (amd64)</td><td>1 GB+</td><td>10 GB+</td><td>أجهزة 64 بت محدودة الموارد</td></tr>
+      <tr><td><strong>Pro-MaxMini</strong></td><td>x86 ‏64-bit (amd64)</td><td>2 GB+</td><td>15 GB+</td><td>الأجهزة ذات الموارد الأكبر</td></tr>
+    </tbody>
+  </table></div>
+  <div class="warning"><strong>تنبيه التوافق:</strong> معالج 32 بت لا يستطيع تشغيل صورة amd64. وقد يدعم معالج 64 بت أكثر من وضع، لكن يجب أيضًا أن يتوافق نمط إقلاع البرنامج الثابت وملفات الإقلاع مع الصورة. تحقق من المعالج والـ Firmware قبل التنزيل.</div>
+  <p>أسماء الإصدارات ومواصفاتها قابلة للتغيير. راجع صفحة الإصدار الذي ستنزّله بالتحديد.</p>
+</section>
+<section class="doc-section" id="download" data-doc-section>
+  <h2>التنزيل والتحقق</h2>
+  <ol>
+    <li>افتح صفحة <a href="https://github.com/takismartgamer123-rgb/Gamma-linux/releases">إصدارات Gamma Linux</a>.</li>
+    <li>اختر إصدارًا منشورًا وتأكد من أن صورة ISO توافق معمارية جهازك.</li>
+    <li>اقرأ ملاحظات الإصدار لمعرفة المشاكل المعروفة وتعليمات المثبّت وأي معلومات خاصة بتلك النسخة.</li>
+    <li>إذا نشر المشروع قيمة SHA-256، احسب بصمة الملف الذي نزّلته:</li>
+  </ol>
+  <pre>sha256sum Gamma-Linux.iso</pre>
+  <p>قارن النتيجة حرفًا بحرف مع البصمة المنشورة لنفس ملف ISO. لا تفترض أن كل إصدار يحتوي على ملف بصمات.</p>
+  <div class="note">نزّل الصورة من صفحة الإصدارات الرسمية أو من مصدر يربطه المشروع صراحةً.</div>
+</section>
+<section class="doc-section" id="install" data-doc-section>
+  <h2>دليل التثبيت</h2>
+  <div class="warning"><strong>أنشئ نسخة احتياطية أولًا.</strong> تقسيم الأقراص وتهيئتها قد يؤدي إلى حذف البيانات نهائيًا. احتفظ بنسخة مستقلة من ملفاتك وتأكد من القرص المستهدف قبل تطبيق أي تغيير.</div>
+  <h3>1. تجهيز USB</h3>
+  <p>اكتب صورة ISO إلى ذاكرة USB باستعمال أداة مناسبة مثل Rufus أو Ventoy. هذه العملية تمحو عادة محتوى الذاكرة أو تستبدله، لذلك انسخ ملفاتك منها قبل البدء.</p>
+  <h3>2. التحقق من BIOS أو UEFI</h3>
+  <p>افتح قائمة الإقلاع في Firmware واختر مدخل USB الموافق لوضع الإقلاع في الجهاز. من المفاتيح الشائعة F12 وF11 وEsc وF8 وF9، ويختلف المفتاح حسب الشركة المصنّعة.</p>
+  <h3>3. إذا كان Windows مثبتًا على نفس الجهاز</h3>
+  <p>عند إعداد الإقلاع المزدوج، عطّل Fast Startup والإسبات من موجه أوامر Windows المفتوح بصلاحيات المسؤول:</p>
+  <pre>powercfg /h off</pre>
+  <p>أطفئ Windows إطفاءً كاملًا قبل الإقلاع من USB الخاص بـ Gamma. هذا الأمر يعطّل الإسبات أيضًا. لا تصل من Linux إلى قسم Windows وهو في حالة الإسبات.</p>
+  <h3>4. اختبر الوضع الحي Live</h3>
+  <p>شغّل Gamma في الوضع الحي قبل التثبيت. اختبر الشاشة ولوحة المفاتيح ولوحة اللمس والتخزين والشبكة والاستقرار العام. إذا كان جهاز أساسي لا يعمل، راجع ملاحظات الإصدار وأبلغ عن المشكلة قبل تغيير الأقسام.</p>
+  <h3>5. تشغيل المثبّت</h3>
+  <p>إذا ظهر اختصار <strong>Install Gamma Linux</strong> في سطح المكتب الحي، افتحه لتشغيل Calamares. راجع اللغة ولوحة المفاتيح وتقسيم الأقراص والمستخدم ومحمّل الإقلاع بعناية. اقرأ الملخص النهائي قبل التأكيد.</p>
+  <h3>6. إنهاء التثبيت</h3>
+  <p>بعد ظهور اكتمال التثبيت، أعد التشغيل وانزع USB عندما يطلب منك ذلك. إذا لم يقلع النظام المثبّت، دوّن رسالة الخطأ ووضع Firmware بدل تغيير الأقسام عشوائيًا.</p>
+</section>
+<section class="doc-section" id="build" data-doc-section>
+  <h2>بناء Gamma Linux من المصدر</h2>
+  <p>سكريبتات البناء وإعدادات المشروع موجودة في <a href="https://github.com/takismartgamer123-rgb/Gamma-linux">مستودع المصدر</a>. ملف README والسكريبتات في الفرع الذي تختاره هي المرجع الفعلي لعملية البناء.</p>
+  <p>مسار البناء الموثق مقسّم إلى مراحل مرقّمة:</p>
+  <ol>
+    <li><code>scripts/01-prepare.sh</code> — تجهيز chroot الأساسي.</li>
+    <li><code>scripts/02-install-packages.sh</code> — تثبيت حزم الإصدار.</li>
+    <li><code>scripts/03-install-gamma.sh</code> — تثبيت مكوّنات Gamma الخاصة.</li>
+    <li><code>scripts/04-configure.sh</code> — إعداد النظام.</li>
+    <li><code>scripts/05-build-squashfs.sh</code> — إنشاء نظام الملفات الحي المضغوط.</li>
+    <li><code>scripts/06-build-efi.sh</code> — تجهيز ملفات EFI.</li>
+    <li><code>scripts/07-build-iso.sh</code> — إنشاء صورة ISO.</li>
+    <li><code>scripts/08-test.sh</code> — إجراء الفحوصات واختبارات QEMU المتاحة.</li>
+  </ol>
+  <p>بالنسبة إلى الهدف الموثق <code>legacy</code>، تسلسل الأوامر هو:</p>
+  <pre>sudo bash scripts/01-prepare.sh legacy
+sudo bash scripts/02-install-packages.sh legacy
+sudo bash scripts/03-install-gamma.sh legacy
+sudo bash scripts/04-configure.sh legacy
+sudo bash scripts/05-build-squashfs.sh legacy
+sudo bash scripts/06-build-efi.sh legacy
+sudo bash scripts/07-build-iso.sh legacy
+bash scripts/08-test.sh legacy</pre>
+  <p>استبدل <code>legacy</code> بـ <code>lite</code> أو <code>pro</code> فقط إذا كان الهدف موجودًا في الفرع الذي تبني منه. ثبّت اعتماديات نظام البناء المذكورة في README الخاص بذلك الفرع أولًا.</p>
+  <div class="warning"><strong>خطوة مدمّرة للبيانات:</strong> السكريبت الموثق <code>01-prepare.sh</code> يحذف مجلدات <code>chroot/</code> و<code>iso/</code> و<code>output/</code> من المستودع قبل تجهيز بناء جديد. انسخ أي بيانات مهمة منها وافحص السكريبت الحالي قبل تشغيله، خصوصًا عند استعمال فرع آخر.</div>
+  <p>الفحوصات الآلية مفيدة، لكنها لا تعوّض اختبار ISO الحي والمثبّت على أجهزة حقيقية.</p>
+</section>
+<section class="doc-section" id="troubleshoot" data-doc-section>
+  <h2>حل المشاكل</h2>
+  <h3>USB لا يظهر في قائمة الإقلاع</h3>
+  <ul><li>جرّب منفذ USB آخر، ويفضّل منفذًا مباشرًا دون موزّع.</li><li>أعد كتابة الصورة وتحقق من بصمة ISO إذا كانت منشورة.</li><li>تحقق هل الجهاز يعمل بوضع Legacy BIOS أو UEFI واختر مدخل الإقلاع الموافق.</li></ul>
+  <h3>الجهاز يقلع لكن الشاشة سوداء</h3>
+  <ul><li>انتظر قليلًا للتأكد أن الإقلاع ليس بطيئًا فقط.</li><li>راجع ملاحظات الإصدار بحثًا عن مشاكل الرسوميات أو خيارات الإقلاع الاحتياطية المدعومة.</li><li>دوّن طراز بطاقة الرسوميات ورسائل الإقلاع الظاهرة. لا تضف معاملات Kernel عشوائيًا دون فهم تأثيرها.</li></ul>
+  <h3>المثبّت لا يرى القرص أو الأقسام</h3>
+  <ul><li>توقف قبل التهيئة أو تعديل جدول الأقسام.</li><li>تأكد أن Firmware يتعرف على القرص وأن Windows مطفأ بالكامل إن كان مثبتًا.</li><li>دوّن طراز وحدة التخزين ووضع المتحكم ورسالة المثبّت.</li></ul>
+  <h3>الشبكة أو Wi-Fi أو الصوت لا يعمل</h3>
+  <p>بعض الأجهزة تحتاج Firmware أو دعمًا خاصًا. دوّن طراز القطعة بدقة وراجع ملاحظات الإصدار. تجنب تنزيل Firmware من مواقع غير موثوقة.</p>
+  <h3>النظام المثبّت يختلف عن الوضع الحي</h3>
+  <p>أرسل اسم الإصدار ورقم النسخة ووضع الإقلاع والخطوات التي تعيد المشكلة. احذف كلمات المرور والمفاتيح الخاصة والأرقام التسلسلية والبيانات الشخصية من السجلات قبل مشاركتها.</p>
+</section>
+<section class="doc-section" id="report" data-doc-section>
+  <h2>الإبلاغ عن خلل</h2>
+  <p>التقرير الجيد يساعد على إعادة إنتاج المشكلة. أرفق المعلومات التالية:</p>
+  <ul>
+    <li>الشركة المصنّعة للحاسوب والطراز؛</li><li>طراز المعالج ومعماريته وحجم RAM ونوع التخزين؛</li>
+    <li>إصدار Gamma والنسخة أو البناء بالتحديد؛</li><li>وضع BIOS أو UEFI؛</li>
+    <li>خطوات إعادة المشكلة والنتيجة التي كنت تتوقعها؛</li><li>السجلات المهمة أو لقطة شاشة واضحة بعد إزالة المعلومات الشخصية.</li>
+  </ul>
+  <p>أرسل البلاغ عبر <a href="https://github.com/takismartgamer123-rgb/Gamma-linux/issues">GitHub Issues</a> أو عبر البريد <a href="mailto:founder@mail.gamma-linux.is-local.org">founder@mail.gamma-linux.is-local.org</a>.</p>
+</section>
+<section class="doc-section" id="contribute" data-doc-section>
+  <h2>ساهم في Gamma</h2>
+  <div class="cards">
+    <div class="mini-card"><h3>اختبار العتاد</h3><p>جرّب النظام الحي على حواسيب حقيقية وأرسل نتائج دقيقة.</p></div>
+    <div class="mini-card"><h3>تحسين التوثيق</h3><p>وضّح التعليمات وترجم الصفحات وأضف حلولًا تم التحقق منها.</p></div>
+    <div class="mini-card"><h3>التطوير</h3><p>راجع السكريبتات وأعد إنتاج الأخطاء واقترح تحسينات محددة عبر GitHub.</p></div>
+  </div>
+  <p>Gamma مشروع مفتوح المصدر. نرحّب بالاختبارات الصادقة والانتقادات البنّاءة؛ ليس من الضروري أن تكون المراجعة إيجابية حتى تكون مفيدة.</p>
+</section>
+<section class="doc-section" id="faq" data-doc-section>
+  <h2>الأسئلة الشائعة</h2>
+  <h3>هل Gamma Linux مجانية؟</h3><p>نعم. Gamma Linux مشروع مجاني ومفتوح المصدر. راجع ملف الترخيص في المستودع لمعرفة شروط الترخيص.</p>
+  <h3>هل كل الإصدارات تدعم 32 بت؟</h3><p>لا. إصدار Legacy-32 موجّه إلى عتاد x86 ذي 32 بت. أما Lite-Ghost وPro-MaxMini فهما مدرجان كهدفين amd64 في توثيق المشروع الحالي.</p>
+  <h3>هل أرقام RAM حدود دنيا مضمونة؟</h3><p>لا. هي أهداف عملية يعرضها المشروع. قابلية الاستخدام الفعلية تتعلق بالإصدار والعتاد والتعريفات وطبيعة العمل.</p>
+  <h3>هل أستطيع تثبيت Gamma بجانب Windows؟</h3><p>قد يكون الإقلاع المزدوج ممكنًا، لكنه يتطلب تقسيمًا دقيقًا. أنشئ نسخة احتياطية وعطّل Fast Startup والإسبات وراجع كل تغيير يقترحه المثبّت.</p>
+  <h3>أين أجد أحدث ISO؟</h3><p>استعمل صفحة <a href="https://github.com/takismartgamer123-rgb/Gamma-linux/releases">GitHub Releases</a>. ليس مضمونًا أن يكون لكل هدف بناء ملف ISO منشور للتنزيل.</p>
+</section>
+        <div class="no-results" data-no-results>لم يتم العثور على قسم مطابق.</div>
+      </div>
+    </div>
+  </main>
+  <footer class="container footer">
+    <strong>Gamma Linux</strong> · "No PC deserves to die." · GPL v3 · Made in Algeria 🇩🇿<br>
+    <a href="https://github.com/takismartgamer123-rgb/Gamma-linux">Source code</a> ·
+    <a href="https://github.com/takismartgamer123-rgb/Gamma-linux/issues">Bug reports</a> ·
+    <a href="mailto:founder@mail.gamma-linux.is-local.org">Contact</a>
+  </footer>
+</body>
+</html>
