@@ -145,6 +145,19 @@ nav a:hover {
         );
 }
 
+
+.hero-logo {
+    display: block;
+    width: min(520px, 86vw);
+    height: auto;
+    margin: 0 auto 22px;
+    filter: drop-shadow(0 12px 32px rgba(139,92,246,.18));
+}
+.sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
 .hero h1 {
     margin: 0;
 
@@ -907,7 +920,12 @@ footer {
    MOBILE
 ========================= */
 
-@media (max-width: 650px) {
+
+.community-ad-slots { align-items: stretch; }
+.community-ad-slot { display:flex; flex-direction:column; align-items:flex-start; min-height:260px; }
+.community-ad-slot .btn { margin-top:auto; }
+.community-ad-slot .tag { color:var(--purple2); }
+\n@media (max-width: 650px) {
 
     nav {
         justify-content: flex-start;
@@ -1028,7 +1046,7 @@ html[dir="rtl"] pre { text-align: left; }
 }
 
 </style>
-<link rel="icon" type="image/png" href="/assets/brand/gamma-mark-purple.png">
+<link rel="icon" type="image/png" href="/assets/brand/gamma-app-icon-64.png">\n<link rel="canonical" href="https://gamma-linux.is-local.org/">\n<meta property="og:url" content="https://gamma-linux.is-local.org/">\n<meta property="og:image:alt" content="Gamma Linux Aurora social preview banner">\n<meta name="twitter:image:alt" content="Gamma Linux Aurora social preview banner">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Gamma Linux">
 <meta property="og:title" content="Gamma Linux — No PC deserves to die">
@@ -1092,7 +1110,7 @@ html[dir="rtl"] pre { text-align: left; }
 
 <section class="hero" id="home">
 
-    <h1>GAMMA LINUX</h1>
+    <img class="hero-logo" src="/assets/brand/gamma-wordmark.png" alt="Gamma Linux — No PC deserves to die" width="1200" height="340" fetchpriority="high">\n    <h1 class="sr-only">GAMMA LINUX</h1>
 
     <div class="version">
         v2.7 — Warden
@@ -2848,20 +2866,33 @@ artificial praise.
 
 <p class="section-intro">Small, manually approved banners appear here. No ad networks, popups or automatic redirects.</p>
 
-<div class="card" style="max-width:760px; margin:0 auto; text-align:center;">
+<p class="section-intro">Available banner and listing spaces are shown below. Every placement is static, manually reviewed and linked directly to the advertiser's approved destination.</p>
 
-<div class="icon">🤝</div>
-
-<h3>No active sponsor banners yet.</h3>
-
-<p>
-Gamma Linux only accepts reviewed, static community banners.
-Every advertiser and destination page must be approved before publication.
-</p>
-
-<a href="/advertise/" class="btn ghost">Advertise with Gamma</a>
-
+<div class="grid community-ad-slots">
+    <article class="card community-ad-slot">
+        <span class="tag">Banner slot 01 · Available</span>
+        <div class="icon">🖼️</div>
+        <h3>Standard banner</h3>
+        <p>Reserved space for one approved static partner banner.</p>
+        <a href="/advertise/" class="btn ghost">Advertise now!!</a>
+    </article>
+    <article class="card community-ad-slot">
+        <span class="tag">Banner slot 02 · Available</span>
+        <div class="icon">⭐</div>
+        <h3>Featured partner</h3>
+        <p>Priority space for a featured community partner.</p>
+        <a href="/advertise/" class="btn ghost">Advertise now!!</a>
+    </article>
+    <article class="card community-ad-slot">
+        <span class="tag">Text listing · Available</span>
+        <div class="icon">🔗</div>
+        <h3>Community listing</h3>
+        <p>A short project or service description with one approved link.</p>
+        <a href="/advertise/" class="btn ghost">Advertise now!!</a>
+    </article>
 </div>
+
+<p class="section-intro">New advertisers get their first 30 days free on one approved placement. <a href="/advertise/">View placements, specifications and payment methods.</a></p>
 
 </div>
 
