@@ -3272,17 +3272,25 @@ async function refreshDistroWatchVotes() {
 
         // Match the exact DistroWatch form for Gamma (waitingdistro=1101).
         // Reading only this form prevents another distro's votes being counted.
-        const gammaForm = [...doc.querySelectorAll('form')].find(form =>
-            form.querySelector('input[name="waitingdistro"][value="1101"]') &&
-            form.querySelector('input[name="resource"][value="links"]')
-        );
+        const gammaForm = [...doc.querySelectorAll('form')].find(form => {
+            const waiting = form.querySelector('[name="waitingdistro"]');
+            const resource = form.querySelector('[name="resource"]');
+            return waiting?.value === '1101' && resource?.value === 'links';
+        });
 
-        if (!gammaForm) {
-            throw new Error('Gamma Linux entry not found in DistroWatch response');
+        // Prefer the exact Gamma form. DistroWatch markup may change, so
+        // fall back to a bounded text context around Gamma's own distro ID.
+        let match = gammaForm?.textContent.match(/([\d,]+)\s+votes?/i);
+        if (!match) {
+            const idAt = html.indexOf('waitingdistro=1101');
+            if (idAt >= 0) {
+                const context = html.slice(Math.max(0, idAt - 1200), Math.min(html.length, idAt + 5000))
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/&nbsp;|&#160;/gi, ' ');
+                match = context.match(/([\d,]+)\s+votes?/i);
+            }
         }
-
-        const match = gammaForm.textContent.match(/(\d[\d,]*)\s+votes?/i);
-        if (!match) throw new Error('Could not extract Gamma vote count');
+        if (!match) throw new Error('Gamma vote total was not present in the returned DistroWatch HTML');
 
         const votes = Number(match[1].replace(/,/g, ''));
         if (!Number.isFinite(votes)) throw new Error('Invalid vote count');
