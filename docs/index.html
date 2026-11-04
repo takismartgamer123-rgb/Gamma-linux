@@ -3,37 +3,93 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Official Gamma Linux documentation in English, French and Arabic.">
+  <meta name="description" content="Official Gamma Linux documentation in English, French and Arabic. Installation, development and troubleshooting guides.">
   <meta name="theme-color" content="#070711">
-  <title>Gamma Linux Documentation</title>
+  <title>Documentation Hub · Gamma Linux</title>
   <link rel="stylesheet" href="./assets/docs.css">
 </head>
 <body>
   <header class="topbar">
     <div class="container topbar-inner">
       <a class="brand" href="https://gamma-linux.is-local.org/"><span class="brand-mark">Γ</span> Gamma Linux <span class="muted">/ Docs</span></a>
-      <div class="top-links"><a href="https://gamma-linux.is-local.org/">Main website</a><a href="https://github.com/takismartgamer123-rgb/Gamma-linux">Source code</a></div>
+      <nav class="top-links" aria-label="Main links">
+        <a href="https://gamma-linux.is-local.org/">Main website</a>
+        <a class="support-link" href="/support/">Support Gamma</a>
+        <a href="https://github.com/takismartgamer123-rgb/Gamma-linux">Source code</a>
+      </nav>
     </div>
   </header>
+
   <main class="container">
-    <section class="hero">
-      <span class="eyebrow">OFFICIAL DOCUMENTATION</span>
-      <h1>Learn. Install. Build. Improve.</h1>
-      <p class="lead">Technical documentation for Gamma Linux — a free, open-source project focused on giving older computers another useful life. Choose your language to continue.</p>
+    <section class="hub-hero">
+      <div class="hub-copy">
+        <span class="hub-badge">Γ &nbsp; OFFICIAL DOCUMENTATION</span>
+        <h1>Everything you need to understand, use and build Gamma.</h1>
+        <p class="lead">Practical documentation for Gamma Linux — from choosing the right edition and installing it, to exploring the build system and contributing to the project.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="./en/">Explore the documentation <span aria-hidden="true">→</span></a>
+          <a class="button button-secondary" href="https://github.com/takismartgamer123-rgb/Gamma-linux">View source on GitHub</a>
+        </div>
+      </div>
     </section>
-    <section class="cards" aria-label="Choose documentation language">
-      <a class="mini-card" href="./en/">
-        <h2>English</h2><p class="muted">Installation, editions, troubleshooting and development guides.</p><strong>Open English docs →</strong>
-      </a>
-      <a class="mini-card" href="./fr/">
-        <h2>Français</h2><p class="muted">Guides d’installation, éditions, dépannage et développement.</p><strong>Ouvrir la documentation →</strong>
-      </a>
-      <a class="mini-card" href="./ar/">
-        <h2>العربية</h2><p class="muted">أدلة التثبيت والإصدارات واستكشاف الأخطاء والتطوير.</p><strong>افتح التوثيق ←</strong>
-      </a>
+
+    <section class="hub-section" aria-labelledby="language-heading">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">CHOOSE YOUR LANGUAGE</span>
+          <h2 id="language-heading">Documentation in three languages</h2>
+          <p>Pick the language you are most comfortable with.</p>
+        </div>
+      </div>
+      <div class="language-grid">
+        <a class="language-card" href="./en/">
+          <span class="language-code">EN</span>
+          <h3>English</h3>
+          <p>Installation, editions, troubleshooting and development guides.</p>
+          <span class="card-cta">Open English docs →</span>
+        </a>
+        <a class="language-card" href="./fr/">
+          <span class="language-code">FR</span>
+          <h3>Français</h3>
+          <p>Guides d’installation, éditions, dépannage et développement.</p>
+          <span class="card-cta">Ouvrir la documentation →</span>
+        </a>
+        <a class="language-card" href="./ar/" lang="ar" dir="rtl">
+          <span class="language-code">AR</span>
+          <h3>العربية</h3>
+          <p>أدلة التثبيت والإصدارات واستكشاف الأخطاء والتطوير.</p>
+          <span class="card-cta">افتح التوثيق ←</span>
+        </a>
+      </div>
     </section>
-    <div class="note"><strong>Documentation status:</strong> These guides describe the project as documented in the repository. Always check the release notes and the exact ISO you downloaded; build targets and installer behavior can change between releases.</div>
+
+    <section class="hub-section" aria-labelledby="topics-heading">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">INSIDE THE DOCS</span>
+          <h2 id="topics-heading">From first boot to development</h2>
+          <p>Guides are organized around the tasks people actually need to complete.</p>
+        </div>
+      </div>
+      <div class="hub-highlights">
+        <article class="highlight">
+          <strong>Install with confidence</strong>
+          <p>Choose an edition, prepare your USB, check firmware mode and follow the installation guide.</p>
+        </article>
+        <article class="highlight">
+          <strong>Understand the build system</strong>
+          <p>Explore the repository structure, build stages and the precautions required before building.</p>
+        </article>
+        <article class="highlight">
+          <strong>Diagnose and contribute</strong>
+          <p>Find troubleshooting steps, prepare useful bug reports and help improve Gamma.</p>
+        </article>
+      </div>
+    </section>
+
+    <div class="note"><strong>Documentation status:</strong> Gamma is actively developed. Always check the release notes and the exact ISO you downloaded; build targets, hardware support and installer behavior can change between releases.</div>
   </main>
+
   <footer class="container footer">Gamma Linux · No PC deserves to die. · Made in Algeria 🇩🇿</footer>
 </body>
 </html>
