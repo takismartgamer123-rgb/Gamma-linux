@@ -76,26 +76,32 @@ code {
 
 nav {
     position: fixed;
-    top: 0;
+    inset: 0 0 auto 0;
     width: 100%;
-
-    background: rgba(5,5,10,.88);
+    height: 58px;
+    max-height: 58px;
+    box-sizing: border-box;
+    background: rgba(5,5,10,.94);
     backdrop-filter: blur(14px);
-
     border-bottom: 1px solid var(--border);
-
     z-index: 999;
-
-    padding: 12px 20px;
-
+    padding: 7px 12px;
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    gap: 8px 14px;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
 }
+nav::-webkit-scrollbar { display: none; }
 
 nav a {
+    flex: 0 0 auto;
+    white-space: nowrap;
     color: var(--text);
     text-decoration: none;
 
@@ -928,14 +934,15 @@ footer {
 \n@media (max-width: 650px) {
 
     nav {
+        height: 54px;
+        max-height: 54px;
+        padding: 6px 8px;
         justify-content: flex-start;
-
-        overflow-x: auto;
-
         flex-wrap: nowrap;
     }
 
     nav a {
+        flex: 0 0 auto;
         white-space: nowrap;
     }
 
@@ -990,7 +997,7 @@ footer {
 .vote-top-refresh:disabled { opacity: .5; cursor: wait; }
 
 @media (max-width: 650px) {
-    .vote-top { padding: 86px 14px 0; }
+    .vote-top { padding: 70px 14px 0; }
     .vote-top-card { padding: 16px; gap: 14px; }
     .vote-top-info { align-items: flex-start; }
     .vote-top-actions { width: 100%; }
