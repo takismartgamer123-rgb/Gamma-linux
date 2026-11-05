@@ -1,12 +1,24 @@
-name: Build Gamma Linux v2.7
+name: Build Gamma Linux (Debian chroot)
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scripts/**'
+      - 'build/**'
+      - 'src/**'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
       tag:
         description: 'Release tag e.g v2.7'
         required: true
         default: 'v2.7'
+
+concurrency:
+  group: gamma-debian-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -19,6 +31,7 @@ jobs:
 
   build:
 
+    # Ubuntu is only the build host; all target filesystems are Debian chroots.
     runs-on: ubuntu-22.04
 
     timeout-minutes: 180
@@ -70,6 +83,7 @@ jobs:
           cmake \
           pkg-config \
           debootstrap \
+          initramfs-tools \
           squashfs-tools \
           xorriso \
           grub-pc-bin \
@@ -81,7 +95,8 @@ jobs:
           syslinux-common \
           qemu-system-x86 \
           ovmf \
-          libefl-all-dev
+          libefl-all-dev \
+          libedje-bin
 
     # ================================
     # Check Environment
@@ -89,6 +104,12 @@ jobs:
 
     - name: Check Build Environment
       run: |
+        for script in scripts/*.sh scripts/lib/*.sh; do bash -n "$script"; done
+        for profile in build/profiles/*.conf; do bash -n "$profile"; done
+        for edition in pro lite legacy; do
+          bash -c 'source scripts/lib/profile.sh; load_gamma_profile "$1" "$PWD" >/dev/null' -- "$edition"
+        done
+
         cmake --version
 
         pkg-config --modversion elementary || true
@@ -96,6 +117,10 @@ jobs:
         pkg-config --modversion evas || true
 
         which grub-mkstandalone
+        which debootstrap
+        which mksquashfs
+        which lsinitramfs
+        which edje_cc
         which xorriso
         which qemu-system-x86_64
 
@@ -151,6 +176,7 @@ jobs:
 
   release:
 
+    if: github.event_name == 'workflow_dispatch'
     needs: build
 
     runs-on: ubuntu-22.04
@@ -195,6 +221,8 @@ jobs:
 
           ## 🚀 Gamma Linux Pro
 
+          Debian 13 Trixie (amd64) · Debian Live boot.
+
           The complete Gamma experience.
 
           ### Features
@@ -220,6 +248,8 @@ jobs:
           ---
 
           ## 🍃 Gamma Linux Lite
+
+          Debian 13 Trixie (amd64) · Debian Live boot.
 
           Lightweight without sacrificing usability.
 
@@ -247,7 +277,7 @@ jobs:
 
           Give old computers a second life.
 
-          Based on Debian Bookworm.
+          Based on Debian 12 Bookworm (i386) with Debian Live boot.
 
           ### Features
 

@@ -78,9 +78,13 @@ Keep commit subjects concise and explain non-obvious reasoning in the commit bod
 
 ## Build and test safety
 
-The build workflow is implemented in the numbered scripts under `scripts/`. Read the relevant scripts before running them.
+The build workflow is implemented in the numbered scripts under `scripts/`, with edition-specific target settings in `build/profiles/`. Read [docs/build-system.md](docs/build-system.md) and the relevant profile before running a build.
 
 **Important:** `scripts/01-prepare.sh` removes the existing `chroot/`, `iso/` and `output/` directories before preparing a new build. Back up any files you need from those directories first.
+
+Target root filesystems are Debian: Legacy-32 uses Bookworm/i386, while Lite and Pro use Trixie/amd64. The GitHub Actions runner is only the build host; it does not make the target root filesystem Ubuntu. The project uses a manual `debootstrap` + chroot + `mksquashfs` + `xorriso` pipeline. Do not reintroduce Ubuntu Casper or `live-build` into the current build path. Debian Live integration belongs in the chroot through `live-boot` and `live-config` packages, with all editions using `/live` and `boot=live`.
+
+When changing target bases or edition behavior, update the matching profile in `build/profiles/` rather than adding edition-specific hard-coded values throughout the shared scripts.
 
 For ISO-related changes:
 

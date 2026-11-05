@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
+EDITION="${1:-}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -9,26 +9,11 @@ ISO_DIR="$ROOT/iso"
 EFI_DIR="$ISO_DIR/EFI/BOOT"
 GRUB_DIR="$ISO_DIR/boot/grub"
 
-echo "[06] Building EFI boot files ($EDITION)"
+source "$ROOT/scripts/lib/profile.sh"
+load_gamma_profile "$EDITION" "$ROOT"
+BOOT="$LIVE_BOOT_PARAM"
 
-# ==========================================
-# Validate edition
-# ==========================================
-
-case "$EDITION" in
-    pro|lite)
-        LIVE_DIR="casper"
-        BOOT="boot=casper"
-        ;;
-    legacy)
-        LIVE_DIR="live"
-        BOOT="boot=live"
-        ;;
-    *)
-        echo "ERROR: Unknown edition: $EDITION"
-        exit 1
-        ;;
-esac
+echo "[06] Building Debian Live EFI boot files ($EDITION)"
 
 # ==========================================
 # Dependencies

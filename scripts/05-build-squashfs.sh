@@ -1,25 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EDITION="${1:?Usage: $0 <pro|lite|legacy>}"
+EDITION="${1:-}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 CHROOT="$ROOT/chroot"
 ISO_DIR="$ROOT/iso"
 
-case "$EDITION" in
-    legacy)
-        LIVE_DIR="live"
-        ;;
-    pro|lite)
-        LIVE_DIR="casper"
-        ;;
-    *)
-        echo "ERROR: Unknown edition: $EDITION"
-        exit 1
-        ;;
-esac
+source "$ROOT/scripts/lib/profile.sh"
+load_gamma_profile "$EDITION" "$ROOT"
 
 TARGET="$ISO_DIR/$LIVE_DIR"
 SQUASHFS="$TARGET/filesystem.squashfs"
@@ -38,7 +28,7 @@ echo
 # Check required tools
 # ==========================================================
 
-for CMD in mksquashfs find sed sort tail du awk sudo lsinitramfs; do
+for CMD in mksquashfs find sed sort tail du awk sudo lsinitramfs stat; do
     if ! command -v "$CMD" >/dev/null 2>&1; then
         echo "ERROR: Required command not found: $CMD"
         exit 1
@@ -144,27 +134,23 @@ echo "[05] Initrd : initrd.img-$KERNEL_VERSION"
 echo
 
 # ==========================================================
-# Verify Casper
+# Verify Debian Live boot support
 # ==========================================================
 
-if [ "$EDITION" != "legacy" ]; then
+echo "[05] Checking Debian live-boot integration..."
 
-    echo "[05] Checking Casper support..."
-
-    if ! sudo lsinitramfs "$INITRD" |
-        grep -q "scripts/casper"; then
-
-        echo
-        echo "ERROR: initramfs does not contain Casper."
-        echo "Make sure casper is installed in script 02."
-        echo
-
-        exit 1
-    fi
-
-    echo "[05] Casper support: PASS"
-
+if ! sudo chroot "$CHROOT" dpkg-query -W -f='${Status}' live-boot 2>/dev/null | grep -q "install ok installed"; then
+    echo "ERROR: live-boot is not installed in the chroot."
+    exit 1
 fi
+
+if ! sudo lsinitramfs "$INITRD" | grep -Eq '^scripts/live$'; then
+    echo "ERROR: The generated initramfs does not contain scripts/live."
+    echo "Install live-boot and live-boot-initramfs-tools, then rebuild initramfs."
+    exit 1
+fi
+
+echo "[05] Debian live-boot support: PASS"
 
 # ==========================================================
 # SquashFS — EXTREME COMPRESSION
