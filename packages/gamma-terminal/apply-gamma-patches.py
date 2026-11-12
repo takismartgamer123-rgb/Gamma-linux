@@ -295,7 +295,6 @@ static void
 gamma_controls_build (GtkWidget *panel)
 {
     GtkWidget *heading = gtk_label_new(NULL);
-    GtkWidget *grouped_input;
     GtkCssProvider *provider = gtk_css_provider_new();
     GdkScreen *screen = gtk_widget_get_screen(panel);
 
@@ -720,11 +719,15 @@ gamma_controls_update (struct sakura_tab *sk_tab)
         gtk_widget_set_sensitive(gamma_split_h_widget, !split);
     if (gamma_grouped_input_widget) {
         gtk_widget_set_sensitive(gamma_grouped_input_widget, split);
+        g_signal_handlers_block_by_func(gamma_grouped_input_widget,
+            G_CALLBACK(gamma_grouped_input_toggled), NULL);
         if (sk_tab && split)
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gamma_grouped_input_widget),
                                          sk_tab->grouped_input);
         else
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gamma_grouped_input_widget), FALSE);
+        g_signal_handlers_unblock_by_func(gamma_grouped_input_widget,
+            G_CALLBACK(gamma_grouped_input_toggled), NULL);
     }
 }
 
