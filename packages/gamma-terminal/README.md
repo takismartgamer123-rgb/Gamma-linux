@@ -9,6 +9,7 @@ Gamma Terminal is a Gamma Linux fork of [Sakura](https://github.com/dabisu/sakur
 - Gamma Aurora GTK styling for the window, header bar, menus, notebook tabs and scrollbars.
 - Gamma Aurora 16-colour terminal palette and matching dark default scheme.
 - Gamma-branded header-bar actions for new tab, search, fullscreen and the existing Sakura context menu.
+- A right-side GTK Controls panel reusing Sakura's existing new-tab, copy, paste, tab naming, settings menu, about dialog and close-tab callbacks.
 - Separate application identity: `gamma-terminal` executable, desktop entry, icon, gettext domain, manual page and configuration namespace.
 - Separate per-user settings at `~/.config/gamma-terminal/gamma-terminal.conf`.
 
@@ -39,7 +40,7 @@ The source package declares `Architecture: any`, producing an architecture-speci
 
 ## Deliberately deferred
 
-The earlier standalone prototype contains a split-pane implementation. It is not claimed as part of this Sakura-based release: Sakura associates a VTE child process and lifecycle with each notebook tab, so split panes must be integrated into that model to preserve child-exit handling, working directories, close behavior and focus. The feature needs a dedicated follow-up rather than a fragile second terminal widget.
+The Controls panel currently displays Split V, Split H, Miniview and Grouped input as disabled placeholders. The earlier standalone prototype contains a split-pane implementation. It is not claimed as part of this Sakura-based release: Sakura associates a VTE child process and lifecycle with each notebook tab, so split panes must be integrated into that model to preserve child-exit handling, working directories, close behavior and focus. The feature needs a dedicated follow-up rather than a fragile second terminal widget.
 
 ## Licensing
 
