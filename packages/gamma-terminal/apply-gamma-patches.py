@@ -362,11 +362,15 @@ gamma_controls_build (GtkWidget *panel)
 }
 """
 
+source = once(source, "static void     sakura_init_popup ();",
+               "static void     sakura_init_popup ();\nstatic void     gamma_controls_build (GtkWidget *panel);",
+               "Gamma Controls forward declaration")
+
 source = once(source, """static void
-sakura_init()
+sakura_init_popup()
 {""", gamma_controls_code + """
 static void
-sakura_init()
+sakura_init_popup()
 {""", "Gamma Controls callbacks and panel builder")
 
 source = once(
