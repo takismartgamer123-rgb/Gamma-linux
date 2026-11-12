@@ -1113,8 +1113,12 @@ source = once(
 # Keep the UI state correct when a notebook page is removed and another becomes active.
 source = once(
     source,
-    "gtk_widget_grab_focus(sk_tab->vte);",
-    "gtk_widget_grab_focus(sk_tab->active_vte ? sk_tab->active_vte : sk_tab->vte);",
+    "/* When clicking several times in the label, terminal loses its focus.\n"
+    "\t * So, when the notebook got the focus, make sure the terminal HAS te focus */\n"
+    "\tgtk_widget_grab_focus(sk_tab->vte);",
+    "/* When clicking several times in the label, terminal loses its focus.\n"
+    "\t * So, when the notebook got the focus, make sure the terminal HAS te focus */\n"
+    "\tgtk_widget_grab_focus(sk_tab->active_vte ? sk_tab->active_vte : sk_tab->vte);",
     "focus active pane after page change"
 )
 
