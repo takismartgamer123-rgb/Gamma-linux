@@ -497,9 +497,7 @@ source = once(
     source,
     "vte_terminal_paste_clipboard(VTE_TERMINAL(sk_tab->vte));",
     "VteTerminal *target = VTE_TERMINAL(sk_tab->active_vte ? sk_tab->active_vte : sk_tab->vte);\n"
-    "\tvte_terminal_paste_clipboard(target);\n"
-    "\tif (sk_tab->grouped_input && sk_tab->vte2)\n"
-    "\t\tvte_terminal_paste_clipboard(VTE_TERMINAL(target == VTE_TERMINAL(sk_tab->vte) ? sk_tab->vte2 : sk_tab->vte));",
+    "\tvte_terminal_paste_clipboard(target);",
     "paste to focused and peer pane"
 )
 source = once(
@@ -702,7 +700,7 @@ source = once(
     'g_signal_connect(G_OBJECT(sk_tab->vte), "window-title-changed", G_CALLBACK(sakura_title_changed_cb), NULL);\n'
     '\tg_signal_connect(G_OBJECT(sk_tab->vte), "focus-in-event", G_CALLBACK(gamma_pane_focus_cb), sk_tab);\n'
     '\tg_signal_connect(G_OBJECT(sk_tab->vte), "commit", G_CALLBACK(gamma_grouped_commit_cb), sk_tab);\n'
-    '\tg_signal_connect(G_OBJECT(sk_tab->vte), "key-press-event", G_CALLBACK(gamma_grouped_key_cb), sk_tab);',
+,
     "primary pane focus and grouped input signals"
 )
 
@@ -764,67 +762,6 @@ gamma_grouped_commit_cb (VteTerminal *terminal, const gchar *text,
     if (!sk_tab->grouped_input || !sk_tab->vte2) return;
     peer = (GTK_WIDGET(terminal) == sk_tab->vte) ? sk_tab->vte2 : sk_tab->vte;
     vte_terminal_feed_child(VTE_TERMINAL(peer), text, size);
-}
-
-static gboolean
-gamma_grouped_key_cb (GtkWidget *widget, GdkEventKey *event, gpointer data)
-{
-    struct sakura_tab *sk_tab = (struct sakura_tab *)data;
-    GtkWidget *peer;
-    const gchar *sequence = NULL;
-    gchar control_char;
-    gunichar unicode;
-
-    if (!sk_tab->grouped_input || !sk_tab->vte2 || event->type != GDK_KEY_PRESS)
-        return FALSE;
-
-    peer = (widget == sk_tab->vte) ? sk_tab->vte2 : sk_tab->vte;
-
-    if (event->state & GDK_CONTROL_MASK) {
-        unicode = gdk_keyval_to_unicode(event->keyval);
-        unicode = g_unichar_tolower(unicode);
-        if (unicode >= 'a' && unicode <= 'z') {
-            control_char = (gchar)(unicode - 'a' + 1);
-            vte_terminal_feed_child(VTE_TERMINAL(peer), &control_char, 1);
-            return FALSE;
-        }
-    }
-
-    switch (event->keyval) {
-        case GDK_KEY_Return:
-        case GDK_KEY_KP_Enter: sequence = "\r"; break;
-        case GDK_KEY_BackSpace: sequence = "\177"; break;
-        case GDK_KEY_Tab: sequence = "\t"; break;
-        case GDK_KEY_ISO_Left_Tab: sequence = "\033[Z"; break;
-        case GDK_KEY_Escape: sequence = "\033"; break;
-        case GDK_KEY_Up: sequence = "\033[A"; break;
-        case GDK_KEY_Down: sequence = "\033[B"; break;
-        case GDK_KEY_Right: sequence = "\033[C"; break;
-        case GDK_KEY_Left: sequence = "\033[D"; break;
-        case GDK_KEY_Home: sequence = "\033[H"; break;
-        case GDK_KEY_End: sequence = "\033[F"; break;
-        case GDK_KEY_Insert: sequence = "\033[2~"; break;
-        case GDK_KEY_Delete: sequence = "\033[3~"; break;
-        case GDK_KEY_Page_Up: sequence = "\033[5~"; break;
-        case GDK_KEY_Page_Down: sequence = "\033[6~"; break;
-        case GDK_KEY_F1: sequence = "\033OP"; break;
-        case GDK_KEY_F2: sequence = "\033OQ"; break;
-        case GDK_KEY_F3: sequence = "\033OR"; break;
-        case GDK_KEY_F4: sequence = "\033OS"; break;
-        case GDK_KEY_F5: sequence = "\033[15~"; break;
-        case GDK_KEY_F6: sequence = "\033[17~"; break;
-        case GDK_KEY_F7: sequence = "\033[18~"; break;
-        case GDK_KEY_F8: sequence = "\033[19~"; break;
-        case GDK_KEY_F9: sequence = "\033[20~"; break;
-        case GDK_KEY_F10: sequence = "\033[21~"; break;
-        case GDK_KEY_F11: sequence = "\033[23~"; break;
-        case GDK_KEY_F12: sequence = "\033[24~"; break;
-        default: break;
-    }
-
-    if (sequence)
-        vte_terminal_feed_child(VTE_TERMINAL(peer), sequence, strlen(sequence));
-    return FALSE;
 }
 
 static void
@@ -906,7 +843,7 @@ gamma_split_active_tab (GtkOrientation orientation)
     g_signal_connect(G_OBJECT(vte2), "window-title-changed", G_CALLBACK(sakura_title_changed_cb), NULL);
     g_signal_connect(G_OBJECT(vte2), "focus-in-event", G_CALLBACK(gamma_pane_focus_cb), sk_tab);
     g_signal_connect(G_OBJECT(vte2), "commit", G_CALLBACK(gamma_grouped_commit_cb), sk_tab);
-    g_signal_connect(G_OBJECT(vte2), "key-press-event", G_CALLBACK(gamma_grouped_key_cb), sk_tab);
+
     g_signal_connect_swapped(G_OBJECT(vte2), "button-press-event",
                               G_CALLBACK(sakura_term_buttonpressed_cb), sakura.menu);
     g_signal_connect_swapped(G_OBJECT(vte2), "button-release-event",
