@@ -391,6 +391,16 @@ source = once(
 source = once(source, "\tsakura_init_popup();",
                "\tsakura_init_popup();\n\tgamma_controls_build(gamma_controls);",
                "Build Gamma Controls after Sakura menu initialization")
+source = once(source, "\tsakura_init_popup();",
+               "\tsakura_init_popup();\n\tgamma_controls_build(gamma_controls);",
+               "Build Gamma Controls after Sakura menu initialization")
+
+source = once(
+    source,
+    "gtk_window_resize(GTK_WINDOW(sakura.main_window), sakura.width, sakura.height);",
+    "/* Keep the terminal's configured column count after adding the 180px controls rail. */\n\t sakura.width += 180;\n\t gtk_window_resize(GTK_WINDOW(sakura.main_window), sakura.width, sakura.height);",
+    "Reserve width for the Gamma Controls rail"
+)
 write("src/sakura.c", source)
 
 print("Gamma Controls panel integrated using existing GTK3/VTE dependencies.")
