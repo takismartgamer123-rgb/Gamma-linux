@@ -363,7 +363,11 @@ gamma_controls_build (GtkWidget *panel)
 """
 
 source = once(source, "static void     sakura_init_popup ();",
-               "static void     sakura_init_popup ();\nstatic void     gamma_controls_build (GtkWidget *panel);",
+               "static void     sakura_init_popup ();\nstatic void     gamma_controls_build (GtkWidget *panel);\n"
+               "static void     gamma_split_v_cb (GtkWidget *, void *);\n"
+               "static void     gamma_split_h_cb (GtkWidget *, void *);\n"
+               "static void     gamma_miniview_cb (GtkWidget *, void *);\n"
+               "static void     gamma_grouped_input_toggled (GtkToggleButton *, gpointer);",
                "Gamma Controls forward declaration")
 
 source = once(source, """static void
@@ -421,7 +425,11 @@ source = once(
     "\tGPid pid2;\n"
     "\tgulong exit_handler_id2;\n"
     "\tGtkWidget *active_vte;\n"
-    "\tbool grouped_input;\n};",
+    "\tbool grouped_input;\n};\n\n"
+    "struct gamma_exited_pane {\n"
+    "\tstruct sakura_tab *tab;\n"
+    "\tGtkWidget *terminal;\n"
+    "};",
     "two-pane state in sakura_tab"
 )
 
@@ -647,8 +655,7 @@ source = once(
     "pid_t pgid2 = -1;\n"
     "\tif (sk_tab->vte2)\n"
     "\t\tpgid2 = tcgetpgrp(vte_pty_get_fd(vte_terminal_get_pty(VTE_TERMINAL(sk_tab->vte2))));\n"
-    "\tif (((pgid != -1) && (pgid != sk_tab->pid)) || ((pgid2 != -1) && (pgid2 != sk_tab->pid2)) ) {\n"
-    "\t\tif (!sakura.less_questions) {",
+    "\tif ((((pgid != -1) && (pgid != sk_tab->pid)) || ((pgid2 != -1) && (pgid2 != sk_tab->pid2))) && (!sakura.less_questions)) {",
     "close-tab foreground process check"
 )
 source = once(
@@ -660,10 +667,9 @@ source = once(
     "\t\tsakura_del_tab(page);",
     "\t\tif (response==GTK_RESPONSE_YES)\n"
     "\t\t\tsakura_del_tab(page);\n"
-    "\t\t}\n"
-    "\t} else /* No foreground processes */\n"
+    "\t} else /* No foreground processes or confirmations disabled */\n"
     "\t\tsakura_del_tab(page);",
-    "close-tab nested confirmation"
+    "close-tab confirmation for both panes"
 )
 
 # Disconnect and release the second pane with the notebook tab.
@@ -703,11 +709,6 @@ source = once(
 
 # Add the new pane implementation and callback bodies before Sakura's popup menu builder.
 gamma_pane_code = r"""
-struct gamma_exited_pane {
-    struct sakura_tab *tab;
-    GtkWidget *terminal;
-};
-
 static void
 gamma_controls_update (struct sakura_tab *sk_tab)
 {
@@ -1096,14 +1097,6 @@ source = once(
                      G_CALLBACK(gamma_grouped_input_toggled), NULL);
     gtk_box_pack_start(GTK_BOX(panel), gamma_grouped_input_widget, FALSE, FALSE, 4);""",
     "enable Grouped input control"
-)
-
-# Existing tab page lookup is now VTE-aware, not parent-widget-aware.
-source = once(
-    source,
-    "page = gtk_notebook_page_num(GTK_NOTEBOOK(sakura.notebook),\n\t\t\t\tgtk_widget_get_parent(widget));",
-    "page = sakura_find_tab(VTE_TERMINAL(widget));",
-    "child exit lookup by VTE"
 )
 
 # Ensure the secondary pane is included in the app-wide close confirmation.
