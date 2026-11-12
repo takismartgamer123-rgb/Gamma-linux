@@ -770,6 +770,10 @@ gamma_spawn_second_cb (VteTerminal *terminal, GPid pid, GError *error, gpointer 
     struct sakura_tab *sk_tab = (struct sakura_tab *)data;
     if (pid == -1) {
         if (error) sakura_error("Cannot start split terminal: %s", error->message);
+        struct gamma_exited_pane *pending = g_new0(struct gamma_exited_pane, 1);
+        pending->tab = sk_tab;
+        pending->terminal = GTK_WIDGET(terminal);
+        g_idle_add(gamma_child_exit_cleanup, pending);
         return;
     }
     sk_tab->pid2 = pid;
@@ -928,6 +932,20 @@ gamma_child_exit_cleanup (gpointer data)
     struct gamma_exited_pane *pending = (struct gamma_exited_pane *)data;
     struct sakura_tab *sk_tab = pending->tab;
     GtkWidget *terminal = pending->terminal;
+
+    /* If both shells exit before the idle cleanup runs, the first cleanup
+       promotes the survivor and the second cleanup must close the now-empty tab. */
+    if (!sk_tab->pane_root && terminal == sk_tab->vte) {
+        gint page = sakura_find_tab(VTE_TERMINAL(terminal));
+        if (page >= 0) {
+            if (sk_tab->pid > 0) g_spawn_close_pid(sk_tab->pid);
+            sakura_del_tab(page);
+            if (gtk_notebook_get_n_pages(GTK_NOTEBOOK(sakura.notebook)) == 0)
+                sakura_destroy();
+        }
+        g_free(pending);
+        return G_SOURCE_REMOVE;
+    }
 
     if (sk_tab->pane_root && terminal == sk_tab->vte2) {
         GtkWidget *keep_vte = sk_tab->vte;
