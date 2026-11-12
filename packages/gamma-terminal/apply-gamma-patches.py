@@ -240,3 +240,152 @@ shutil.copy2(Path(__file__).resolve().parent / "README.md", root / "README.md")
 
 print("Gamma Terminal branding patches applied to pinned Sakura 3.8.6.")
 print("Sakura GTK/VTE core, PTY lifecycle, tabs, search, URL matching and CLI remain the engine.")
+
+
+# Gamma Terminal Controls panel.
+# This is GTK3-only and deliberately reuses Sakura's existing callbacks.
+source = read("src/sakura.c")
+
+gamma_controls_code = r"""
+static GtkWidget *
+gamma_controls_add_button (GtkWidget *panel, const gchar *label,
+                           const gchar *icon_name, GCallback callback)
+{
+    GtkWidget *button = gtk_button_new();
+    GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    GtkWidget *image = gtk_image_new_from_icon_name(icon_name, GTK_ICON_SIZE_BUTTON);
+    GtkWidget *text = gtk_label_new(label);
+
+    gtk_widget_set_halign(text, GTK_ALIGN_START);
+    gtk_widget_set_hexpand(text, TRUE);
+    gtk_box_pack_start(GTK_BOX(row), image, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(row), text, TRUE, TRUE, 0);
+    gtk_container_add(GTK_CONTAINER(button), row);
+    gtk_widget_set_name(button, "gamma-control-button");
+    gtk_widget_set_size_request(button, -1, 34);
+    if (callback != NULL)
+        g_signal_connect(button, "clicked", callback, NULL);
+    gtk_box_pack_start(GTK_BOX(panel), button, FALSE, FALSE, 0);
+    return button;
+}
+
+static void
+gamma_controls_settings_cb (GtkWidget *widget, gpointer data)
+{
+    gtk_menu_popup_at_widget(GTK_MENU(sakura.menu), widget,
+                             GDK_GRAVITY_SOUTH_WEST,
+                             GDK_GRAVITY_NORTH_WEST, NULL);
+}
+
+static void
+gamma_controls_about_cb (GtkWidget *widget, gpointer data)
+{
+    gtk_show_about_dialog(GTK_WINDOW(sakura.main_window),
+                          "program-name", "Gamma Terminal",
+                          "version", VERSION,
+                          "comments", "Sakura-powered GTK/VTE terminal for Gamma Linux.",
+                          "website", "https://gamma-linux.is-local.org/",
+                          "logo-icon-name", "utilities-terminal",
+                          NULL);
+}
+
+static void
+gamma_controls_build (GtkWidget *panel)
+{
+    GtkWidget *heading = gtk_label_new(NULL);
+    GtkWidget *grouped_input;
+
+    gtk_label_set_markup(GTK_LABEL(heading), "<b>Controls</b>");
+    gtk_widget_set_halign(heading, GTK_ALIGN_START);
+    gtk_box_pack_start(GTK_BOX(panel), heading, FALSE, FALSE, 4);
+
+    gamma_controls_add_button(panel, "New", "tab-new-symbolic",
+                              G_CALLBACK(sakura_new_tab_cb));
+
+    /* Split actions become active when the multi-PTY pane model is integrated.
+       Keep them visible but disabled rather than pretending they work. */
+    GtkWidget *split_v = gamma_controls_add_button(panel, "Split V",
+        "view-grid-symbolic", NULL);
+    GtkWidget *split_h = gamma_controls_add_button(panel, "Split H",
+        "view-dual-symbolic", NULL);
+    gtk_widget_set_sensitive(split_v, FALSE);
+    gtk_widget_set_sensitive(split_h, FALSE);
+    gtk_widget_set_tooltip_text(split_v, "Split panes are not implemented yet.");
+    gtk_widget_set_tooltip_text(split_h, "Split panes are not implemented yet.");
+
+    GtkWidget *miniview = gamma_controls_add_button(panel, "Miniview",
+        "zoom-fit-best-symbolic", NULL);
+    gtk_widget_set_sensitive(miniview, FALSE);
+    gtk_widget_set_tooltip_text(miniview, "Terminal miniview is not implemented yet.");
+
+    gamma_controls_add_button(panel, "Set title", "document-edit-symbolic",
+                              G_CALLBACK(sakura_set_name_dialog_cb));
+
+    grouped_input = gtk_check_button_new_with_label("Grouped input");
+    gtk_widget_set_halign(grouped_input, GTK_ALIGN_START);
+    gtk_widget_set_sensitive(grouped_input, FALSE);
+    gtk_widget_set_tooltip_text(grouped_input,
+        "Broadcast input will be added with multi-pane support.");
+    gtk_box_pack_start(GTK_BOX(panel), grouped_input, FALSE, FALSE, 4);
+
+    GtkWidget *separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(panel), separator, FALSE, FALSE, 5);
+
+    gamma_controls_add_button(panel, "Copy", "edit-copy-symbolic",
+                              G_CALLBACK(sakura_copy_cb));
+    gamma_controls_add_button(panel, "Paste", "edit-paste-symbolic",
+                              G_CALLBACK(sakura_paste_cb));
+    gamma_controls_add_button(panel, "Settings", "preferences-system-symbolic",
+                              G_CALLBACK(gamma_controls_settings_cb));
+    gamma_controls_add_button(panel, "About", "help-about-symbolic",
+                              G_CALLBACK(gamma_controls_about_cb));
+
+    separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(panel), separator, FALSE, FALSE, 5);
+
+    gamma_controls_add_button(panel, "Close Terminal", "window-close-symbolic",
+                              G_CALLBACK(sakura_close_tab_cb));
+}
+"""
+
+source = once(source, "static void\\nsakura_init()\\n{",
+               gamma_controls_code + "\\nstatic void\\nsakura_init()\\n{",
+               "Gamma Controls callbacks and panel builder")
+
+source = once(
+    source,
+    "\\tgtk_container_add(GTK_CONTAINER(sakura.main_window), sakura.notebook);",
+    """\\tGtkWidget *gamma_root = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+\\tGtkWidget *gamma_controls = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+\\tgtk_widget_set_name(gamma_controls, "gamma-controls");
+\\tgtk_widget_set_size_request(gamma_controls, 164, -1);
+\\tgtk_widget_set_margin_start(gamma_controls, 8);
+\\tgtk_widget_set_margin_end(gamma_controls, 8);
+\\tgtk_widget_set_margin_top(gamma_controls, 8);
+\\tgtk_widget_set_margin_bottom(gamma_controls, 8);
+\\tgtk_widget_set_hexpand(sakura.notebook, TRUE);
+\\tgtk_widget_set_vexpand(sakura.notebook, TRUE);
+\\tgtk_box_pack_start(GTK_BOX(gamma_root), sakura.notebook, TRUE, TRUE, 0);
+\\tgtk_box_pack_end(GTK_BOX(gamma_root), gamma_controls, FALSE, FALSE, 0);
+\\tgtk_container_add(GTK_CONTAINER(sakura.main_window), gamma_root);""",
+    "Gamma root layout and right controls panel"
+)
+
+source = once(source, "\\tsakura_init_popup();",
+               "\\tsakura_init_popup();\\n\\tgamma_controls_build(gamma_controls);",
+               "Build Gamma Controls after Sakura menu initialization")
+
+source = once(
+    source,
+    '"window#gamma-terminal vte-terminal { padding: 8px; }"',
+    '"window#gamma-terminal vte-terminal { padding: 8px; }" \\\\n'
+    '"box#gamma-controls { background-color: #151020; border-left: 1px solid #34224f; padding: 8px; }" \\\\n'
+    '"button#gamma-control-button { background-image: none; background-color: #211832; color: #f5f3ff; border: 1px solid #34224f; border-radius: 6px; padding: 3px 7px; }" \\\\n'
+    '"button#gamma-control-button:hover { background-color: #392354; border-color: #8b5cf6; }" \\\\n'
+    '"button#gamma-control-button:disabled { color: #71667e; background-color: #191421; border-color: #292033; }"',
+    "Gamma Controls Aurora CSS"
+)
+write("src/sakura.c", source)
+
+print("Gamma Controls panel integrated using existing GTK3/VTE dependencies.")
+print("Split panes, miniview and grouped input remain visibly disabled until their engine is implemented.")
