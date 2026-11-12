@@ -38,9 +38,16 @@ The executable is `build/src/gamma-terminal`.
 
 The source package declares `Architecture: any`, producing an architecture-specific binary package. `Architecture: all` would be incorrect because the package contains a compiled native ELF executable. GitHub Actions builds separate `amd64` and `i386` packages in Debian 12 containers. Runtime dependencies are populated from ELF linkage by Debian packaging helpers.
 
-## Deliberately deferred
+## Controls panel and split panes
 
-The Controls panel currently displays Split V, Split H, Miniview and Grouped input as disabled placeholders. The earlier standalone prototype contains a split-pane implementation. It is not claimed as part of this Sakura-based release: Sakura associates a VTE child process and lifecycle with each notebook tab, so split panes must be integrated into that model to preserve child-exit handling, working directories, close behavior and focus. The feature needs a dedicated follow-up rather than a fragile second terminal widget.
+The right-side Gamma Controls panel is built with GTK3 and reuses Sakura's existing callbacks for new tabs, tab naming, copy, paste, settings, about and close.
+
+- **Split V / Split H:** create two independent VTE/PTy shells in a single notebook tab, side-by-side or top-and-bottom. The existing terminal process is preserved when the split is created.
+- **Pane lifecycle:** when either shell exits, the remaining pane is promoted into the full tab area. Closing the whole tab checks foreground processes in both panes.
+- **Grouped input:** an opt-in control broadcasts committed text, paste operations and common control/navigation keys to the peer pane.
+- **Miniview:** opens a read-only snapshot of the active pane's terminal scrollback.
+
+The current implementation supports **two panes per tab**. Recursive multi-level splits and live-updating miniview previews remain future work. These features use the existing GTK3, VTE and GLib dependencies; no Terminology, EFL or additional runtime libraries are introduced.
 
 ## Licensing
 
