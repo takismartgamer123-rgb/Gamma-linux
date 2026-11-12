@@ -44,7 +44,7 @@ The right-side Gamma Controls panel is built with GTK3 and reuses Sakura's exist
 
 - **Split V / Split H:** create two independent VTE/PTy shells in a single notebook tab, side-by-side or top-and-bottom. The existing terminal process is preserved when the split is created.
 - **Pane lifecycle:** when either shell exits, the remaining pane is promoted into the full tab area. Closing the whole tab checks foreground processes in both panes.
-- **Grouped input:** an opt-in control broadcasts committed text, paste operations and common control/navigation keys to the peer pane.
+- **Grouped input:** an opt-in control broadcasts user input reported by VTE's commit signal to the peer pane. Clipboard paste is sent through the same path.
 - **Miniview:** opens a read-only snapshot of the active pane's terminal scrollback.
 
 The current implementation supports **two panes per tab**. Recursive multi-level splits and live-updating miniview previews remain future work. These features use the existing GTK3, VTE and GLib dependencies; no Terminology, EFL or additional runtime libraries are introduced.
