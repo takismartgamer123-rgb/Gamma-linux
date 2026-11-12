@@ -9,6 +9,7 @@ The terminal engine is Sakura 3.8.6, fetched from the upstream tag `SAKURA_3_8_6
 - Gamma Aurora colour palette and dark UI colour tokens.
 - Gamma SVG icon and application identity.
 - Header-bar layout and actions, wired to Sakura's native new-tab, search, fullscreen and context-menu callbacks.
+- A right-side GTK Controls panel wired to Sakura's native new-tab, copy, paste, tab naming, settings menu, about dialog and close-tab callbacks.
 - GTK CSS visual treatment; no EFL, Elementary or Terminology dependency.
 
 ## Preserved from Sakura
@@ -17,7 +18,7 @@ VTE terminal widget, child process lifecycle, notebook/tab model, URL and mail m
 
 ## Deferred
 
-The prototype's split-pane UI is documented but intentionally not ported in this first integration. Sakura binds process state and exit handling to each notebook tab; split panes require a correct multi-terminal container and per-pane lifecycle. A superficial widget addition would risk child-process cleanup and session behavior.
+The prototype's split-pane UI is documented but intentionally not ported in this first integration. Split V, Split H, Miniview and Grouped input therefore remain visible but disabled in the Controls panel. Sakura binds process state and exit handling to each notebook tab; split panes require a correct multi-terminal container and per-pane lifecycle. A superficial widget addition would risk child-process cleanup and session behavior.
 
 ## Packaging
 
