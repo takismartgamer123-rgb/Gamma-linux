@@ -16,9 +16,17 @@ The terminal engine is Sakura 3.8.6, fetched from the upstream tag `SAKURA_3_8_6
 
 VTE terminal widget, child process lifecycle, notebook/tab model, URL and mail matching, search, copy/paste, font/colour dialogs and CLI argument handling remain owned by Sakura. Gamma uses its own configuration directory and key-file group so existing Sakura settings are not overwritten.
 
-## Deferred
+## Ported and remaining work
 
-The prototype's split-pane UI is documented but intentionally not ported in this first integration. Split V, Split H, Miniview and Grouped input therefore remain visible but disabled in the Controls panel. Sakura binds process state and exit handling to each notebook tab; split panes require a correct multi-terminal container and per-pane lifecycle. A superficial widget addition would risk child-process cleanup and session behavior.
+The Terminology-inspired split controls are implemented directly in the Sakura GTK/VTE application:
+
+- One horizontal or vertical GTK Paned split per notebook tab, with two independent VTE/PTy child processes.
+- Pane focus tracking and pane-aware copy, paste, search, title updates and working-directory inheritance.
+- Child-exit handling that collapses the split and preserves the surviving shell.
+- Optional grouped input for committed text, paste and common navigation/control keys.
+- A read-only terminal scrollback snapshot shown by Miniview.
+
+The implementation deliberately limits each tab to two panes for now. Recursive split trees and a live-updating Miniview remain deferred until a dedicated pane-tree model can be added without compromising Sakura's process lifecycle.
 
 ## Packaging
 
