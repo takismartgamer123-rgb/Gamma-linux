@@ -23,7 +23,7 @@ The Terminology-inspired split controls are implemented directly in the Sakura G
 - One horizontal or vertical GTK Paned split per notebook tab, with two independent VTE/PTy child processes.
 - Pane focus tracking and pane-aware copy, paste, search, title updates and working-directory inheritance.
 - Child-exit handling that collapses the split and preserves the surviving shell.
-- Optional grouped input for committed text, paste and common navigation/control keys.
+- Optional grouped input broadcast through VTE's commit signal, including clipboard paste.
 - A read-only terminal scrollback snapshot shown by Miniview.
 
 The implementation deliberately limits each tab to two panes for now. Recursive split trees and a live-updating Miniview remain deferred until a dedicated pane-tree model can be added without compromising Sakura's process lifecycle.
