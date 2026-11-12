@@ -242,6 +242,8 @@ print("Gamma Terminal branding patches applied to pinned Sakura 3.8.6.")
 print("Sakura GTK/VTE core, PTY lifecycle, tabs, search, URL matching and CLI remain the engine.")
 
 
+
+
 # Gamma Terminal Controls panel.
 # This is GTK3-only and deliberately reuses Sakura's existing callbacks.
 source = read("src/sakura.c")
@@ -294,6 +296,18 @@ gamma_controls_build (GtkWidget *panel)
 {
     GtkWidget *heading = gtk_label_new(NULL);
     GtkWidget *grouped_input;
+    GtkCssProvider *provider = gtk_css_provider_new();
+    GdkScreen *screen = gtk_widget_get_screen(panel);
+
+    gtk_css_provider_load_from_data(provider,
+        "#gamma-controls { background-color: #151020; border-left: 1px solid #34224f; padding: 8px; }"
+        "button#gamma-control-button { background-image: none; background-color: #211832; color: #f5f3ff; border: 1px solid #34224f; border-radius: 6px; padding: 3px 7px; }"
+        "button#gamma-control-button:hover { background-color: #392354; border-color: #8b5cf6; }"
+        "button#gamma-control-button:disabled { color: #71667e; background-color: #191421; border-color: #292033; }",
+        -1, NULL);
+    gtk_style_context_add_provider_for_screen(screen,
+        GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(provider);
 
     gtk_label_set_markup(GTK_LABEL(heading), "<b>Controls</b>");
     gtk_widget_set_halign(heading, GTK_ALIGN_START);
@@ -348,43 +362,35 @@ gamma_controls_build (GtkWidget *panel)
 }
 """
 
-source = once(source, "static void\\nsakura_init()\\n{",
-               gamma_controls_code + "\\nstatic void\\nsakura_init()\\n{",
-               "Gamma Controls callbacks and panel builder")
+source = once(source, """static void
+sakura_init()
+{""", gamma_controls_code + """
+static void
+sakura_init()
+{""", "Gamma Controls callbacks and panel builder")
 
 source = once(
     source,
-    "\\tgtk_container_add(GTK_CONTAINER(sakura.main_window), sakura.notebook);",
-    """\\tGtkWidget *gamma_root = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-\\tGtkWidget *gamma_controls = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-\\tgtk_widget_set_name(gamma_controls, "gamma-controls");
-\\tgtk_widget_set_size_request(gamma_controls, 164, -1);
-\\tgtk_widget_set_margin_start(gamma_controls, 8);
-\\tgtk_widget_set_margin_end(gamma_controls, 8);
-\\tgtk_widget_set_margin_top(gamma_controls, 8);
-\\tgtk_widget_set_margin_bottom(gamma_controls, 8);
-\\tgtk_widget_set_hexpand(sakura.notebook, TRUE);
-\\tgtk_widget_set_vexpand(sakura.notebook, TRUE);
-\\tgtk_box_pack_start(GTK_BOX(gamma_root), sakura.notebook, TRUE, TRUE, 0);
-\\tgtk_box_pack_end(GTK_BOX(gamma_root), gamma_controls, FALSE, FALSE, 0);
-\\tgtk_container_add(GTK_CONTAINER(sakura.main_window), gamma_root);""",
+    "\tgtk_container_add(GTK_CONTAINER(sakura.main_window), sakura.notebook);",
+    """\tGtkWidget *gamma_root = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+\tGtkWidget *gamma_controls = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+\tgtk_widget_set_name(gamma_controls, "gamma-controls");
+\tgtk_widget_set_size_request(gamma_controls, 164, -1);
+\tgtk_widget_set_margin_start(gamma_controls, 8);
+\tgtk_widget_set_margin_end(gamma_controls, 8);
+\tgtk_widget_set_margin_top(gamma_controls, 8);
+\tgtk_widget_set_margin_bottom(gamma_controls, 8);
+\tgtk_widget_set_hexpand(sakura.notebook, TRUE);
+\tgtk_widget_set_vexpand(sakura.notebook, TRUE);
+\tgtk_box_pack_start(GTK_BOX(gamma_root), sakura.notebook, TRUE, TRUE, 0);
+\tgtk_box_pack_end(GTK_BOX(gamma_root), gamma_controls, FALSE, FALSE, 0);
+\tgtk_container_add(GTK_CONTAINER(sakura.main_window), gamma_root);""",
     "Gamma root layout and right controls panel"
 )
 
-source = once(source, "\\tsakura_init_popup();",
-               "\\tsakura_init_popup();\\n\\tgamma_controls_build(gamma_controls);",
+source = once(source, "\tsakura_init_popup();",
+               "\tsakura_init_popup();\n\tgamma_controls_build(gamma_controls);",
                "Build Gamma Controls after Sakura menu initialization")
-
-source = once(
-    source,
-    '"window#gamma-terminal vte-terminal { padding: 8px; }"',
-    '"window#gamma-terminal vte-terminal { padding: 8px; }" \\\\n'
-    '"box#gamma-controls { background-color: #151020; border-left: 1px solid #34224f; padding: 8px; }" \\\\n'
-    '"button#gamma-control-button { background-image: none; background-color: #211832; color: #f5f3ff; border: 1px solid #34224f; border-radius: 6px; padding: 3px 7px; }" \\\\n'
-    '"button#gamma-control-button:hover { background-color: #392354; border-color: #8b5cf6; }" \\\\n'
-    '"button#gamma-control-button:disabled { color: #71667e; background-color: #191421; border-color: #292033; }"',
-    "Gamma Controls Aurora CSS"
-)
 write("src/sakura.c", source)
 
 print("Gamma Controls panel integrated using existing GTK3/VTE dependencies.")
