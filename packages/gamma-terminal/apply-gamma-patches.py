@@ -83,14 +83,14 @@ source = once(source, '#define SAKURA_CSS ""', r'''#define SAKURA_CSS \
 "menu#gamma-terminal-menu { background-color: #141020; color: #f5f3ff; border: 1px solid #4a355c; }" \
 "menu#gamma-terminal-menu menuitem:hover { background-color: #5b3281; color: #ffffff; }" \
 "window#gamma-terminal scrollbar slider { background-color: #71459a; min-width: 7px; min-height: 7px; }" \
-"window#gamma-terminal vte-terminal { padding: 8px; }" \\
-"window#gamma-terminal paned > separator { background-color: #34224f; min-width: 3px; min-height: 3px; }" \\
-"window#gamma-welcome { background-color: #0b0614; color: #f5f3ff; }" \\
-"window#gamma-welcome label { color: #f5f3ff; }" \\
-"window#gamma-welcome button { background-color: #392354; color: #ffffff; border: 1px solid #8b5cf6; border-radius: 7px; padding: 6px 12px; }" \\
-"window#gamma-welcome button:hover { background-color: #57336f; }" \\
-"window#gamma-welcome #gamma-welcome-title { color: #f5f3ff; font-size: 20px; font-weight: 800; }" \\
-"window#gamma-welcome #gamma-welcome-copy { color: #c4b5fd; font-size: 12px; }" \\
+"window#gamma-terminal vte-terminal { padding: 8px; }" \
+"window#gamma-terminal paned > separator { background-color: #34224f; min-width: 3px; min-height: 3px; }" \
+"window#gamma-welcome { background-color: #0b0614; color: #f5f3ff; }" \
+"window#gamma-welcome label { color: #f5f3ff; }" \
+"window#gamma-welcome button { background-color: #392354; color: #ffffff; border: 1px solid #8b5cf6; border-radius: 7px; padding: 6px 12px; }" \
+"window#gamma-welcome button:hover { background-color: #57336f; }" \
+"window#gamma-welcome #gamma-welcome-title { color: #f5f3ff; font-size: 20px; font-weight: 800; }" \
+"window#gamma-welcome #gamma-welcome-copy { color: #c4b5fd; font-size: 12px; }" \
 "window#gamma-welcome #gamma-welcome-meta { color: #a78bfa; font-size: 9px; font-weight: 700; }"''', "Gamma Aurora CSS")
 
 palette_anchor = 'const char *palettes_names[]= {"Solarized", "Tango", "Gruvbox","Nord","Xterm","Linux", "Rxvt", NULL};'
