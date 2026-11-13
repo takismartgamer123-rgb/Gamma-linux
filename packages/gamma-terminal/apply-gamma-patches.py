@@ -240,3 +240,847 @@ shutil.copy2(Path(__file__).resolve().parent / "README.md", root / "README.md")
 
 print("Gamma Terminal branding patches applied to pinned Sakura 3.8.6.")
 print("Sakura GTK/VTE core, PTY lifecycle, tabs, search, URL matching and CLI remain the engine.")
+
+
+
+
+# Gamma Terminal Controls panel.
+# This is GTK3-only and deliberately reuses Sakura's existing callbacks.
+source = read("src/sakura.c")
+
+gamma_controls_code = r"""
+static GtkWidget *
+gamma_controls_add_button (GtkWidget *panel, const gchar *label,
+                           const gchar *icon_name, GCallback callback)
+{
+    GtkWidget *button = gtk_button_new();
+    GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    GtkWidget *image = gtk_image_new_from_icon_name(icon_name, GTK_ICON_SIZE_BUTTON);
+    GtkWidget *text = gtk_label_new(label);
+
+    gtk_widget_set_halign(text, GTK_ALIGN_START);
+    gtk_widget_set_hexpand(text, TRUE);
+    gtk_box_pack_start(GTK_BOX(row), image, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(row), text, TRUE, TRUE, 0);
+    gtk_container_add(GTK_CONTAINER(button), row);
+    gtk_widget_set_name(button, "gamma-control-button");
+    gtk_widget_set_size_request(button, -1, 34);
+    if (callback != NULL)
+        g_signal_connect(button, "clicked", callback, NULL);
+    gtk_box_pack_start(GTK_BOX(panel), button, FALSE, FALSE, 0);
+    return button;
+}
+
+static void
+gamma_controls_settings_cb (GtkWidget *widget, gpointer data)
+{
+    gtk_menu_popup_at_widget(GTK_MENU(sakura.menu), widget,
+                             GDK_GRAVITY_SOUTH_WEST,
+                             GDK_GRAVITY_NORTH_WEST, NULL);
+}
+
+static void
+gamma_controls_about_cb (GtkWidget *widget, gpointer data)
+{
+    gtk_show_about_dialog(GTK_WINDOW(sakura.main_window),
+                          "program-name", "Gamma Terminal",
+                          "version", VERSION,
+                          "comments", "Sakura-powered GTK/VTE terminal for Gamma Linux.",
+                          "website", "https://gamma-linux.is-local.org/",
+                          "logo-icon-name", "utilities-terminal",
+                          NULL);
+}
+
+static void
+gamma_controls_build (GtkWidget *panel)
+{
+    GtkWidget *heading = gtk_label_new(NULL);
+    GtkCssProvider *provider = gtk_css_provider_new();
+    GdkScreen *screen = gtk_widget_get_screen(panel);
+
+    gtk_css_provider_load_from_data(provider,
+        "#gamma-controls { background-color: #151020; border-left: 1px solid #34224f; padding: 8px; }"
+        "button#gamma-control-button { background-image: none; background-color: #211832; color: #f5f3ff; border: 1px solid #34224f; border-radius: 6px; padding: 3px 7px; }"
+        "button#gamma-control-button:hover { background-color: #392354; border-color: #8b5cf6; }"
+        "button#gamma-control-button:disabled { color: #71667e; background-color: #191421; border-color: #292033; }",
+        -1, NULL);
+    gtk_style_context_add_provider_for_screen(screen,
+        GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(provider);
+
+    gtk_label_set_markup(GTK_LABEL(heading), "<b>Controls</b>");
+    gtk_widget_set_halign(heading, GTK_ALIGN_START);
+    gtk_box_pack_start(GTK_BOX(panel), heading, FALSE, FALSE, 4);
+
+    gamma_controls_add_button(panel, "New", "tab-new-symbolic",
+                              G_CALLBACK(sakura_new_tab_cb));
+
+    /* Split actions become active when the multi-PTY pane model is integrated.
+       Keep them visible but disabled rather than pretending they work. */
+    GtkWidget *split_v = gamma_controls_add_button(panel, "Split V",
+        "view-grid-symbolic", NULL);
+    GtkWidget *split_h = gamma_controls_add_button(panel, "Split H",
+        "view-dual-symbolic", NULL);
+    gtk_widget_set_sensitive(split_v, FALSE);
+    gtk_widget_set_sensitive(split_h, FALSE);
+    gtk_widget_set_tooltip_text(split_v, "Split panes are not implemented yet.");
+    gtk_widget_set_tooltip_text(split_h, "Split panes are not implemented yet.");
+
+    GtkWidget *miniview = gamma_controls_add_button(panel, "Miniview",
+        "zoom-fit-best-symbolic", NULL);
+    gtk_widget_set_sensitive(miniview, FALSE);
+    gtk_widget_set_tooltip_text(miniview, "Terminal miniview is not implemented yet.");
+
+    gamma_controls_add_button(panel, "Set title", "document-edit-symbolic",
+                              G_CALLBACK(sakura_set_name_dialog_cb));
+
+    grouped_input = gtk_check_button_new_with_label("Grouped input");
+    gtk_widget_set_halign(grouped_input, GTK_ALIGN_START);
+    gtk_widget_set_sensitive(grouped_input, FALSE);
+    gtk_widget_set_tooltip_text(grouped_input,
+        "Broadcast input will be added with multi-pane support.");
+    gtk_box_pack_start(GTK_BOX(panel), grouped_input, FALSE, FALSE, 4);
+
+    GtkWidget *separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(panel), separator, FALSE, FALSE, 5);
+
+    gamma_controls_add_button(panel, "Copy", "edit-copy-symbolic",
+                              G_CALLBACK(sakura_copy_cb));
+    gamma_controls_add_button(panel, "Paste", "edit-paste-symbolic",
+                              G_CALLBACK(sakura_paste_cb));
+    gamma_controls_add_button(panel, "Settings", "preferences-system-symbolic",
+                              G_CALLBACK(gamma_controls_settings_cb));
+    gamma_controls_add_button(panel, "About", "help-about-symbolic",
+                              G_CALLBACK(gamma_controls_about_cb));
+
+    separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_box_pack_start(GTK_BOX(panel), separator, FALSE, FALSE, 5);
+
+    gamma_controls_add_button(panel, "Close Terminal", "window-close-symbolic",
+                              G_CALLBACK(sakura_close_tab_cb));
+}
+"""
+
+source = once(source, "static void     sakura_init_popup ();",
+               "static void     sakura_init_popup ();\nstatic void     gamma_controls_build (GtkWidget *panel);\n"
+               "static void     gamma_split_v_cb (GtkWidget *, void *);\n"
+               "static void     gamma_split_h_cb (GtkWidget *, void *);\n"
+               "static void     gamma_miniview_cb (GtkWidget *, void *);\n"
+               "static void     gamma_grouped_input_toggled (GtkToggleButton *, gpointer);",
+               "Gamma Controls forward declaration")
+
+source = once(source, """static void
+sakura_init_popup()
+{""", gamma_controls_code + """
+static void
+sakura_init_popup()
+{""", "Gamma Controls callbacks and panel builder")
+
+source = once(
+    source,
+    "\tgtk_container_add(GTK_CONTAINER(sakura.main_window), sakura.notebook);",
+    """\tGtkWidget *gamma_root = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+\tGtkWidget *gamma_controls = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+\tgtk_widget_set_name(gamma_controls, "gamma-controls");
+\tgtk_widget_set_size_request(gamma_controls, 164, -1);
+\tgtk_widget_set_margin_start(gamma_controls, 8);
+\tgtk_widget_set_margin_end(gamma_controls, 8);
+\tgtk_widget_set_margin_top(gamma_controls, 8);
+\tgtk_widget_set_margin_bottom(gamma_controls, 8);
+\tgtk_widget_set_hexpand(sakura.notebook, TRUE);
+\tgtk_widget_set_vexpand(sakura.notebook, TRUE);
+\tgtk_box_pack_start(GTK_BOX(gamma_root), sakura.notebook, TRUE, TRUE, 0);
+\tgtk_box_pack_end(GTK_BOX(gamma_root), gamma_controls, FALSE, FALSE, 0);
+\tgtk_container_add(GTK_CONTAINER(sakura.main_window), gamma_root);""",
+    "Gamma root layout and right controls panel"
+)
+
+source = once(source, "\tsakura_init_popup();",
+               "\tsakura_init_popup();\n\tgamma_controls_build(gamma_controls);",
+               "Build Gamma Controls after Sakura menu initialization")
+
+source = once(
+    source,
+    "gtk_window_resize(GTK_WINDOW(sakura.main_window), sakura.width, sakura.height);",
+    "/* Keep the terminal's configured column count after adding the 180px controls rail. */\n\t sakura.width += 180;\n\t gtk_window_resize(GTK_WINDOW(sakura.main_window), sakura.width, sakura.height);",
+    "Reserve width for the Gamma Controls rail"
+)
+write("src/sakura.c", source)
+
+print("Gamma Controls panel integrated using existing GTK3/VTE dependencies.")
+print("Split panes, miniview and grouped input remain visibly disabled until their engine is implemented.")
+
+
+# Functional two-pane workspace, using only the existing GTK3 + VTE stack.
+source = read("src/sakura.c")
+
+source = once(
+    source,
+    "\tgulong exit_handler_id;\n};",
+    "\tgulong exit_handler_id;\n"
+    "\tGtkWidget *pane_root;\n"
+    "\tGtkWidget *vte2;\n"
+    "\tGtkWidget *scrollbar2;\n"
+    "\tGPid pid2;\n"
+    "\tgulong exit_handler_id2;\n"
+    "\tGtkWidget *active_vte;\n"
+    "\tbool grouped_input;\n};\n\n"
+    "struct gamma_exited_pane {\n"
+    "\tstruct sakura_tab *tab;\n"
+    "\tGtkWidget *terminal;\n"
+    "};",
+    "two-pane state in sakura_tab"
+)
+
+source = once(
+    source,
+    "static GQuark term_data_id = 0;",
+    "static GQuark term_data_id = 0;\n"
+    "static GtkWidget *gamma_grouped_input_widget = NULL;\n"
+    "static GtkWidget *gamma_split_v_widget = NULL;\n"
+    "static GtkWidget *gamma_split_h_widget = NULL;",
+    "Gamma Controls widget state"
+)
+
+source = once(
+    source,
+    "static void     sakura_show_scrollbar (void);",
+    "static void     sakura_show_scrollbar (void);\n"
+    "static void     gamma_controls_update (struct sakura_tab *);\n"
+    "static gboolean gamma_child_exit_cleanup (gpointer);",
+    "Gamma pane helper declarations"
+)
+
+# Use the focused VTE when resolving terminal tab ownership.
+source = once(
+    source,
+    "if ((VteTerminal *)sk_tab->vte == vte_term) {",
+    "if ((VteTerminal *)sk_tab->vte == vte_term || (VteTerminal *)sk_tab->vte2 == vte_term) {",
+    "find either terminal pane"
+)
+
+# Apply fonts and colour schemes to both panes.
+source = once(
+    source,
+    "vte_terminal_set_font(VTE_TERMINAL(sk_tab->vte), sakura.font);",
+    "vte_terminal_set_font(VTE_TERMINAL(sk_tab->vte), sakura.font);\n"
+    "\t\tif (sk_tab->vte2)\n"
+    "\t\t\tvte_terminal_set_font(VTE_TERMINAL(sk_tab->vte2), sakura.font);",
+    "font update for split pane"
+)
+source = once(
+    source,
+    "vte_terminal_set_bold_is_bright(VTE_TERMINAL(sk_tab->vte), sakura.bold_is_bright);",
+    "vte_terminal_set_bold_is_bright(VTE_TERMINAL(sk_tab->vte), sakura.bold_is_bright);\n"
+    "\t\tif (sk_tab->vte2) {\n"
+    "\t\t\tvte_terminal_set_colors(VTE_TERMINAL(sk_tab->vte2), &sakura.forecolors[sk_tab->colorset], &sakura.backcolors[sk_tab->colorset], sakura.palette, PALETTE_SIZE);\n"
+    "\t\t\tvte_terminal_set_color_cursor(VTE_TERMINAL(sk_tab->vte2), &sakura.curscolors[sk_tab->colorset]);\n"
+    "\t\t\tvte_terminal_set_color_cursor_foreground(VTE_TERMINAL(sk_tab->vte2), &sakura.backcolors[sk_tab->colorset]);\n"
+    "\t\t\tvte_terminal_set_bold_is_bright(VTE_TERMINAL(sk_tab->vte2), sakura.bold_is_bright);\n"
+    "\t\t}",
+    "colour update for split pane"
+)
+
+# Copy, paste and search act on the focused pane. Grouped paste writes to both.
+source = once(
+    source,
+    "if (vte_terminal_get_has_selection(VTE_TERMINAL(sk_tab->vte))) {\n"
+    "\t\tvte_terminal_copy_clipboard_format(VTE_TERMINAL(sk_tab->vte), VTE_FORMAT_TEXT);\n"
+    "\t}",
+    "VteTerminal *target = VTE_TERMINAL(sk_tab->active_vte ? sk_tab->active_vte : sk_tab->vte);\n"
+    "\tif (vte_terminal_get_has_selection(target)) {\n"
+    "\t\tvte_terminal_copy_clipboard_format(target, VTE_FORMAT_TEXT);\n"
+    "\t}",
+    "copy from focused pane"
+)
+source = once(
+    source,
+    "vte_terminal_paste_clipboard(VTE_TERMINAL(sk_tab->vte));",
+    "VteTerminal *target = VTE_TERMINAL(sk_tab->active_vte ? sk_tab->active_vte : sk_tab->vte);\n"
+    "\tvte_terminal_paste_clipboard(target);",
+    "paste to focused and peer pane"
+)
+source = once(
+    source,
+    "vte_terminal_search_set_wrap_around(VTE_TERMINAL(sk_tab->vte), TRUE);",
+    "VteTerminal *target = VTE_TERMINAL(sk_tab->active_vte ? sk_tab->active_vte : sk_tab->vte);\n"
+    "\tvte_terminal_search_set_wrap_around(target, TRUE);",
+    "search focused pane"
+)
+source = once(
+    source,
+    "vte_terminal_search_set_regex(VTE_TERMINAL(sk_tab->vte), regex, 0);",
+    "vte_terminal_search_set_regex(target, regex, 0);",
+    "search regex in focused pane"
+)
+source = once(
+    source,
+    "if (!vte_terminal_search_find_next(VTE_TERMINAL(sk_tab->vte))) {\n"
+    "\t\t\tvte_terminal_unselect_all(VTE_TERMINAL(sk_tab->vte));\n"
+    "\t\t\tvte_terminal_search_find_next(VTE_TERMINAL(sk_tab->vte));",
+    "if (!vte_terminal_search_find_next(target)) {\n"
+    "\t\t\tvte_terminal_unselect_all(target);\n"
+    "\t\t\tvte_terminal_search_find_next(target);",
+    "search next in focused pane"
+)
+
+# Preserve scrollbar preferences in the secondary terminal.
+source = once(
+    source,
+    "if (!sakura.show_scrollbar)\n"
+    "\t\t\tgtk_widget_hide(sk_tab->scrollbar);\n"
+    "\t\telse\n"
+    "\t\t\tgtk_widget_show(sk_tab->scrollbar);",
+    "if (!sakura.show_scrollbar)\n"
+    "\t\t\tgtk_widget_hide(sk_tab->scrollbar);\n"
+    "\t\telse\n"
+    "\t\t\tgtk_widget_show(sk_tab->scrollbar);\n"
+    "\t\tif (sk_tab->scrollbar2) {\n"
+    "\t\t\tif (!sakura.show_scrollbar) gtk_widget_hide(sk_tab->scrollbar2);\n"
+    "\t\t\telse gtk_widget_show(sk_tab->scrollbar2);\n"
+    "\t\t}",
+    "scrollbar preference for secondary pane"
+)
+
+# Window/tab title follows the pane that emitted the title change.
+source = once(
+    source,
+    "tabtitle = vte_terminal_get_window_title(VTE_TERMINAL(sk_tab->vte));",
+    "tabtitle = vte_terminal_get_window_title(VTE_TERMINAL(widget));",
+    "title from emitting pane"
+)
+
+# Track active pane whenever notebook tabs change.
+source = once(
+    source,
+    "if (!sakura.main_title) {\n"
+    "\t\tif (g_strcmp0(gtk_label_get_text(GTK_LABEL(sk_tab->label)),\"\")!=0) {",
+    "gamma_controls_update(sk_tab);\n"
+    "\tif (!sakura.main_title) {\n"
+    "\t\tif (g_strcmp0(gtk_label_get_text(GTK_LABEL(sk_tab->label)),\"\")!=0) {",
+    "refresh Controls on tab switch"
+)
+
+# CWD inheritance follows the focused pane's shell process.
+source = once(
+    source,
+    "if (sk_tab->pid >= 0) {\n"
+    "\t\tchar *file, *buf;",
+    "GPid cwd_pid = (sk_tab->active_vte == sk_tab->vte2 && sk_tab->pid2 > 0) ? sk_tab->pid2 : sk_tab->pid;\n"
+    "\tif (cwd_pid > 0) {\n"
+    "\t\tchar *file, *buf;",
+    "cwd from active pane"
+)
+source = once(
+    source,
+    'file = g_strdup_printf ("/proc/%d/cwd", sk_tab->pid);',
+    'file = g_strdup_printf ("/proc/%d/cwd", cwd_pid);',
+    "active pane cwd PID"
+)
+
+# The main process-exit handler now finds the owning notebook page by VTE,
+# then schedules pane collapse after the VTE signal has returned.
+source = once(
+    source,
+    """static void
+sakura_child_exited_cb (GtkWidget *widget, void *data)
+{
+\tgint page, npages;
+\tstruct sakura_tab *sk_tab;
+
+\tpage = gtk_notebook_page_num(GTK_NOTEBOOK(sakura.notebook),
+\t\t\t\tgtk_widget_get_parent(widget));
+\tnpages = gtk_notebook_get_n_pages(GTK_NOTEBOOK(sakura.notebook));
+\tsk_tab = sakura_get_sktab(sakura, page);
+
+\t/* Only write configuration to disk if it's the last tab */
+\tif (npages==1) {
+\t\tsakura_config_done();
+\t}
+
+\tif (option_hold==TRUE) {
+\t\tSAY("hold option has been activated");
+\t\treturn;
+\t}
+
+\t/* Child should be automatically reaped because we don't use G_SPAWN_DO_NOT_REAP_CHILD flag */
+\tg_spawn_close_pid(sk_tab->pid);
+
+\tsakura_del_tab(page);
+
+\tnpages = gtk_notebook_get_n_pages(GTK_NOTEBOOK(sakura.notebook));
+\tif (npages == 0)
+\t\tsakura_destroy();
+}""",
+    """static void
+sakura_child_exited_cb (GtkWidget *widget, void *data)
+{
+\tgint page, npages;
+\tstruct sakura_tab *sk_tab;
+
+\tpage = sakura_find_tab(VTE_TERMINAL(widget));
+\tif (page < 0) return;
+\tnpages = gtk_notebook_get_n_pages(GTK_NOTEBOOK(sakura.notebook));
+\tsk_tab = sakura_get_sktab(sakura, page);
+
+\tif (npages == 1) sakura_config_done();
+\tif (option_hold == TRUE) {
+\t\tSAY("hold option has been activated");
+\t\treturn;
+\t}
+
+\tif (sk_tab->pane_root && (widget == sk_tab->vte || widget == sk_tab->vte2)) {
+\t\tstruct gamma_exited_pane *pending = g_new0(struct gamma_exited_pane, 1);
+\t\tpending->tab = sk_tab;
+\t\tpending->terminal = widget;
+\t\tg_idle_add(gamma_child_exit_cleanup, pending);
+\t\treturn;
+\t}
+
+\tg_spawn_close_pid(sk_tab->pid);
+\tsakura_del_tab(page);
+\tnpages = gtk_notebook_get_n_pages(GTK_NOTEBOOK(sakura.notebook));
+\tif (npages == 0) sakura_destroy();
+}""",
+    "two-pane child-exit lifecycle"
+)
+
+# Ask before closing if either pane is running a foreground process.
+source = once(
+    source,
+    "if ( (pgid != -1) && (pgid != sk_tab->pid) && (!sakura.less_questions) ) {",
+    "pid_t pgid2 = -1;\n"
+    "\tif (sk_tab->vte2)\n"
+    "\t\tpgid2 = tcgetpgrp(vte_pty_get_fd(vte_terminal_get_pty(VTE_TERMINAL(sk_tab->vte2))));\n"
+    "\tif ((((pgid != -1) && (pgid != sk_tab->pid)) || ((pgid2 != -1) && (pgid2 != sk_tab->pid2))) && (!sakura.less_questions)) {",
+    "close-tab foreground process check"
+)
+source = once(
+    source,
+    "\t\tif (response==GTK_RESPONSE_YES)\n"
+    "\t\t\tsakura_del_tab(page);\n"
+    "\n"
+    "\t} else /* No processes */\n"
+    "\t\tsakura_del_tab(page);",
+    "\t\tif (response==GTK_RESPONSE_YES)\n"
+    "\t\t\tsakura_del_tab(page);\n"
+    "\t} else /* No foreground processes or confirmations disabled */\n"
+    "\t\tsakura_del_tab(page);",
+    "close-tab confirmation for both panes"
+)
+
+# Disconnect and release the second pane with the notebook tab.
+source = once(
+    source,
+    "\tg_signal_handler_disconnect (sk_tab->vte, sk_tab->exit_handler_id);\n"
+    "\tgtk_notebook_remove_page(GTK_NOTEBOOK(sakura.notebook), page);",
+    "\tg_signal_handler_disconnect (sk_tab->vte, sk_tab->exit_handler_id);\n"
+    "\tif (sk_tab->vte2) {\n"
+    "\t\tif (sk_tab->exit_handler_id2)\n"
+    "\t\t\tg_signal_handler_disconnect(sk_tab->vte2, sk_tab->exit_handler_id2);\n"
+    "\t\tif (sk_tab->pid2 > 0) g_spawn_close_pid(sk_tab->pid2);\n"
+    "\t}\n"
+    "\tgtk_notebook_remove_page(GTK_NOTEBOOK(sakura.notebook), page);",
+    "cleanup second pane on tab removal"
+)
+
+# Primary pane setup remembers focus and exposes grouped-input hooks.
+source = once(
+    source,
+    "sk_tab->vte = vte_terminal_new();\n"
+    "\tsk_tab->scrollbar = gtk_scrollbar_new",
+    "sk_tab->vte = vte_terminal_new();\n"
+    "\tsk_tab->active_vte = sk_tab->vte;\n"
+    "\tsk_tab->scrollbar = gtk_scrollbar_new",
+    "initial active VTE"
+)
+source = once(
+    source,
+    'g_signal_connect(G_OBJECT(sk_tab->vte), "window-title-changed", G_CALLBACK(sakura_title_changed_cb), NULL);',
+    'g_signal_connect(G_OBJECT(sk_tab->vte), "window-title-changed", G_CALLBACK(sakura_title_changed_cb), NULL);\n'
+    '\tg_signal_connect(G_OBJECT(sk_tab->vte), "focus-in-event", G_CALLBACK(gamma_pane_focus_cb), sk_tab);\n'
+    '\tg_signal_connect(G_OBJECT(sk_tab->vte), "commit", G_CALLBACK(gamma_grouped_commit_cb), sk_tab);\n'
+,
+    "primary pane focus and grouped input signals"
+)
+
+# Add the new pane implementation and callback bodies before Sakura's popup menu builder.
+gamma_pane_code = r"""
+static void
+gamma_controls_update (struct sakura_tab *sk_tab)
+{
+    gboolean split = (sk_tab != NULL && sk_tab->vte2 != NULL);
+
+    if (gamma_split_v_widget)
+        gtk_widget_set_sensitive(gamma_split_v_widget, !split);
+    if (gamma_split_h_widget)
+        gtk_widget_set_sensitive(gamma_split_h_widget, !split);
+    if (gamma_grouped_input_widget) {
+        gtk_widget_set_sensitive(gamma_grouped_input_widget, split);
+        g_signal_handlers_block_by_func(gamma_grouped_input_widget,
+            G_CALLBACK(gamma_grouped_input_toggled), NULL);
+        if (sk_tab && split)
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gamma_grouped_input_widget),
+                                         sk_tab->grouped_input);
+        else
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gamma_grouped_input_widget), FALSE);
+        g_signal_handlers_unblock_by_func(gamma_grouped_input_widget,
+            G_CALLBACK(gamma_grouped_input_toggled), NULL);
+    }
+}
+
+static void
+gamma_grouped_input_toggled (GtkToggleButton *button, gpointer data)
+{
+    gint page = gtk_notebook_get_current_page(GTK_NOTEBOOK(sakura.notebook));
+    struct sakura_tab *sk_tab;
+
+    if (page < 0) return;
+    sk_tab = sakura_get_sktab(sakura, page);
+    if (!sk_tab || !sk_tab->vte2) {
+        gtk_toggle_button_set_active(button, FALSE);
+        return;
+    }
+    sk_tab->grouped_input = gtk_toggle_button_get_active(button);
+}
+
+static gboolean
+gamma_pane_focus_cb (GtkWidget *widget, GdkEventFocus *event, gpointer data)
+{
+    struct sakura_tab *sk_tab = (struct sakura_tab *)data;
+    sk_tab->active_vte = widget;
+    return FALSE;
+}
+
+static void
+gamma_grouped_commit_cb (VteTerminal *terminal, const gchar *text,
+                         guint size, gpointer data)
+{
+    struct sakura_tab *sk_tab = (struct sakura_tab *)data;
+    GtkWidget *peer;
+
+    if (!sk_tab->grouped_input || !sk_tab->vte2) return;
+    peer = (GTK_WIDGET(terminal) == sk_tab->vte) ? sk_tab->vte2 : sk_tab->vte;
+    vte_terminal_feed_child(VTE_TERMINAL(peer), text, size);
+}
+
+static void
+gamma_spawn_second_cb (VteTerminal *terminal, GPid pid, GError *error, gpointer data)
+{
+    struct sakura_tab *sk_tab = (struct sakura_tab *)data;
+    if (pid == -1) {
+        if (error) sakura_error("Cannot start split terminal: %s", error->message);
+        struct gamma_exited_pane *pending = g_new0(struct gamma_exited_pane, 1);
+        pending->tab = sk_tab;
+        pending->terminal = GTK_WIDGET(terminal);
+        g_idle_add(gamma_child_exit_cleanup, pending);
+        return;
+    }
+    sk_tab->pid2 = pid;
+}
+
+static void
+gamma_split_active_tab (GtkOrientation orientation)
+{
+    gint page = gtk_notebook_get_current_page(GTK_NOTEBOOK(sakura.notebook));
+    struct sakura_tab *sk_tab;
+    GtkWidget *primary_box, *second_box, *paned;
+    GtkWidget *vte2, *scrollbar2;
+    gchar *cwd;
+    char *command_env[2] = {"TERM=xterm-256color", NULL};
+
+    if (page < 0) return;
+    sk_tab = sakura_get_sktab(sakura, page);
+    if (sk_tab->vte2) {
+        sakura_error("This Gamma Terminal release supports two panes per tab.");
+        return;
+    }
+
+    /* Move the existing terminal widgets into the first pane without
+       destroying their VTE process or PTY. */
+    g_object_ref(sk_tab->vte);
+    g_object_ref(sk_tab->scrollbar);
+    gtk_container_remove(GTK_CONTAINER(sk_tab->hbox), sk_tab->vte);
+    gtk_container_remove(GTK_CONTAINER(sk_tab->hbox), sk_tab->scrollbar);
+
+    primary_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_box_pack_start(GTK_BOX(primary_box), sk_tab->vte, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(primary_box), sk_tab->scrollbar, FALSE, FALSE, 0);
+    g_object_unref(sk_tab->vte);
+    g_object_unref(sk_tab->scrollbar);
+
+    vte2 = vte_terminal_new();
+    scrollbar2 = gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL,
+        gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(vte2)));
+    second_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_box_pack_start(GTK_BOX(second_box), vte2, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(second_box), scrollbar2, FALSE, FALSE, 0);
+
+    paned = gtk_paned_new(orientation);
+    gtk_paned_set_wide_handle(GTK_PANED(paned), TRUE);
+    gtk_paned_pack1(GTK_PANED(paned), primary_box, TRUE, FALSE);
+    gtk_paned_pack2(GTK_PANED(paned), second_box, TRUE, FALSE);
+    gtk_box_pack_start(GTK_BOX(sk_tab->hbox), paned, TRUE, TRUE, 0);
+
+    sk_tab->pane_root = paned;
+    sk_tab->vte2 = vte2;
+    sk_tab->scrollbar2 = scrollbar2;
+    sk_tab->grouped_input = FALSE;
+
+    vte_terminal_set_scrollback_lines(VTE_TERMINAL(vte2), sakura.scroll_lines);
+    vte_terminal_match_add_regex(VTE_TERMINAL(vte2), sakura.http_vteregexp, PCRE2_CASELESS);
+    vte_terminal_match_add_regex(VTE_TERMINAL(vte2), sakura.mail_vteregexp, PCRE2_CASELESS);
+    vte_terminal_set_mouse_autohide(VTE_TERMINAL(vte2), TRUE);
+    vte_terminal_set_backspace_binding(VTE_TERMINAL(vte2), VTE_ERASE_ASCII_DELETE);
+    vte_terminal_set_word_char_exceptions(VTE_TERMINAL(vte2), sakura.word_chars);
+    vte_terminal_set_audible_bell(VTE_TERMINAL(vte2), sakura.audible_bell ? TRUE : FALSE);
+    vte_terminal_set_cursor_blink_mode(VTE_TERMINAL(vte2),
+        sakura.blinking_cursor ? VTE_CURSOR_BLINK_ON : VTE_CURSOR_BLINK_OFF);
+    vte_terminal_set_cursor_shape(VTE_TERMINAL(vte2), sakura.cursor_type);
+
+    g_signal_connect(G_OBJECT(vte2), "bell", G_CALLBACK(sakura_beep_cb), NULL);
+    g_signal_connect(G_OBJECT(vte2), "increase-font-size", G_CALLBACK(sakura_increase_font_cb), NULL);
+    g_signal_connect(G_OBJECT(vte2), "decrease-font-size", G_CALLBACK(sakura_decrease_font_cb), NULL);
+    sk_tab->exit_handler_id2 = g_signal_connect(G_OBJECT(vte2), "child-exited",
+                                                 G_CALLBACK(sakura_child_exited_cb), NULL);
+    g_signal_connect(G_OBJECT(vte2), "eof", G_CALLBACK(sakura_eof_cb), NULL);
+    g_signal_connect(G_OBJECT(vte2), "window-title-changed", G_CALLBACK(sakura_title_changed_cb), NULL);
+    g_signal_connect(G_OBJECT(vte2), "focus-in-event", G_CALLBACK(gamma_pane_focus_cb), sk_tab);
+    g_signal_connect(G_OBJECT(vte2), "commit", G_CALLBACK(gamma_grouped_commit_cb), sk_tab);
+
+    g_signal_connect_swapped(G_OBJECT(vte2), "button-press-event",
+                              G_CALLBACK(sakura_term_buttonpressed_cb), sakura.menu);
+    g_signal_connect_swapped(G_OBJECT(vte2), "button-release-event",
+                              G_CALLBACK(sakura_term_buttonreleased_cb), sakura.menu);
+
+    sakura_set_font();
+    sakura_set_colors();
+    if (!sakura.show_scrollbar) {
+        gtk_widget_hide(sk_tab->scrollbar);
+        gtk_widget_hide(scrollbar2);
+    }
+
+    cwd = sakura_get_term_cwd(sk_tab);
+    if (!cwd) cwd = g_get_current_dir();
+    vte_terminal_spawn_async(VTE_TERMINAL(vte2), VTE_PTY_NO_HELPER, cwd,
+        sakura.argv, command_env, G_SPAWN_SEARCH_PATH | G_SPAWN_FILE_AND_ARGV_ZERO,
+        NULL, NULL, NULL, -1, NULL, gamma_spawn_second_cb, sk_tab);
+    g_free(cwd);
+
+    gtk_widget_show_all(sk_tab->hbox);
+    if (!sakura.show_scrollbar) gtk_widget_hide(scrollbar2);
+    sk_tab->active_vte = vte2;
+    gtk_widget_grab_focus(vte2);
+    gamma_controls_update(sk_tab);
+    sakura_set_size();
+}
+
+static void
+gamma_split_v_cb (GtkWidget *widget, void *data)
+{
+    /* A vertical divider creates left/right terminal panes. */
+    gamma_split_active_tab(GTK_ORIENTATION_HORIZONTAL);
+}
+
+static void
+gamma_split_h_cb (GtkWidget *widget, void *data)
+{
+    /* A horizontal divider creates top/bottom terminal panes. */
+    gamma_split_active_tab(GTK_ORIENTATION_VERTICAL);
+}
+
+static void
+gamma_miniview_cb (GtkWidget *widget, void *data)
+{
+    gint page = gtk_notebook_get_current_page(GTK_NOTEBOOK(sakura.notebook));
+    struct sakura_tab *sk_tab;
+    GtkWidget *dialog, *scroll, *view;
+    GtkTextBuffer *buffer;
+    VteTerminal *target;
+    gchar *snapshot;
+
+    if (page < 0) return;
+    sk_tab = sakura_get_sktab(sakura, page);
+    target = VTE_TERMINAL(sk_tab->active_vte ? sk_tab->active_vte : sk_tab->vte);
+    snapshot = vte_terminal_get_text(target, NULL, NULL, NULL);
+
+    dialog = gtk_dialog_new_with_buttons("Terminal Miniview",
+        GTK_WINDOW(sakura.main_window), GTK_DIALOG_DESTROY_WITH_PARENT,
+        "_Close", GTK_RESPONSE_CLOSE, NULL);
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 640, 360);
+    scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    view = gtk_text_view_new();
+    gtk_text_view_set_editable(GTK_TEXT_VIEW(view), FALSE);
+    gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(view), FALSE);
+    gtk_text_view_set_monospace(GTK_TEXT_VIEW(view), TRUE);
+    buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(view));
+    gtk_text_buffer_set_text(buffer, snapshot ? snapshot : "", -1);
+    gtk_container_add(GTK_CONTAINER(scroll), view);
+    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dialog))),
+                       scroll, TRUE, TRUE, 6);
+    gtk_widget_show_all(dialog);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    g_free(snapshot);
+}
+
+static gboolean
+gamma_child_exit_cleanup (gpointer data)
+{
+    struct gamma_exited_pane *pending = (struct gamma_exited_pane *)data;
+    struct sakura_tab *sk_tab = pending->tab;
+    GtkWidget *terminal = pending->terminal;
+
+    /* If both shells exit before the idle cleanup runs, the first cleanup
+       promotes the survivor and the second cleanup must close the now-empty tab. */
+    if (!sk_tab->pane_root && terminal == sk_tab->vte) {
+        gint page = sakura_find_tab(VTE_TERMINAL(terminal));
+        if (page >= 0) {
+            if (sk_tab->pid > 0) g_spawn_close_pid(sk_tab->pid);
+            sakura_del_tab(page);
+            if (gtk_notebook_get_n_pages(GTK_NOTEBOOK(sakura.notebook)) == 0)
+                sakura_destroy();
+        }
+        g_free(pending);
+        return G_SOURCE_REMOVE;
+    }
+
+    if (sk_tab->pane_root && terminal == sk_tab->vte2) {
+        GtkWidget *keep_vte = sk_tab->vte;
+        GtkWidget *keep_scroll = sk_tab->scrollbar;
+
+        if (sk_tab->pid2 > 0) g_spawn_close_pid(sk_tab->pid2);
+        g_object_ref(keep_vte);
+        g_object_ref(keep_scroll);
+        gtk_container_remove(GTK_CONTAINER(sk_tab->hbox), sk_tab->pane_root);
+        gtk_box_pack_start(GTK_BOX(sk_tab->hbox), keep_vte, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(sk_tab->hbox), keep_scroll, FALSE, FALSE, 0);
+        g_object_unref(keep_vte);
+        g_object_unref(keep_scroll);
+
+        sk_tab->pane_root = NULL;
+        sk_tab->vte2 = NULL;
+        sk_tab->scrollbar2 = NULL;
+        sk_tab->pid2 = 0;
+        sk_tab->exit_handler_id2 = 0;
+        sk_tab->grouped_input = FALSE;
+        sk_tab->active_vte = sk_tab->vte;
+    } else if (sk_tab->pane_root && terminal == sk_tab->vte && sk_tab->vte2) {
+        GtkWidget *keep_vte = sk_tab->vte2;
+        GtkWidget *keep_scroll = sk_tab->scrollbar2;
+
+        if (sk_tab->pid > 0) g_spawn_close_pid(sk_tab->pid);
+        g_object_ref(keep_vte);
+        g_object_ref(keep_scroll);
+        gtk_container_remove(GTK_CONTAINER(sk_tab->hbox), sk_tab->pane_root);
+        gtk_box_pack_start(GTK_BOX(sk_tab->hbox), keep_vte, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(sk_tab->hbox), keep_scroll, FALSE, FALSE, 0);
+        g_object_unref(keep_vte);
+        g_object_unref(keep_scroll);
+
+        sk_tab->vte = sk_tab->vte2;
+        sk_tab->scrollbar = sk_tab->scrollbar2;
+        sk_tab->pid = sk_tab->pid2;
+        sk_tab->exit_handler_id = sk_tab->exit_handler_id2;
+        sk_tab->vte2 = NULL;
+        sk_tab->scrollbar2 = NULL;
+        sk_tab->pid2 = 0;
+        sk_tab->exit_handler_id2 = 0;
+        sk_tab->pane_root = NULL;
+        sk_tab->grouped_input = FALSE;
+        sk_tab->active_vte = sk_tab->vte;
+    }
+
+    gtk_widget_show_all(sk_tab->hbox);
+    if (!sakura.show_scrollbar) gtk_widget_hide(sk_tab->scrollbar);
+    gamma_controls_update(sk_tab);
+    if (sk_tab->active_vte) gtk_widget_grab_focus(sk_tab->active_vte);
+    sakura_set_size();
+    g_free(pending);
+    return G_SOURCE_REMOVE;
+}
+"""
+
+source = once(
+    source,
+    "static void\nsakura_init_popup()\n{",
+    gamma_pane_code + "\nstatic void\nsakura_init_popup()\n{",
+    "Gamma Terminal pane implementation"
+)
+
+# Replace inert controls with real callbacks.
+source = once(
+    source,
+    """    /* Split actions become active when the multi-PTY pane model is integrated.
+       Keep them visible but disabled rather than pretending they work. */
+    GtkWidget *split_v = gamma_controls_add_button(panel, "Split V",
+        "view-grid-symbolic", NULL);
+    GtkWidget *split_h = gamma_controls_add_button(panel, "Split H",
+        "view-dual-symbolic", NULL);
+    gtk_widget_set_sensitive(split_v, FALSE);
+    gtk_widget_set_sensitive(split_h, FALSE);
+    gtk_widget_set_tooltip_text(split_v, "Split panes are not implemented yet.");
+    gtk_widget_set_tooltip_text(split_h, "Split panes are not implemented yet.");
+
+    GtkWidget *miniview = gamma_controls_add_button(panel, "Miniview",
+        "zoom-fit-best-symbolic", NULL);
+    gtk_widget_set_sensitive(miniview, FALSE);
+    gtk_widget_set_tooltip_text(miniview, "Terminal miniview is not implemented yet.");""",
+    """    gamma_split_v_widget = gamma_controls_add_button(panel, "Split V",
+        "view-grid-symbolic", G_CALLBACK(gamma_split_v_cb));
+    gamma_split_h_widget = gamma_controls_add_button(panel, "Split H",
+        "view-dual-symbolic", G_CALLBACK(gamma_split_h_cb));
+
+    gamma_controls_add_button(panel, "Miniview", "zoom-fit-best-symbolic",
+                              G_CALLBACK(gamma_miniview_cb));""",
+    "activate Split and Miniview controls"
+)
+
+source = once(
+    source,
+    """    grouped_input = gtk_check_button_new_with_label("Grouped input");
+    gtk_widget_set_halign(grouped_input, GTK_ALIGN_START);
+    gtk_widget_set_sensitive(grouped_input, FALSE);
+    gtk_widget_set_tooltip_text(grouped_input,
+        "Broadcast input will be added with multi-pane support.");
+    gtk_box_pack_start(GTK_BOX(panel), grouped_input, FALSE, FALSE, 4);""",
+    """    gamma_grouped_input_widget = gtk_check_button_new_with_label("Grouped input");
+    gtk_widget_set_halign(gamma_grouped_input_widget, GTK_ALIGN_START);
+    gtk_widget_set_sensitive(gamma_grouped_input_widget, FALSE);
+    gtk_widget_set_tooltip_text(gamma_grouped_input_widget,
+        "Send typed input to both terminal panes.");
+    g_signal_connect(gamma_grouped_input_widget, "toggled",
+                     G_CALLBACK(gamma_grouped_input_toggled), NULL);
+    gtk_box_pack_start(GTK_BOX(panel), gamma_grouped_input_widget, FALSE, FALSE, 4);""",
+    "enable Grouped input control"
+)
+
+# Ensure the secondary pane is included in the app-wide close confirmation.
+source = once(
+    source,
+    "if ( (pgid != -1) && (pgid != sk_tab->pid)) {",
+    "pid_t pgid2 = -1;\n"
+    "\t\t\tif (sk_tab->vte2)\n"
+    "\t\t\t\tpgid2 = tcgetpgrp(vte_pty_get_fd(vte_terminal_get_pty(VTE_TERMINAL(sk_tab->vte2))));\n"
+    "\t\t\tif (((pgid != -1) && (pgid != sk_tab->pid)) || ((pgid2 != -1) && (pgid2 != sk_tab->pid2))) {",
+    "window close checks both panes"
+)
+
+# Keep the UI state correct when a notebook page is removed and another becomes active.
+source = once(
+    source,
+    "\t/* When clicking several times in the label, terminal loses its focus.\n"
+    "\t * So, when the notebook got the focus, make sure the terminal HAS te focus */\n"
+    "\tgtk_widget_grab_focus(sk_tab->vte);",
+    "/* When clicking several times in the label, terminal loses its focus.\n"
+    "\t * So, when the notebook got the focus, make sure the terminal HAS te focus */\n"
+    "\tgtk_widget_grab_focus(sk_tab->active_vte ? sk_tab->active_vte : sk_tab->vte);",
+    "focus active pane after page change"
+)
+
+write("src/sakura.c", source)
+
+print("Gamma Terminal two-pane controls integrated with existing GTK3/VTE dependencies.")
+print("Split V/H, independent pane PTYs, pane-aware exit handling, grouped input and terminal snapshot miniview are enabled.")
