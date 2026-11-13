@@ -35,7 +35,7 @@ if 'SET (VERSION "3.8.6")' not in cmake or "ADD_EXECUTABLE (sakura src/sakura.c)
     raise SystemExit("Unexpected Sakura source version/build layout; refusing to patch.")
 
 cmake = once(cmake, "PROJECT (sakura)", "PROJECT (gamma-terminal)", "CMake project")
-cmake = once(cmake, 'SET (VERSION "3.8.6")', 'SET (VERSION "1.0.0")', "CMake version")
+cmake = once(cmake, 'SET (VERSION "3.8.6")', 'SET (VERSION "1.1.0")', "CMake version")
 cmake = once(
     cmake,
     "ADD_EXECUTABLE (sakura src/sakura.c)",
@@ -83,7 +83,15 @@ source = once(source, '#define SAKURA_CSS ""', r'''#define SAKURA_CSS \
 "menu#gamma-terminal-menu { background-color: #141020; color: #f5f3ff; border: 1px solid #4a355c; }" \
 "menu#gamma-terminal-menu menuitem:hover { background-color: #5b3281; color: #ffffff; }" \
 "window#gamma-terminal scrollbar slider { background-color: #71459a; min-width: 7px; min-height: 7px; }" \
-"window#gamma-terminal vte-terminal { padding: 8px; }"''', "Gamma Aurora CSS")
+"window#gamma-terminal vte-terminal { padding: 8px; }" \\
+"window#gamma-terminal paned > separator { background-color: #34224f; min-width: 3px; min-height: 3px; }" \\
+"window#gamma-welcome { background-color: #0b0614; color: #f5f3ff; }" \\
+"window#gamma-welcome label { color: #f5f3ff; }" \\
+"window#gamma-welcome button { background-color: #392354; color: #ffffff; border: 1px solid #8b5cf6; border-radius: 7px; padding: 6px 12px; }" \\
+"window#gamma-welcome button:hover { background-color: #57336f; }" \\
+"window#gamma-welcome #gamma-welcome-title { color: #f5f3ff; font-size: 20px; font-weight: 800; }" \\
+"window#gamma-welcome #gamma-welcome-copy { color: #c4b5fd; font-size: 12px; }" \\
+"window#gamma-welcome #gamma-welcome-meta { color: #a78bfa; font-size: 9px; font-weight: 700; }"''', "Gamma Aurora CSS")
 
 palette_anchor = 'const char *palettes_names[]= {"Solarized", "Tango", "Gruvbox","Nord","Xterm","Linux", "Rxvt", NULL};'
 palette_defs = """const GdkRGBA gamma_aurora_palette[PALETTE_SIZE] = {
@@ -295,20 +303,30 @@ static void
 gamma_controls_build (GtkWidget *panel)
 {
     GtkWidget *heading = gtk_label_new(NULL);
+    GtkWidget *footer;
     GtkCssProvider *provider = gtk_css_provider_new();
     GdkScreen *screen = gtk_widget_get_screen(panel);
 
     gtk_css_provider_load_from_data(provider,
         "#gamma-controls { background-color: #151020; border-left: 1px solid #34224f; padding: 8px; }"
-        "button#gamma-control-button { background-image: none; background-color: #211832; color: #f5f3ff; border: 1px solid #34224f; border-radius: 6px; padding: 3px 7px; }"
+        "label#gamma-controls-heading { color: #e9d5ff; font-size: 13px; font-weight: 700; padding: 8px 4px 10px; }"
+        "button#gamma-control-button { background-image: none; background-color: #211832; color: #f5f3ff; border: 1px solid #34224f; border-radius: 7px; padding: 3px 7px; min-height: 26px; }"
+        "button#gamma-control-button image { color: #c4b5fd; }"
         "button#gamma-control-button:hover { background-color: #392354; border-color: #8b5cf6; }"
-        "button#gamma-control-button:disabled { color: #71667e; background-color: #191421; border-color: #292033; }",
+        "button#gamma-control-button:focus { border-color: #a78bfa; }"
+        "button#gamma-control-button:disabled { color: #71667e; background-color: #191421; border-color: #292033; }"
+        "checkbutton { color: #ddd6fe; padding: 4px 2px; }"
+        "checkbutton check { background-color: #211832; border: 1px solid #69418a; border-radius: 4px; }"
+        "checkbutton check:checked { background-color: #8b5cf6; border-color: #a78bfa; }"
+        "label#gamma-controls-footer { color: #8b78a8; font-size: 9px; font-weight: 700; padding-top: 8px; }"
+        "paned > separator { background-color: #34224f; min-width: 3px; min-height: 3px; }",
         -1, NULL);
     gtk_style_context_add_provider_for_screen(screen,
         GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     g_object_unref(provider);
 
-    gtk_label_set_markup(GTK_LABEL(heading), "<b>Controls</b>");
+    gtk_label_set_markup(GTK_LABEL(heading), "<b>CONTROLS</b>");
+    gtk_widget_set_name(heading, "gamma-controls-heading");
     gtk_widget_set_halign(heading, GTK_ALIGN_START);
     gtk_box_pack_start(GTK_BOX(panel), heading, FALSE, FALSE, 4);
 
@@ -358,6 +376,12 @@ gamma_controls_build (GtkWidget *panel)
 
     gamma_controls_add_button(panel, "Close Terminal", "window-close-symbolic",
                               G_CALLBACK(sakura_close_tab_cb));
+
+    footer = gtk_label_new("GAMMA AURORA");
+    gtk_widget_set_name(footer, "gamma-controls-footer");
+    gtk_widget_set_halign(footer, GTK_ALIGN_CENTER);
+    gtk_widget_set_margin_top(footer, 8);
+    gtk_box_pack_end(GTK_BOX(panel), footer, FALSE, FALSE, 4);
 }
 """
 
@@ -1084,3 +1108,101 @@ write("src/sakura.c", source)
 
 print("Gamma Terminal two-pane controls integrated with existing GTK3/VTE dependencies.")
 print("Split V/H, independent pane PTYs, pane-aware exit handling, grouped input and terminal snapshot miniview are enabled.")
+
+
+# Gamma Terminal 1.1 first-run onboarding. This adds no runtime dependency.
+source = read("src/sakura.c")
+gamma_welcome_code = r"""
+static void
+gamma_show_welcome_if_first_run (void)
+{
+    gchar *config_dir, *marker;
+    GtkWidget *dialog, *content, *layout, *row;
+    GtkWidget *icon, *text_box, *title, *subtitle, *features, *meta;
+
+    /* Do not interrupt callers that launch a command directly. */
+    if (option_execute || option_xterm_args)
+        return;
+
+    config_dir = g_build_filename(g_get_user_config_dir(), "gamma-terminal", NULL);
+    marker = g_build_filename(config_dir, "welcome-shown", NULL);
+    if (g_file_test(marker, G_FILE_TEST_EXISTS)) {
+        g_free(marker);
+        g_free(config_dir);
+        return;
+    }
+
+    dialog = gtk_dialog_new_with_buttons(
+        "Welcome to Gamma Terminal",
+        GTK_WINDOW(sakura.main_window),
+        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+        "_Start using Gamma", GTK_RESPONSE_ACCEPT,
+        NULL);
+    gtk_widget_set_name(dialog, "gamma-welcome");
+    gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
+    gtk_window_set_default_size(GTK_WINDOW(dialog), 460, 250);
+    gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ON_PARENT);
+    gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
+
+    content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    gtk_container_set_border_width(GTK_CONTAINER(content), 22);
+
+    layout = gtk_box_new(GTK_ORIENTATION_VERTICAL, 14);
+    gtk_container_add(GTK_CONTAINER(content), layout);
+
+    row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 16);
+    gtk_box_pack_start(GTK_BOX(layout), row, FALSE, FALSE, 0);
+
+    icon = gtk_image_new_from_icon_name("utilities-terminal", GTK_ICON_SIZE_DIALOG);
+    gtk_image_set_pixel_size(GTK_IMAGE(icon), 54);
+    gtk_widget_set_valign(icon, GTK_ALIGN_CENTER);
+    gtk_box_pack_start(GTK_BOX(row), icon, FALSE, FALSE, 0);
+
+    text_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    gtk_widget_set_valign(text_box, GTK_ALIGN_CENTER);
+    gtk_box_pack_start(GTK_BOX(row), text_box, TRUE, TRUE, 0);
+
+    title = gtk_label_new("GAMMA TERMINAL");
+    gtk_widget_set_name(title, "gamma-welcome-title");
+    gtk_widget_set_halign(title, GTK_ALIGN_START);
+    gtk_box_pack_start(GTK_BOX(text_box), title, FALSE, FALSE, 0);
+
+    subtitle = gtk_label_new("A focused terminal workspace for Gamma Linux.");
+    gtk_widget_set_name(subtitle, "gamma-welcome-copy");
+    gtk_widget_set_halign(subtitle, GTK_ALIGN_START);
+    gtk_label_set_line_wrap(GTK_LABEL(subtitle), TRUE);
+    gtk_box_pack_start(GTK_BOX(text_box), subtitle, FALSE, FALSE, 0);
+
+    features = gtk_label_new("Tabs  ·  Split panes  ·  Search  ·  Gamma Aurora");
+    gtk_widget_set_name(features, "gamma-welcome-copy");
+    gtk_widget_set_halign(features, GTK_ALIGN_START);
+    gtk_label_set_line_wrap(GTK_LABEL(features), TRUE);
+    gtk_box_pack_start(GTK_BOX(layout), features, FALSE, FALSE, 4);
+
+    meta = gtk_label_new("LIGHTWEIGHT BY DESIGN  ·  SAKURA + GTK 3 + VTE");
+    gtk_widget_set_name(meta, "gamma-welcome-meta");
+    gtk_widget_set_halign(meta, GTK_ALIGN_START);
+    gtk_box_pack_start(GTK_BOX(layout), meta, FALSE, FALSE, 0);
+
+    gtk_widget_show_all(dialog);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+
+    /* Store the first-run marker in the existing user config namespace. */
+    g_mkdir_with_parents(config_dir, 0700);
+    g_file_set_contents(marker, "shown\n", -1, NULL);
+    g_free(marker);
+    g_free(config_dir);
+}
+
+"""
+source = once(source, "int\nmain(int argc, char **argv)\n{",
+               gamma_welcome_code + "\nint\nmain(int argc, char **argv)\n{",
+               "Gamma first-run welcome implementation")
+source = once(source,
+              "\tfor (i=0; i<option_ntabs; i++)\n\t\tsakura_add_tab();",
+              "\tfor (i=0; i<option_ntabs; i++)\n\t\tsakura_add_tab();\n\n\tgamma_show_welcome_if_first_run();",
+              "show Gamma welcome once after first terminal tab")
+write("src/sakura.c", source)
+
+print("Gamma Terminal 1.1 Aurora welcome experience integrated with existing GTK3 and GLib.")
