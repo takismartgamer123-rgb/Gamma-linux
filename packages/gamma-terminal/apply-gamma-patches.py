@@ -396,8 +396,8 @@ source = once(
 )
 
 source = once(source, "\tsakura_init_popup();",
-               "\tsakura_init_popup();\n\tgamma_controls_build(gamma_controls);",
-               "Build Gamma Controls after Sakura menu initialization")
+               "\tsakura_init_popup();\n\tgamma_controls_build(gamma_controls);\n\tgtk_widget_show_all(gamma_root);",
+               "Build and show Gamma root after Controls initialization")
 
 source = once(
     source,
