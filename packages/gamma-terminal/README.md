@@ -1,4 +1,4 @@
-# Gamma Terminal 1.0.0
+# Gamma Terminal 1.1.0
 
 **Sakura-powered. Terminology-inspired. Gamma-designed.**
 
@@ -12,6 +12,8 @@ Gamma Terminal is a Gamma Linux fork of [Sakura](https://github.com/dabisu/sakur
 - A right-side GTK Controls panel reusing Sakura's existing new-tab, copy, paste, tab naming, settings menu, about dialog and close-tab callbacks.
 - Separate application identity: `gamma-terminal` executable, desktop entry, icon, gettext domain, manual page and configuration namespace.
 - Separate per-user settings at `~/.config/gamma-terminal/gamma-terminal.conf`.
+- A one-time first-launch welcome dialog, stored under the existing Gamma Terminal config directory and skipped for direct command launches.
+- Refined Aurora styling for the Controls rail, split-pane dividers and onboarding dialog.
 
 ## What remains from Sakura
 
