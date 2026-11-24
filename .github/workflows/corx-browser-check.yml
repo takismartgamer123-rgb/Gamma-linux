@@ -1,0 +1,109 @@
+name: CORX Browser Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "URL you own or are authorized to test"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  browser-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Open target through CORX in Chromium
+        env:
+          TARGET_URL: ${{ inputs.target_url }}
+          CORX_KEY: ${{ secrets.CORX_KEY }}
+        run: |
+          python - <<'PY'
+          import os, sys, time, json
+          from urllib.parse import urlparse, urlencode
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+
+          target = os.environ["TARGET_URL"].strip()
+          key = os.environ.get("CORX_KEY", "").strip()
+
+          parsed = urlparse(target)
+          if parsed.scheme not in ("http", "https") or not parsed.hostname:
+              raise SystemExit("TARGET_URL must be a valid http(s) URL.")
+          if not key:
+              raise SystemExit("Missing repository secret CORX_KEY.")
+
+          proxy_url = "https://corx.envx.cn/fetch?" + urlencode({
+              "url": target,
+              "corx-key": key,
+          })
+
+          report = {
+              "target": target,
+              "transport": "Chromium navigation to CORX fetch endpoint",
+              "proxy_status": None,
+              "title": None,
+              "final_url": None,
+              "domcontentloaded_ms": None,
+              "error": None,
+          }
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              page = browser.new_page()
+              started = time.perf_counter()
+              try:
+                  response = page.goto(
+                      proxy_url,
+                      wait_until="domcontentloaded",
+                      timeout=45000,
+                  )
+                  report["domcontentloaded_ms"] = round(
+                      (time.perf_counter() - started) * 1000, 2
+                  )
+                  report["proxy_status"] = response.status if response else None
+                  report["title"] = page.title()
+                  report["final_url"] = page.url
+                  report["page_excerpt"] = page.locator("body").inner_text(
+                      timeout=5000
+                  )[:1200]
+              except Exception as exc:
+                  report["error"] = str(exc)
+              finally:
+                  browser.close()
+
+          Path("corx-browser-report.json").write_text(
+              json.dumps(report, indent=2, ensure_ascii=False),
+              encoding="utf-8",
+          )
+          print("===== CORX BROWSER REPORT =====")
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+
+          if report["proxy_status"] is None or report["proxy_status"] >= 400:
+              sys.exit(1)
+          PY
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corx-browser-report
+          path: corx-browser-report.json
+          if-no-files-found: ignore
